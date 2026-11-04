@@ -1,0 +1,54 @@
+# Iris shader evidence
+
+- generated: 2026-11-05 00:52:48
+- expected shaderpack: Zephyr
+- shaderpack line seen in log: True
+- compile/load failure detected: False
+
+## [1] shaderpack load lines
+[00:52:27] [Render thread/INFO]: Using shaderpack: Zephyr
+
+## [2] pipeline lines
+[00:52:31] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
+[00:52:44] [Render thread/INFO]: Reloading pipeline on dimension change: minecraft:overworld => minecraft:overworld
+[00:52:44] [Render thread/INFO]: Destroying pipeline minecraft:overworld
+[00:52:44] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
+[00:52:46] [Render thread/INFO]: Destroying pipeline minecraft:overworld
+
+## [3] COMPILE / LOAD FAILURES (fatal)
+(none)
+
+## [4] other ERROR lines
+[00:52:23] [Download-2/ERROR]: Failed to fetch user properties
+[00:52:31] [IO-Worker-1/ERROR]: Couldn't connect to realms
+
+## [5] shader related WARN lines
+[00:51:58] [main/WARN]: Force-disabling mixin 'features.render.world.sky.FogRendererMixin' as rule 'mixin.features.render.world.sky' (added by mods [iris]) disables it and children
+[00:51:58] [main/WARN]: Force-disabling mixin 'features.render.world.sky.ClientLevelMixin' as rule 'mixin.features.render.world.sky' (added by mods [iris]) disables it and children
+[00:51:58] [main/WARN]: Force-disabling mixin 'features.render.world.sky.LevelRendererMixin' as rule 'mixin.features.render.world.sky' (added by mods [iris]) disables it and children
+[00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION" defined in shaders.properties
+[00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION_INTENSITY" defined in shaders.properties
+[00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_DAILY_WEATHER" defined in shaders.properties
+[00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_H" defined in shaders.properties
+[00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_Z" defined in shaders.properties
+[00:52:31] [Render thread/WARN]: Shader rendertype_entity_translucent_emissive could not find sampler named Sampler2 in the specified shader program.
+[00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION" defined in shaders.properties
+[00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION_INTENSITY" defined in shaders.properties
+[00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_DAILY_WEATHER" defined in shaders.properties
+[00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_H" defined in shaders.properties
+[00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_Z" defined in shaders.properties
+
+## [6] world join lines
+[00:52:41] [Render thread/INFO]: Loaded 1399 advancements
+[00:52:45] [Render thread/INFO]: Loaded 76 advancements
+
+## [7] GL / GPU lines
+[00:52:07] [main/INFO]: Found graphics adapter: AdapterInfo{vendor=AMD, description='AMD Radeon(TM) Graphics', adapterType=0x0000232B, openglIcdFilePath='C:\WINDOWS\System32\DriverStore\FileRepository\u0200836.inf_amd64_06e4850cba742b2d\B026033\atig6pxx.dll', openglIcdVersion=32.0.22050.4002}
+[00:52:07] [main/INFO]: Found graphics adapter: AdapterInfo{vendor=NVIDIA, description='NVIDIA GeForce RTX 4050 Laptop GPU', adapterType=0x00002311, openglIcdFilePath='C:\WINDOWS\System32\DriverStore\FileRepository\nvbl.inf_amd64_fd4690a19e51c99e\nvoglv64.dll', openglIcdVersion=32.0.15.9595}
+[00:52:23] [Render thread/INFO]: OpenGL debug context activated.
+[00:52:24] [Render thread/INFO]: OpenGL Vendor: NVIDIA Corporation
+[00:52:24] [Render thread/INFO]: OpenGL Renderer: NVIDIA GeForce RTX 4050 Laptop GPU/PCIe/SSE2
+[00:52:24] [Render thread/INFO]: OpenGL Version: 3.2.0 NVIDIA 595.95
+[00:52:24] [Render thread/INFO]: Modifying OpenGL context to apply workarounds for the NVIDIA graphics driver...
+[00:52:24] [Render thread/INFO]: [GL] Using KHR_debug for error logging.
+[00:52:27] [Render thread/INFO]: GPU: NVIDIA GeForce RTX 4050 Laptop GPU/PCIe/SSE2 (Supports OpenGL 3.2.0 NVIDIA 595.95)

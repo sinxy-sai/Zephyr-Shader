@@ -1,0 +1,55 @@
+{
+    "height":  720,
+    "joined":  true,
+    "error":  "",
+    "commands":  [
+                     "/time set 12500",
+                     "/gamerule doDaylightCycle false",
+                     "/weather rain"
+                 ],
+    "phase":  "quit",
+    "screenshots":  [
+                        "C:\\Users\\liubingliang\\Downloads\\PCL-2.12.2\\.minecraft\\versions\\1.21.1-Fabric 0.18.4\\shaderpacks\\Zephyr\\shots\\20261105-005117-Zephyr-Weston_City_V0.3-window-fallback1.png"
+                    ],
+    "shaderPack":  "Zephyr",
+    "startedAt":  "2026-11-05T00:51:17.4641814+08:00",
+    "shaderpackSeen":  true,
+    "notes":  [
+                  "chat commands not confirmed in latest.log: /time set 12500, /gamerule doDaylightCycle false, /weather rain",
+                  "F2 produced no file; used window capture fallback",
+                  "game quit: already-exited"
+              ],
+    "compileFailed":  false,
+    "stamp":  "20261105-005117",
+    "windowTitle":  "C:\\Program Files\\Java\\jdk-22\\bin\\java.exe",
+    "pipelineSeen":  true,
+    "launchPid":  49608,
+    "commandAcks":  [
+                        {
+                            "command":  "/time set 12500",
+                            "acked":  false
+                        },
+                        {
+                            "command":  "/gamerule doDaylightCycle false",
+                            "acked":  false
+                        },
+                        {
+                            "command":  "/weather rain",
+                            "acked":  false
+                        }
+                    ],
+    "existingClosed":  true,
+    "timings":  {
+                    "quitSeconds":  0,
+                    "pipelineSeconds":  0.6,
+                    "windowSeconds":  0.6,
+                    "totalSeconds":  91.2,
+                    "shaderpackSeconds":  0.6
+                },
+    "world":  "Weston City V0.3",
+    "status":  "PASS",
+    "finishedAt":  "2026-11-05T00:52:48.6832731+08:00",
+    "versionDir":  "C:\\Users\\liubingliang\\Downloads\\PCL-2.12.2\\.minecraft\\versions\\1.21.1-Fabric 0.18.4",
+    "width":  1280,
+    "windowHandle":  7932900
+}

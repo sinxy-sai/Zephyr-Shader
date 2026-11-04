@@ -1,0 +1,10 @@
+# Zephyr 开发垃圾文件
+__pycache__/
+*.pyc
+_val*.txt
+_gen_*.fsh
+__preprocessed_*.txt
+*.log
+
+# 本地开发 venv / 工具产物（在 workspace 之外，这里只防误提交）
+.venv/
