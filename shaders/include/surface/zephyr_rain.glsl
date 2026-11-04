@@ -35,22 +35,24 @@ float zephyr_macro_wetness(vec3 world_pos) {
 	float n = texture(noisetex, world_pos.xz * 0.010 + 0.37).w;
 	n += 0.5 * texture(noisetex, world_pos.xz * 0.023 + 0.71).x;
 	n /= 1.5;
-	return 0.55 + 0.45 * smoothstep(0.25, 0.75, n);
+	return 0.88 + 0.12 * smoothstep(0.25, 0.75, n);
 }
 
-// Rain ripples: SEUS-style. The ripple pattern is baked into image/ripple.png as
-// a vertical strip of 16 animation frames (tileable, several drops per tile,
-// each with 2-3 expanding crests). We sample it in world space and blend the two
-// neighbouring frames, so rings grow continuously instead of per-grid tiling.
+// Rain ripples, SEUS-style. image/ripple.png is a 16-frame animation strip of a
+// tileable ripple height field. Like SEUS we sample the height field in world
+// space, then modulate it with a fast sine so the crests stay crisp (otherwise
+// the bilinear-filtered rings smear into blobs), and derive the normal from the
+// gradient of the *animated* height.
 vec2 zephyr_ripple_offset(vec3 world_pos, float time, out float wave_sum) {
 	vec2 result = vec2(0.0);
 	wave_sum = 0.0;
 
 	const float FRAMES = 16.0;
+	const float TEXEL  = 1.0 / 256.0;
 
 	for (int layer = 0; layer < 2; ++layer) {
-		float scale = layer == 0 ? 0.45 : 0.85;   // tile repeats per block
-		float speed = layer == 0 ? 0.45 : 0.75;   // animation cycles per second
+		float scale = layer == 0 ? 0.50 : 0.85;
+		float speed = layer == 0 ? 0.45 : 0.75;
 
 		float frame = fract(time * speed) * FRAMES;
 		float f0    = floor(frame);
@@ -62,17 +64,27 @@ vec2 zephyr_ripple_offset(vec3 world_pos, float time, out float wave_sum) {
 		vec2 uv0 = vec2(q.x, (f0 + q.y) / FRAMES);
 		vec2 uv1 = vec2(q.x, (mod(f0 + 1.0, FRAMES) + q.y) / FRAMES);
 
-		vec4 s0 = textureLod(zephyr_ripple, uv0, 0.0);
-		vec4 s1 = textureLod(zephyr_ripple, uv1, 0.0);
+		// animated height (SEUS does the same sin trick on their ripple texture)
+		float h0 = mix(textureLod(zephyr_ripple, uv0, 0.0).b,
+		               textureLod(zephyr_ripple, uv1, 0.0).b, ff);
+		float hx = mix(textureLod(zephyr_ripple, uv0 + vec2(TEXEL, 0.0), 0.0).b,
+		               textureLod(zephyr_ripple, uv1 + vec2(TEXEL, 0.0), 0.0).b, ff);
+		float hy = mix(textureLod(zephyr_ripple, uv0 + vec2(0.0, TEXEL), 0.0).b,
+		               textureLod(zephyr_ripple, uv1 + vec2(0.0, TEXEL), 0.0).b, ff);
 
-		vec2 n = mix(s0.rg, s1.rg, ff) * 2.0 - 1.0;
-		float strength = mix(s0.a, s1.a, ff);
+		float phase = h0 * 22.0 + time * 16.0;
+		float wave  = sin(phase) * 0.5 + 0.5;
+		float amp   = sin(h0 * 6.0 + time * 9.0) * 0.5 + 0.5;
 
-		result += n * (0.55 + 0.45 * strength);
-		wave_sum += length(n);
+		// gradient of the sine-modulated height -> crisp ring normals
+		float dx = cos(h0 * 22.0 + time * 16.0) * (hx - h0) * 22.0;
+		float dy = cos(h0 * 22.0 + time * 16.0) * (hy - h0) * 22.0;
+
+		result += vec2(dx, dy) * amp;
+		wave_sum += wave * amp;
 	}
 
-	return result * 0.5;
+	return result;
 }
 
 // Thin water lines running down vertical faces.
@@ -111,10 +123,10 @@ void zephyr_rain_surface(
 		// darker, smoother and more reflective; this is what makes puddles and
 		// dry paving stop looking like two different materials.
 		float coat = rain * ZEPHYR_RAIN_WETNESS;
-		albedo *= 1.0 - 0.20 * coat;
+		albedo *= 1.0 - 0.32 * coat;
 		roughness = mix(roughness, 0.14, coat * 0.72);
-		f0        = mix(f0, vec3(0.030), coat);
-		ssr_multiplier = max(ssr_multiplier, coat * 1.00);
+		f0        = mix(f0, vec3(0.045), coat);
+		ssr_multiplier = max(ssr_multiplier, coat * 1.30);
 
 		// Impacts: normal-only ripples (no bright particles)
 		if (falling > 0.01 && ZEPHYR_RAIN_RIPPLE > 0.0) {
@@ -123,11 +135,17 @@ void zephyr_rain_surface(
 			vec2 offset = zephyr_ripple_offset(world_pos, frameTimeCounter, wave);
 
 			float k = falling * fade * ZEPHYR_RAIN_RIPPLE;
-			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.95 * k);
+			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.35 * k);
+
+			float crest = clamp01(wave);
+			roughness *= 1.0 - 0.35 * crest * k;
+			albedo += vec3(0.030, 0.032, 0.034) * crest * k;
 
 			// Rings also disturb the mirror: crests are slightly rougher, so the
 			// circular wavefronts read as dark/light rings instead of glitter.
-			roughness += clamp01(wave) * 0.16 * k;
+			// crest = tiny water lens: sharper + a bit more f0 -> bright ring
+			roughness *= 1.0 - 0.45 * clamp01(wave) * k;
+			f0        += vec3(0.030) * clamp01(wave) * k;
 		}
 	} else if (up < 0.30) {
 		// Wet walls: sheen + running water lines
