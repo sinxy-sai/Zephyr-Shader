@@ -827,3 +827,6 @@ option.ZEPHYR_MIST=地面薄雾
 option.ZEPHYR_MIST_DENSITY=薄雾密度
 option.ZEPHYR_MIST_HEIGHT=薄雾高度
 option.ZEPHYR_LIGHT_FOG_SCALE=局部光雾强度
+option.ZEPHYR_SSGI=屏幕空间全局光照
+option.ZEPHYR_SSGI_STRENGTH=SSGI 强度
+option.ZEPHYR_SSGI_RADIUS=SSGI 半径

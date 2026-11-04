@@ -819,3 +819,6 @@ option.ZEPHYR_MIST=Ground Mist
 option.ZEPHYR_MIST_DENSITY=Mist Density
 option.ZEPHYR_MIST_HEIGHT=Mist Height
 option.ZEPHYR_LIGHT_FOG_SCALE=Local Light Fog Scale
+option.ZEPHYR_SSGI=SSGI (one bounce)
+option.ZEPHYR_SSGI_STRENGTH=SSGI Strength
+option.ZEPHYR_SSGI_RADIUS=SSGI Radius

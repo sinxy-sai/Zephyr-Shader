@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.4 — 屏幕空间一次反弹 GI（SSGI）（2026-11-05）
+
+`include/zephyr/ssgi.glsl`：从深度重建视空间位置与法线，在半球内做
+cosine 加权採样 + 短距离屏幕空间 march，命中后取场景颜色（colortex5）作为
+间接光，乘 `ZEPHYR_SSGI_STRENGTH` 加进 HDR 场景（在 c14 里、曝光之后）。
+
+- `ZEPHYR_SSGI`（默认开）、`ZEPHYR_SSGI_STRENGTH`（默认 0.35）、
+  `ZEPHYR_SSGI_RADIUS`（默认 1.5 格）
+- 固定 10 方向 pattern（不是逐帧噪声）以减少闪烁；c14 在 TAA 之后，所以仍会有
+  一点静态颗粒感 —— 这是本版已知限制，下一版计划把 SSGI 挪到 TAA 之前的 pass
+  （c1）做时域累积
+- 中途踩坑：把 SSGI 插进 c1 时脚本出错（`s.replace(x, s)`）导致 c1 文件被复制
+  一份，编译报 `eps` 重定义；已 `git checkout` 还原，c1 未改动
+
+主要用途：霓虹/黄昏墙面在地面上的彩色间接光、街角暗部的色彩反弹。
+
+
 ## v2.3 — P2 第一步：体积地面薄雾 + 局部光雾（2026-11-05）
 
 Photon 本身已有 LPV 体积光（`VL` + `LPV_VL`，24 步 raymarch、0.5 分辨率），
