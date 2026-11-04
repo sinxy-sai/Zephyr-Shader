@@ -601,4 +601,13 @@ void main() {
 	refraction_data.xy = split_2x8(normal_tangent.x * 0.5 + 0.5);
 	refraction_data.zw = split_2x8(normal_tangent.y * 0.5 + 0.5);
 #endif
+
+#ifdef PROGRAM_GBUFFERS_TEXTURED
+	// Zephyr: the map spawns splash/water particles that show up as blue specks
+	// in the rain. Tone them down heavily (desaturate + fade) so they stop
+	// reading as blue particles, without removing real translucent content.
+	fragment_color.rgb = mix(fragment_color.rgb, vec3(dot(fragment_color.rgb, vec3(0.2126, 0.7152, 0.0722))), 0.85);
+	fragment_color.a  *= 0.20;
+#endif
+
 }

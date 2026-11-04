@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.5.2 — 蓝色粒子真正定位并消除（2026-11-05）
+
+上次的「rain neutral」截图其实是在 Complementary 上截的（Iris 日志 02:13:09 显示当时
+是 Complementary），所以 v0.5.1 的雨色修改并没有被真正验证。这次在 Zephyr 下重做：
+
+- 用调试色块定位：把 `gbuffers_weather` 的雨染成红色、雪染成绿色后截图——雨四边形全变红，
+  但蓝色小方块**仍然是蓝色** → 它们根本不由天气 pass 渲染，而是走 `gbuffers_textured`
+  （`gbuffers_all_translucent.fsh` 的 `PROGRAM_GBUFFERS_TEXTURED`）的粒子 pass
+- 在该 pass 末尾加处理：去饱和 85% + alpha ×0.20 → 蓝色小方块变淡灰、几乎不可见
+- 保留 v0.5.1 的雨色中性化（90% 去蓝）、`RAIN_OPACITY 0.16`、alpha 裁切 0.30
+- 移除 v0.5 的「皇冠飞溅」亮斑与雨滴几何拉伸（已被证明会制造小方块）
+- `tools/mc-ctl.ps1` 新增 `reload2`：按 R 后用日志里的 `Using shaderpack` 行数校验是否真的重载
+
+验证：Iris 日志 `02:20:02 Using shaderpack: Zephyr`，截图 `shots/v0.5-05-rain-neutral.jpg`
+（Sayama-0.3，雨+黄昏，蓝色粒子消失）。
+
+
 ## v0.5.1 — 蓝色雨点清理（2026-11-05）
 
 实机对比 `ComplementaryReimagined + EuphoriaPatches` 后发现：那些「蓝色小粒子」其实是

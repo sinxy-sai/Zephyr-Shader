@@ -12,7 +12,7 @@
 # - 聊天命令走「剪贴板 + Ctrl+V」，绕开中文输入法
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("shot", "reload", "chat", "key", "capture", "focus", "info", "look", "session")]
+    [ValidateSet("shot", "reload", "reload2", "chat", "key", "capture", "focus", "info", "look", "session")]
     [string]$Action,
 
     [string]$Text = "",
@@ -182,6 +182,21 @@ switch ($Action) {
         Start-Sleep -Milliseconds 250
         $fg = [Win32Mc]::GetForegroundWindow()
         Write-Output ("focused=" + $ok + " fg=" + $fg + " target=" + $proc.MainWindowHandle)
+    }
+    "reload2" {
+        # Reliable reload: press R, then verify the log shows a new pipeline build.
+        $logPath = "C:\Users\liubingliang\Downloads\PCL-2.12.2\.minecraft\versions\1.21.1-Fabric 0.18.4\logs\latest.log"
+        $countLines = { (Select-String -Path $logPath -Pattern "Using shaderpack" -ErrorAction SilentlyContinue | Measure-Object).Count }
+        $before = & $countLines
+        for ($attempt = 1; $attempt -le 5; $attempt++) {
+            Focus-Mc $proc | Out-Null
+            Start-Sleep -Milliseconds 300
+            [Win32Mc]::Tap(0x52)
+            Start-Sleep -Seconds 5
+            $after = & $countLines
+            if ($after -gt $before) { Write-Output ("reloaded on attempt " + $attempt); break }
+        }
+        if ($after -le $before) { Write-Output "RELOAD_FAILED (menu open?)" }
     }
     "reload" {
         Focus-Mc $proc
