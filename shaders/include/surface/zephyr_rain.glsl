@@ -62,8 +62,8 @@ vec2 zephyr_ripple_offset(vec3 world_pos, float time, out float wave_sum) {
 		vec2 uv0 = vec2(q.x, (f0 + q.y) / FRAMES);
 		vec2 uv1 = vec2(q.x, (mod(f0 + 1.0, FRAMES) + q.y) / FRAMES);
 
-		vec4 s0 = texture(zephyr_ripple, uv0);
-		vec4 s1 = texture(zephyr_ripple, uv1);
+		vec4 s0 = textureLod(zephyr_ripple, uv0, 0.0);
+		vec4 s1 = textureLod(zephyr_ripple, uv1, 0.0);
 
 		vec2 n = mix(s0.rg, s1.rg, ff) * 2.0 - 1.0;
 		float strength = mix(s0.a, s1.a, ff);
@@ -112,7 +112,7 @@ void zephyr_rain_surface(
 		// dry paving stop looking like two different materials.
 		float coat = rain * ZEPHYR_RAIN_WETNESS;
 		albedo *= 1.0 - 0.20 * coat;
-		roughness = mix(roughness, 0.22, coat * 0.72);
+		roughness = mix(roughness, 0.14, coat * 0.72);
 		f0        = mix(f0, vec3(0.030), coat);
 		ssr_multiplier = max(ssr_multiplier, coat * 1.00);
 
@@ -123,11 +123,11 @@ void zephyr_rain_surface(
 			vec2 offset = zephyr_ripple_offset(world_pos, frameTimeCounter, wave);
 
 			float k = falling * fade * ZEPHYR_RAIN_RIPPLE;
-			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.25 * k);
+			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.95 * k);
 
 			// Rings also disturb the mirror: crests are slightly rougher, so the
 			// circular wavefronts read as dark/light rings instead of glitter.
-			roughness += clamp01(wave) * 0.10 * k;
+			roughness += clamp01(wave) * 0.16 * k;
 		}
 	} else if (up < 0.30) {
 		// Wet walls: sheen + running water lines
