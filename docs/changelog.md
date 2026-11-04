@@ -1,5 +1,33 @@
 # Changelog
 
+## v2.1 — P1：AgX 色调映射 + 自动曝光 + 接触阴影（2026-11-05）
+
+### AgX 色调映射
+Photon 原来的 tonemap（Lottes/ACES）在日落会把高光压成一块饱和的橙黄。换成
+AgX（Sobotka/Blender AgX base）后高光会往白色/柔和色偏，不再「糊成橙色」：
+
+- `tonemap_operators.glsl` 新增 `tonemap_agx()`（inset 矩阵 → log2 EV 映射
+  [-12.47, 4.03] → 对比曲线 → outset 矩阵 → 轻微 punchy + gamma）
+- Photon 的 HDR 尺度比 AgX 预期高很多，加 `ZEPHYR_AGX_PRESCALE`（默认 0.075）
+  做匹配；`settings.glsl` 里 `#define tonemap tonemap_agx`
+
+### 自动曝光
+启用 Photon 的 `AUTO_EXPOSURE_SIMPLE`（之前是 OFF）——黄昏/夜晚不再忽明忽暗，
+`AUTO_EXPOSURE_MIN/MAX/RATE` 可在设置里继续调。
+
+### 接触阴影
+`include/zephyr/contact_shadows.glsl`：沿太阳方向在屏幕空间对 **depthtex1**
+做 10 步短距离 march（0.6 格），几何被遮挡时压暗直射光，补 shadow map 分辨率
+不足造成的「物体与地面接触处没有暗线」问题：
+
+- 注意：`d4` 里的 `depthtex0` 是 3D 大气 LUT（sampler3D），接触阴影必须用
+  `depthtex1`（sampler2D），否则整段 shader 编译失败
+- 设置：`ZEPHYR_CONTACT_SHADOWS`、`ZEPHYR_CONTACT_SHADOWS_STRENGTH`（默认 0.70）
+
+截图：`shots/v2.1-agx-dusk.jpg`（12300 黄昏）、`v2.1-agx-night.jpg`（18000 夜）、
+`v2.1-agx-day.jpg`（11300 白天）。
+
+
 ## v2.0 — 自建大气/光照/水体色调（2026-11-05）
 
 你说「脱离 Photon 光环后傍晚很丑」——原来的问题是 Photon 的日落直接给到

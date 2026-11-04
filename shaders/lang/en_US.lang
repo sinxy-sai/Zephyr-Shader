@@ -813,3 +813,5 @@ option.ZEPHYR_RAIN_DISTURBANCE.comment  = Waviness added on top of the wind drif
 option.ZEPHYR_ATMOSPHERE=§bZephyr Atmosphere
 option.ZEPHYR_ATMOSPHERE_STRENGTH=Atmosphere Strength
 option.ZEPHYR_WATER_TINT=Water Tint
+option.ZEPHYR_CONTACT_SHADOWS=Contact Shadows
+option.ZEPHYR_CONTACT_SHADOWS_STRENGTH=Contact Shadow Strength

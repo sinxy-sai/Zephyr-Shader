@@ -189,6 +189,9 @@ const bool colortex11MipmapEnabled = true;
 #include "/include/lighting/cloud_shadows.glsl"
 #endif
 
+
+#include "/include/zephyr/contact_shadows.glsl"
+
 void main() {
 #if !defined USE_SEPARATE_ENTITY_DRAWS
 	colortex3_clear = vec4(0.0);
@@ -497,6 +500,13 @@ void main() {
 
 #if defined POM && defined POM_SHADOW && (defined SPECULAR_MAPPING || defined NORMAL_MAPPING)
 		shadows *= float(!parallax_shadow);
+#endif
+
+#if defined ZEPHYR_CONTACT_SHADOWS && defined WORLD_OVERWORLD
+		{
+			float cs_dither = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+			shadows *= zephyr_contact_shadow(position_scene, light_dir, flat_normal, cs_dither);
+		}
 #endif
 
 		// Diffuse lighting

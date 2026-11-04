@@ -120,4 +120,49 @@ vec3 tonemap_reinhard_jodie(vec3 rgb) {
 	return mix(rgb / (dot(rgb, luminance_weights) + 1.0), reinhard, reinhard);
 }
 
+
+// AgX display transform (Troy Sobotka / Blender AgX base)
+// Operates on linear HDR in Photon's working space; returns display-referred
+// linear values in [0, 1]. Compared to ACES/Lottes it keeps highlights from
+// turning into a saturated orange wall, which is what made the sunset look ugly.
+vec3 agx_default_contrast(vec3 x) {
+	vec3 x2 = x * x;
+	vec3 x4 = x2 * x2;
+	return 15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232;
+}
+
+vec3 tonemap_agx(vec3 rgb) {
+	const mat3 agx_inset = mat3(
+		 0.856627153315983,   0.137318972929847,   0.111898212999950,
+		 0.095121240538159,   0.761241990602591,   0.076799418603190,
+		 0.048251104852477,   0.101439025833993,   0.811302368396859
+	);
+	const mat3 agx_outset = mat3(
+		 1.127100581814437,  -0.110606643096603,  -0.016493938717835,
+		-0.141329763498438,   1.157823702216272,  -0.016493938717834,
+		-0.141329763498438,  -0.110606643096603,   1.251936406595040
+	);
+	const float agx_min_ev = -12.47393;
+	const float agx_max_ev =   4.026069;
+
+	// Photon's HDR scale is much hotter than AgX's expected linear range
+	rgb *= ZEPHYR_AGX_PRESCALE;
+	rgb = max(rgb, vec3(0.0));
+	rgb = agx_inset * rgb;
+	rgb = max(rgb, vec3(1e-10));
+	rgb = log2(rgb);
+	rgb = (rgb - agx_min_ev) / (agx_max_ev - agx_min_ev);
+	rgb = clamp(rgb, 0.0, 1.0);
+	rgb = agx_default_contrast(rgb);
+	rgb = agx_outset * rgb;
+
+	// Small "punchy" look: lifts mid-tone contrast without clipping highlights
+	rgb = clamp(rgb, 0.0, 1.0);
+	float lum = dot(rgb, luminance_weights);
+	rgb = max0(mix(vec3(lum), rgb, 1.08));
+	rgb = pow(rgb, vec3(0.94));
+
+	return clamp(rgb, 0.0, 1.0);
+}
+
 #endif // INCLUDE_MISC_TONEMAP_OPERATORS
