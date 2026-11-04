@@ -1,5 +1,26 @@
 # Changelog
 
+## v4.2 — P4：自建阴影采样（默认开启，仅主世界）（2026-11-05）
+
+`include/zephyr/shadows.glsl`：替换 Photon 的 `calculate_shadows()` 调用：
+
+- 用 Photon 的几何约定（`transform` / `project_ortho` / `distort_shadow_space` /
+  `get_shadow_bias`）把世界坐标变换进 shadow map 空间，然后自己做 **8 tap 旋转
+  磁盘 PCF**，半径随 shadow 距离增大 → 远处阴影更软，避免硬阶梯
+- 距离淡出（`distance_fade`）沿用 Photon 的规则，超出 shadow map 范围时回退
+  `lightmap_shadows()`，不会突然全黑
+- 只对主世界启用；下界/末地继续用 Photon 的 `calculate_shadows()`（那两个维度
+  的 shadow 空间约定不同）
+- 开关 `ZEPHYR_OWN_SHADOWS`
+
+## P5（云/雨/天气）状态：部分完成
+
+- 云：已在 v4.0 自建天空里用程序化 fbm 云层实现（Planet 体积云在自建天空下不参与合成）
+- 雨：`gbuffers_weather` 的雨色/裁切/风向仍是我们改过的 Photon 天气 pass（v0.5.x），
+  没有重写成自有天气系统
+- 极光/银河/LPV 体积光：仍来自 Photon
+
+
 ## v4.1 — P3：自建水体法线（默认开启）（2026-11-05）
 
 `include/zephyr/water.glsl`：不再用 Photon 的 Gerstner + 噪声水面法线，改为：
