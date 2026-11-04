@@ -124,6 +124,7 @@ uniform float biome_may_snow;
 #endif
 
 #include "/include/zephyr/atmosphere.glsl"
+#include "/include/zephyr/sky.glsl"
 #include "/include/sky/sky.glsl"
 #include "/include/sky/projection.glsl"
 
@@ -144,9 +145,13 @@ void main() {
 	} else { // Draw sky map
 		vec3 ray_dir = unproject_sky(uv);
 
+#ifdef ZEPHYR_OWN_SKY
+		sky_map = zephyr_sky_radiance(ray_dir, sun_dir, rainStrength);
+#else
 		sky_map = draw_sky(ray_dir);
+#endif
 
-#if defined ZEPHYR_ATMOSPHERE && defined WORLD_OVERWORLD
+#if defined ZEPHYR_ATMOSPHERE && defined WORLD_OVERWORLD && !defined ZEPHYR_OWN_SKY
 		sky_map = mix(
 			sky_map,
 			sky_map * zephyr_sky_tint(ray_dir, sun_dir, rainStrength)

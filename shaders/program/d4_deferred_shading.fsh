@@ -171,6 +171,7 @@ const bool colortex11MipmapEnabled = true;
 #include "/include/surface/zephyr_rain.glsl"
 #include "/include/surface/zephyr_relief.glsl"
 #include "/include/zephyr/atmosphere.glsl"
+#include "/include/zephyr/sky.glsl"
 #include "/include/sky/sky.glsl"
 #include "/include/utility/bicubic.glsl"
 #include "/include/utility/color.glsl"
@@ -191,6 +192,10 @@ const bool colortex11MipmapEnabled = true;
 
 
 #include "/include/zephyr/contact_shadows.glsl"
+
+#if defined ZEPHYR_OWN_SHADOWS && defined WORLD_OVERWORLD
+	#include "/include/zephyr/shadows.glsl"
+#endif
 
 void main() {
 #if !defined USE_SEPARATE_ENTITY_DRAWS
@@ -287,7 +292,11 @@ void main() {
 
 	if (depth == 1.0) { // Sky
 #if defined WORLD_OVERWORLD
+#ifdef ZEPHYR_OWN_SKY
+		fragment_color = zephyr_sky_radiance(direction_world, sun_dir, rainStrength);
+#else
 		fragment_color = draw_sky(direction_world, atmosphere, clouds_and_aurora, clouds_apparent_distance);
+#endif
 #else
 		fragment_color = draw_sky(direction_world);
 #endif
@@ -485,7 +494,12 @@ void main() {
 		float shadow_distance_fade;
 		vec3 shadows;
 
+#if defined ZEPHYR_OWN_SHADOWS && defined WORLD_OVERWORLD
+		shadows = zephyr_shadows(position_scene, flat_normal, light_levels.y, cloud_shadows, shadow_distance_fade);
+		sss_depth = 0.0;
+#else
         shadows = calculate_shadows(position_scene, flat_normal, light_levels.y, cloud_shadows, material.sss_amount, shadow_distance_fade, sss_depth);
+#endif
 
 	#ifdef DISTANT_HORIZONS
 		if (is_dh_terrain) {

@@ -821,3 +821,6 @@ option.ZEPHYR_MIST_HEIGHT=Mist Height
 option.ZEPHYR_LIGHT_FOG_SCALE=Local Light Fog Scale
 option.ZEPHYR_WATER_RINGS=Rain Rings on Water
 option.ZEPHYR_SKY_CITY_GLOW=Night City Glow
+option.ZEPHYR_OWN_SKY=Own Sky (Zephyr)
+option.ZEPHYR_OWN_WATER=Own Water (Zephyr)
+option.ZEPHYR_OWN_SHADOWS=Own Shadows (Zephyr)

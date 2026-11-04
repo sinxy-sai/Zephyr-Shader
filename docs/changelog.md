@@ -1,5 +1,22 @@
 # Changelog
 
+## v4.0 — P2：自建天空（默认开启）（2026-11-05）
+
+`include/zephyr/sky.glsl`：不再调用 Photon 的 `draw_sky()`，自己算天空辐亮度：
+
+- 高度渐变（天顶深蓝 → 地平线暖白）+ 臭氧天顶加深
+- 太阳侧地平线暮色暖带、太阳光晕双层、太阳圆盘
+- 夜空星星（hash 星场）+ 程序化云层（4 octave value noise fbm 投影到云平面）
+- 雨天整体去饱和为灰白
+- 开关 `ZEPHYR_OWN_SKY`；关闭时回退 Photon 原天空（`draw_sky`）
+
+挂载点：`d0_sky_map.fsh`（反射/环境光用的天空图）与 `d4_deferred_shading.fsh`
+（可见天空），两处都替换，保证反射与可见天空一致。
+
+已知限制：自建天空的云层覆盖率偏低（部分视角看不到云）；Photon 的体积云/Aurora
+在自建天空开启时不参与合成（下一步 P5 处理）。
+
+
 ## v3.1 — 工程化重构（Zephyr 层模块化 + 契约化）（2026-11-05）
 
 详细报告见 `docs/refactor-report.md`（坏味道清单 / SOLID 映射 / 改动点 / 测试要点 /

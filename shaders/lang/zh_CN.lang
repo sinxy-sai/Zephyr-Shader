@@ -829,3 +829,6 @@ option.ZEPHYR_MIST_HEIGHT=薄雾高度
 option.ZEPHYR_LIGHT_FOG_SCALE=局部光雾强度
 option.ZEPHYR_WATER_RINGS=水面雨滴涟漪
 option.ZEPHYR_SKY_CITY_GLOW=夜间城市光晕
+option.ZEPHYR_OWN_SKY=自建天空（Zephyr）
+option.ZEPHYR_OWN_WATER=自建水体（Zephyr）
+option.ZEPHYR_OWN_SHADOWS=自建阴影（Zephyr）
