@@ -123,7 +123,7 @@ void zephyr_rain_surface(
 		// darker, smoother and more reflective; this is what makes puddles and
 		// dry paving stop looking like two different materials.
 		float coat = rain * ZEPHYR_RAIN_WETNESS;
-		albedo *= 1.0 - 0.32 * coat;
+		albedo *= 1.0 - 0.26 * coat;
 		roughness = mix(roughness, 0.14, coat * 0.72);
 		f0        = mix(f0, vec3(0.045), coat);
 		ssr_multiplier = max(ssr_multiplier, coat * 1.30);
