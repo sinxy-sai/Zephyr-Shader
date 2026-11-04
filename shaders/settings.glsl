@@ -535,6 +535,7 @@ const float wetnessHalflife         = 70.0;
   // Screen-space one-bounce GI
   #define ZEPHYR_SSGI                       // [0 1]
   // Rain impact rings on water surfaces
+  #define ZEPHYR_SKY_CITY_GLOW 0.35 // [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.50 0.60 0.70 0.80 1.00]
   #define ZEPHYR_WATER_RINGS 0.60 // [0.00 0.10 0.20 0.30 0.40 0.50 0.60 0.80 1.00 1.20 1.50]
   #define ZEPHYR_SSGI_STRENGTH 0.35 // [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.60 0.70 0.80 1.00]
   #define ZEPHYR_SSGI_RADIUS   1.50 // [0.50 0.75 1.00 1.25 1.50 2.00 2.50 3.00 4.00]

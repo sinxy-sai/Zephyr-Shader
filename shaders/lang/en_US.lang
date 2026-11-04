@@ -823,3 +823,4 @@ option.ZEPHYR_SSGI=SSGI (one bounce)
 option.ZEPHYR_SSGI_STRENGTH=SSGI Strength
 option.ZEPHYR_SSGI_RADIUS=SSGI Radius
 option.ZEPHYR_WATER_RINGS=Rain Rings on Water
+option.ZEPHYR_SKY_CITY_GLOW=Night City Glow

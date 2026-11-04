@@ -43,6 +43,11 @@ vec3 zephyr_sky_tint(vec3 dir, vec3 sun_dir, float rain) {
 	float twil = exp(-pow((elev + 0.10) / 0.14, 2.0));
 
 	vec3 tint = mix(vec3(1.02), vec3(0.84, 0.92, 1.12), up);
+
+	// Ozone: absorbs a little green/red near the zenith, which is what makes a
+	// physically lit twilight sky go deep blue up high while staying warm low.
+	tint *= mix(vec3(1.0), vec3(0.90, 0.96, 1.10), up * up * 0.55);
+
 	tint = mix(tint, vec3(1.20, 0.96, 0.74), (1.0 - up) * gold);
 	tint = mix(tint, vec3(0.96, 0.78, 1.08), (1.0 - up) * twil);
 	return tint;
@@ -56,8 +61,18 @@ vec3 zephyr_sky_glow(vec3 dir, vec3 sun_dir, float rain) {
 	float gold = exp(-pow((elev - 0.04) / 0.12, 2.0));
 	float twil = exp(-pow((elev + 0.10) / 0.14, 2.0));
 
-	vec3 glow = vec3(1.00, 0.52, 0.20) * pow(cosang, 6.0) * gold * 2.0;
-	glow += vec3(1.05, 0.30, 0.22) * pow(cosang, 2.0) * horizon * twil * 0.6;
+	// Multiple-scattering stand-in: a wide, soft halo around the sun plus a
+	// tighter core, so the sunward horizon glows instead of clipping to a disc.
+	vec3 glow = vec3(1.00, 0.56, 0.26) * pow(cosang, 2.5) * gold * 0.55;
+	glow += vec3(1.00, 0.62, 0.30) * pow(cosang, 12.0) * gold * 1.20;
+	glow += vec3(1.05, 0.30, 0.22) * pow(cosang, 2.0) * horizon * twil * 0.60;
+
+	// Night: airglow + light pollution from the city along the horizon
+	float night = 1.0 - smoothstep(-0.16, 0.02, elev);
+	float city_glow = pow(1.0 - clamp(dir.y, 0.0, 1.0), 4.0);
+	glow += vec3(0.42, 0.26, 0.14) * city_glow * night * ZEPHYR_SKY_CITY_GLOW;
+	glow += vec3(0.10, 0.16, 0.30) * night * 0.20; // faint airglow
+
 	glow *= 1.0 - clamp(rain, 0.0, 1.0) * 0.85;
 	return glow;
 }
