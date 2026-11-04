@@ -1,283 +1,263 @@
-# Zephyr 光影架构与技术实现路线（从零自研）
+# Zephyr 光影架构与技术实现路线（v2 · 全量源码复扫）
 
-> 输入：已通读本机 `shaderpacks/` 下的全部光影包（Complementary+Euphoria、SEUS PTGI/Renewed、iterationT、continuum 2.0、Solas、Bliss/Chocapic、BSL），
-> 目标：**性能优秀 + 画质超过它们 + 更真实/更电影感**，集众家之长并引入新思路。
-> 本文给出：竞品拆解 → 总体架构 → 帧流程 → 缓冲规划 → 技术选型 → 性能预算 → 路线图 → 测试体系。
+> v1 只读到部分包（其余是 zip 内的文本）；本轮已解锁 **iterationT 3.2.0、Solas 3.4、BSL 10.1.1、Bliss 2.1.2、photon_v1.2a、continuum 2.0** 的完整源码，
+> 重新做了逐文件证据级扫描，并据此修正架构与路线（尤其是 **compute pass、体素 GI、froxel 体积雾、FFT 海洋** 四块）。
+> 目标不变：**性能优秀 + 画质超过它们 + 更真实/更电影感**。
 
 ---
 
-## 0. 结论摘要
+## 0. 本轮复扫的关键新结论
 
-- **架构**：分层渲染器（Host 适配层 / 几何与材质 / 光照核心 / 大气与云 / 水 / 反射与 GI / 后处理成像 / 时域框架 / 性能治理），每层可独立开关与降级。
-- **打法**：不自研"又一个 Photon"，而是**以时序复用（temporal reuse）为核心**：所有高成本效果（GI、反射、雾、云、阴影软化）都跑在低分辨率 + 时间累积 + 智能降噪上，用 1/2~1/4 的采样率换取 1.5~2 倍的画质。
-- **差异化技术**：Hillaire 多次散射大气 LUT、PCSS + 屏幕空间多尺度阴影、SVGF-lite 降噪的 SSGI、FFT 水面 + 屏幕空间平面反射近似、LTC 面光源（方块光）、AgX 成像管线的电影化收尾。
-- **量化目标**：1080p / RTX 4050 Laptop：High 档 ≥ 75 FPS，Ultra 档 ≥ 55 FPS，VRAM ≤ 1.5 GB，显存带宽占用比同类降低 20%。
+1. **Iris 1.8 支持 compute pass**：photon（`lpv/floodfill.csh`、`d4a_generate_sky_sh.csh`）、Bliss（`setup.csh`、`shadowcomp.csh`）、BSL（`shadowcomp.csh`）、Solas（`shadowcomp.glsl`、`voxelization.glsl`）、continuum（`Passes/*.comp`、`*.csh`）都在用 compute。→ Zephyr 的 LUT 预计算、体素 GI、FFT、直方图、froxel 清扫都可以上 compute。
+2. **主流 GI 方案是「体素/体素化」而非纯 SSGI**：photon LPV floodfill、Solas voxelization+shadowcomp、Bliss voxel_write、BSL voxelMap。→ Zephyr 采用 **体素彩色光 GI（主）+ SSGI（细节层）** 的混合，比单一 SSGI 稳定且无拖影。
+3. **体积雾真正的主流做法是 froxel 3D 体积**：continuum 的 `FroxelVolume.glsl` / `AirMarcher.glsl` / `AirVolume.glsl`；iterationT 的 `VolumetricFog.glsl`。→ Zephyr 用 **froxel 体积雾**替代解析雾。
+4. **海洋是 FFT 物理波**：iterationT 的 `PhysicsOceans.glsl` + `WaterWaves.glsl`；continuum 的 `FFT.glsl` + `WaveFieldX/Y.comp`。→ Zephyr 高画质档用 FFT 波场。
+5. **大气是预计算 LUT**：iterationT `PrecomputedAtmosphere.glsl` + `Atmosphere_*.bin` 数据；photon `include/sky/atmosphere.glsl` + 3D LUT。→ Zephyr 用 Hillaire 多次散射 LUT。
+6. **后处理细节决定"电影感"**：iterationT 有 `AgX.glsl`、`FsrEASU.glsl`、`LensGlareFlare.glsl`、`MotionBlur.glsl`、`DOF.glsl`、`Bloom.glsl`；Solas 有 `ssptDenoiser.glsl`、`computeBloom/computeDOF`；continuum 有 ACES splines 与 temporal jitter。
 
 ---
 
 ## 1. 目标与硬指标
 
-| 维度 | 指标 | 说明 |
+| 维度 | 指标 |
+| --- | --- |
+| 帧率 | High 1080p ≥ 75 FPS；Ultra ≥ 55 FPS（RTX 4050 Laptop） |
+| 帧预算 | 13.3 ms（High），见 §7 |
+| 画质 | 与 Complementary+Euphoria / iterationT / SEUS 同机位盲评不落下风 |
+| 真实感 | 黄昏/夜雨/水面/室内四场景，色调/对比/色温误差 ≤ 10% |
+| 稳定性 | 无 TAA 拖影、无 SSGI 闪烁、无 8bit 条带 |
+| 兼容 | Iris 1.8.x（compute 可用）+ 无 compute 降级路径 |
+
+---
+
+## 2. 全量竞品拆解（证据级）
+
+### 2.1 第一轮（目录包）
+
+| 光影 | 长处 | 短板 |
 | --- | --- | --- |
-| 帧率 | High 1080p ≥ 75 FPS；Ultra ≥ 55 FPS | RTX 4050 Laptop，渲染距离 12 |
-| 帧时间 | 13.3 ms（75 FPS）预算 | 见 §7 分项预算 |
-| 画质 | 截图主观评分 ≥ Complementary+Euphoria | 黄昏/夜雨/水面/室内四场景盲评 |
-| 真实感 | 与照片参考的色调/对比/色温误差 ≤ 10% | 用我们已有的 analyze_look 流程 |
-| 稳定性 | 无 TAA 拖影、无闪烁、无条带 | 帧间差异检测 + 录屏回归 |
-| 兼容 | Iris 1.8.x / MC 1.21.1 / OptiFine 兼容降级 | 不依赖 compute 的降级路径 |
+| Complementary+Euphoria | 功能覆盖最全：阴影/反射/光轴多档质量、RSM、彩色光、海量可配项 | 默认偏游戏感、体积云偏 2.5D |
+| SEUS PTGI / HRR | 屏幕空间路径追踪 + 历史重投影、CSM、能量感强 | 开销大、噪点依赖高采样 |
+| Chocapic13 | 经典性能/画质平衡 | 技术栈较旧 |
+
+### 2.2 第二轮（新解锁源码）
+
+| 光影 | 关键实现（文件证据） | 我们借鉴什么 |
+| --- | --- | --- |
+| **iterationT 3.2.0** | 大气：`PrecomputedAtmosphere.glsl` + `Atmosphere_*.bin` LUT；海洋：`PhysicsOceans.glsl` + `WaterWaves.glsl`；GI：`GlobalIllumination.glsl`；云：`NUBIS.glsl` + `PlanarClouds.glsl` + `CloudShadow.glsl`；雾：`VolumetricFog.glsl` / `UnderwaterVolumetricFog.glsl`；阴影：`Sunlight_Shadow.glsl`（PCSS + 屏幕空间）；反射：`Reflections/ReflectionFilter.glsl`；后处理：`AgX.glsl`、`FsrEASU.glsl`、`LensGlareFlare.glsl`、`MotionBlur.glsl`、`DOF.glsl`、`Bloom.glsl` | **LUT 大气 + FFT 海洋 + 反射滤波 + 镜头光晕/FSR** |
+| **Solas 3.4** | 屏幕空间路径追踪 + `ssptDenoiser.glsl`；`screenSpaceShadows.glsl`；`voxelization.glsl` + `shadowcomp.glsl`（体素 GI）；`computeBloom/computeDOF`；`waterCaustics.glsl` + `waterNormals.glsl`；`planarClouds`/`volumetricClouds`；`ambientOcclusion` | **SSPT 降噪器、屏幕空间阴影、compute 后处理** |
+| **BSL 10.1.1** | `shadowcomp.csh` + `voxelMap.glsl`（体素彩色光）；`lightShafts.glsl`；`raytrace.glsl`（反射）；`taa.glsl`；forward+composite 混合 | **体素彩色光 + 轻量光轴** |
+| **Bliss 2.1.2** | `setup.csh`/`shadowcomp.csh` 体素写入（`voxel_write.glsl`）；`indirect_lighting_effects.glsl`（SSGI-lite）；`volumetricClouds.glsl`；`specular.glsl` | **体素 + SSGI-lite 的混合 GI** |
+| **photon_v1.2a** | LPV：`lpv/voxelization.glsl` + `lpv/floodfill.csh`；SH：`d4a_generate_sky_sh.csh`；大气 LUT：`include/sky/atmosphere.glsl`；云：`d1_clouds`；反射：`misc/raytracer.glsl`；AO：`gtao.glsl`/`ssao.glsl`；TAA+自动曝光：`c4_taa_exposure.fsh` | **LPV 洪泛 + SH 生成（compute 范式）** |
+| **continuum 2.0** | froxel 体积：`FroxelVolume.glsl` / `Froxels.glsl` / `AirMarcher.glsl` / `AirVolume.glsl`；云：`Clouds.fsh` + `C2_RenderClouds.comp` + `D0C_RenderCloudShadowMap.comp`；FFT：`FFT.glsl` + `WaveFieldX/Y.comp`；后处理：`ACES*.glsl`、`TemporalJitter.glsl`；几乎全 compute 架构（`begin*.csh`/`composite*.csh`） | **froxel 体积雾 + 全 compute 渲染组织** |
 
 ---
 
-## 2. 竞品拆解（读码结论）
-
-| 光影 | 长处（代码证据） | 短板 | Zephyr 借鉴 |
-| --- | --- | --- | --- |
-| **Complementary + Euphoria** | 功能覆盖最全；`SHADOW_QUALITY` 多档、`WATER_REFLECT_QUALITY`/`BLOCK_REFLECT_QUALITY` 分级反射、`LIGHTSHAFT_QUALI_DEFINE`、RSM 设置、彩色光、高度可配 | 预设多但默认偏"游戏感"；体积云偏 2D 层叠；反射靠屏幕空间 | 反射/阴影的**质量分级体系**、Euphoria 的镜头/调色预设 |
-| **SEUS PTGI / HRR** | 屏幕空间路径追踪 GI + 历史重投影（HRR）、CSM 关键词（多级阴影）、光照能量感强 | 性能开销大、噪点多依赖高采样、TAA 拖影 | HRR 的**历史重投影框架**、能量守恒的光照思路 |
-| **iterationT 3.2.0** | 预计算大气 LUT（`AtmoData_*.bin`）、AgX、FSR EASU、体积雾、PlanarClouds、NUBIS 云、GI | 参数复杂、部分效果开销不稳 | **预计算 LUT** 的工作流、AgX 调色、FSR 上采样 |
-| **continuum 2.0** | FFT 海面（`FFT.glsl` / `WaveFieldX/Y.comp`）、compute 后处理、ACES + ACES splines、PCSS/LPV、云阴影 compute | 代码门槛高、对硬件要求高 | **FFT 波浪**、compute pass 组织方式（有 compute 时启用） |
-| **Solas V3.4** | 屏幕空间路径追踪 + `ssptDenoiser`、屏幕空间阴影、computeBloom/computeDOF、水面焦散 | 风格偏卡通、部分效果偏实验 | **SSPT 降噪器**思路、屏幕空间阴影补足 |
-| **Bliss / Chocapic13** | 性能优秀、风格稳、体积云/间接光实现经典 | 画质上限低 | 性能基线、云/间接光的轻量实现 |
-| **BSL** | 轻量、光轴/水体实现干净、预设合理 | 缺 GI/体积云 | 光轴（light shafts）与水体基础 |
-
----
-
-## 3. 总体架构
+## 3. 总体架构（v2）
 
 ```mermaid
 flowchart LR
-    subgraph HOST["Host 适配层（Iris/OptiFine）"]
+    subgraph HOST["Host 适配层（Iris 1.8）"]
         U[Uniform / Settings 注入]
-        B[Buffer 布局与格式]
-        K[程序入口与 pass 声明]
+        B[Buffer 与 3D 资源]
+        C[Compute / Composite pass 调度]
     end
 
-    subgraph GEO["几何与材质层"]
-        G1[gbuffer 写入<br/>albedo / normal / materialID / lightmap]
-        G2[材质解析<br/>PBR maps / POM / SSS mask]
-        G3[LTC 面光源数据<br/>block light 近似]
+    subgraph GEO["几何与材质"]
+        G1[gbuffer：albedo/normal/materialID/lightmap]
+        G2[PBR maps / POM / SSS mask / clearcoat]
+        G3[LTC 面光源数据]
+    end
+
+    subgraph COMP["Compute 预计算层（每帧/每 N 帧）"]
+        K1[大气 LUT<br/>Transmittance / MultiScatter]
+        K2[天空 SH / 体素化<br/>LPV floodfill]
+        K3[FFT 波场<br/>WaveFieldX/Y]
+        K4[云阴影图 / 直方图曝光]
     end
 
     subgraph LIGHT["光照核心"]
-        L1[直接光<br/>太阳/月亮 + PCSS]
-        L2[多尺度阴影<br/>shadow map + 屏幕空间接触阴影]
-        L3[IBL<br/>天空 SH + 预过滤探针]
-        L4[间接光<br/>SSGI + 重投影 + 降噪]
+        L1[直接光：太阳/月亮 + PCSS]
+        L2[多尺度阴影：shadow map + 屏幕空间阴影]
+        L3[IBL：天空 SH + 预过滤探针]
+        L4[GI：体素彩色光（主）+ SSGI（细节层）+ 降噪]
     end
 
     subgraph ATMO["大气与云"]
-        A1[Hillaire 大气 LUT<br/>多次散射 + 臭氧]
-        A2[体积云<br/>低分辨率 raymarch + 时域]
-        A3[高度雾 / 体积雾 / 光轴]
+        A1[LUT 大气 + 臭氧 + 夜天光]
+        A2[体积云：低分辨率 raymarch + 时域]
+        A3[Froxel 体积雾 + 光轴]
     end
 
     subgraph WATER["水体"]
         W1[FFT / Gerstner 波浪]
-        W2[屏幕空间平面反射近似]
+        W2[SSR + 反射滤波 + 探针]
         W3[吸收散射 + 焦散 + 泡沫]
     end
 
     subgraph POST["后处理成像"]
         P1[TAA / TAAU]
         P2[Bloom / DOF / 运动模糊]
-        P3[AgX / ACES + 电影化调色]
-        P4[镜头：CA / 暗角 / 颗粒 / 光晕]
-        P5[FSR EASU + RCAS（可选）]
+        P3[AgX / ACES + 电影调色]
+        P4[镜头：CA/暗角/颗粒/光晕]
+        P5[FSR EASU + RCAS]
     end
 
     subgraph TEMP["时域框架"]
-        T1[重投影<br/>深度 + 上一帧矩阵]
-        T2[历史缓冲管理<br/>ping-pong]
-        T3[降噪<br/>方差裁剪 + SVGF-lite]
+        T1[深度+矩阵重投影]
+        T2[历史 ping-pong]
+        T3[方差裁剪 + SVGF-lite / SSPT 降噪]
     end
 
     subgraph PERF["性能治理"]
-        Q1[质量档位 / 预设]
-        Q2[分辨率分级<br/>1/2、1/4 pass]
+        Q1[质量档位]
+        Q2[1/2、1/4 分辨率分级]
         Q3[动态缩放 / 预算监测]
     end
 
-    HOST --> GEO --> LIGHT --> ATMO --> WATER --> POST
+    HOST --> GEO
+    GEO --> COMP
+    COMP --> LIGHT
+    LIGHT --> ATMO
+    ATMO --> WATER
+    WATER --> POST
     LIGHT <--> TEMP
     ATMO <--> TEMP
     POST <--> TEMP
-    PERF -. 控制所有 pass 开销 .-> LIGHT
+    PERF -.控制所有 pass.-> COMP
+    PERF -.-> LIGHT
     PERF -.-> ATMO
     PERF -.-> POST
 ```
 
 ---
 
-## 4. 帧流程（Pass Graph）
+## 4. 帧流程（v2 · 含 compute 与 froxel）
 
 ```mermaid
 flowchart TD
-    S0[shadow pass<br/>太阳深度 + 云阴影图] --> D0[d0 天空 LUT<br/>大气/多云/夜天]
-    D0 --> GB[gbuffer 写入<br/>solid / translucent / entities / water]
-    GB --> DF[deferred 光照<br/>PCSS + IBL + SSS + LTC]
-    DF --> SSGI[SSGI 半分辨率<br/>1-2 步 hiz raymarch]
-    SSGI --> RE[反射合成<br/>SSR + 探针回退]
-    RE --> VOL[体积雾 / 光轴<br/>1/2 分辨率]
-    VOL --> CL[体积云合成<br/>1/4 分辨率 + 时域]
-    CL --> WAT[水面 shading<br/>波浪/吸收/焦散]
-    WAT --> TAA[TAA 重投影 + 累积]
-    TAA --> BL[Bloom mip 链]
-    BL --> DOF[DOF 半分辨率]
+    P0[compute 预计算<br/>大气 LUT / 天空 SH / 体素 floodfill / FFT 波场] --> S0[shadow pass<br/>太阳深度 + 云阴影]
+    S0 --> D0[d0 天空与大气<br/>LUT 查表 + 云合成]
+    D0 --> GB[gbuffer 写入<br/>solid/translucent/entities/water]
+    GB --> DF[deferred 光照<br/>PCSS + IBL + 体素 GI + SSS + LTC]
+    DF --> SS[SSGI 半分辨率<br/>细节层 raymarch]
+    SS --> RE[反射：SSR + 反射滤波 + 探针]
+    RE --> FR[Froxel 体积雾 + 光轴<br/>1/2 分辨率 + 时域]
+    FR --> CL[体积云合成<br/>1/4 分辨率 + 时域]
+    CL --> WT[水面 shading<br/>FFT/Gerstner + 焦散 + 泡沫]
+    WT --> TAA[TAA 重投影累积]
+    TAA --> BL[Bloom compute mip 链]
+    BL --> DOF[DOF compute 半分辨率]
     DOF --> MB[运动模糊]
     MB --> TM[AgX/ACES + 调色]
-    TM --> LENS[镜头：CA/暗角/颗粒/光晕]
-    LENS --> OUT[final：抖动 + 输出]
+    TM --> LENS[镜头光晕/CA/暗角/颗粒]
+    LENS --> OUT[final：抖动输出]
 ```
-
-**时序复用标注**（哪些 pass 依赖历史）：
-
-| Pass | 历史依赖 | 分辨率 | 预算(ms, 1080p) |
-| --- | --- | --- | --- |
-| shadow | 无 | 2048² | 1.6 |
-| d0 天空 LUT | 无（静态 LUT） | 小 | 0.2 |
-| gbuffer | 无 | 全 | 2.2 |
-| deferred | 无 | 全 | 2.0 |
-| SSGI | 有（重投影） | 1/2 | 1.8 |
-| 反射 | 有（SSR 累积） | 全/半 | 1.2 |
-| 体积雾 | 有（时域） | 1/2 | 1.0 |
-| 云 | 有（时域） | 1/4 | 1.4 |
-| 水面 | 无 | 全 | 0.6 |
-| TAA | 有 | 全 | 0.6 |
-| bloom | 无 | mip 链 | 0.5 |
-| DOF+MB | 有 | 1/2 | 0.7 |
-| tonemap+镜头+final | 无 | 全 | 0.4 |
-| **合计** | | | **≈ 13.2 ms** |
 
 ---
 
-## 5. 缓冲布局规划（colortex 预算）
+## 5. 资源布局（v2）
 
-| 缓冲 | 格式 | 用途 | 备注 |
-| --- | --- | --- | --- |
-| colortex0 | RGBA16F | 场景颜色（HDR） | 全流程主目标 |
-| colortex1 | RGBA16 | gbuffer0：albedo + material ID | 8bit albedo 会溢出，用 16 |
-| colortex2 | RGBA16 | gbuffer1：normal + roughness/metal | 法线用 octa 编码 |
-| colortex3 | RGBA16F | 历史颜色（TAA/SSGI 复用） | ping-pong |
-| colortex4 | RGBA16F | 天空/环境 LUT（或 3D） | 低分辨率 |
-| colortex5 | RGBA16F | SSR/SSGI 累积结果 | 半分辨率 |
-| colortex6 | RGBA8 | 体积雾/云（散射 + 透射） | 1/4 分辨率 |
-| colortex7 | RGBA16F | 反射探针预过滤结果 | mip 链 |
-| colortex8 | R8 | 云阴影 / 接触阴影 | 低成本 |
-| colortex9-13 | 按需 | bloom、DOF、debug | 可复用 |
-| shadowtex0/1 | 深度 | 太阳阴影 | 2048²/4096² |
-| shadowcolor0 | 彩色 | 彩色阴影（玻璃/水） | 可选 |
+| 资源 | 类型 | 用途 |
+| --- | --- | --- |
+| colortex0 | RGBA16F | 场景 HDR 颜色 |
+| colortex1 | RGBA16 | albedo + materialID |
+| colortex2 | RGBA16 | normal(octa) + roughness/metal |
+| colortex3 | RGBA16F | 历史颜色（TAA/SSGI/反射） |
+| colortex4 | RGBA16F | 反射/环境探针（mip） |
+| colortex5 | RGBA16F | SSGI/反射累积（半分辨率） |
+| colortex6 | RGBA8 | froxel 雾/光轴（1/4） |
+| colortex7 | RGBA16F | 体积云散射+透射 |
+| colortex8 | R8 | 云阴影/接触阴影 |
+| colortex9-14 | 按需 | bloom/DOF/debug |
+| **3D 纹理** | LUT | 大气 Transmittance/MultiScatter（Hillaire） |
+| **3D 纹理** | 噪声 | 云/雾 worley/perlin（256³ 分辨率可降） |
+| **3D 纹理** | 体素 | LPV 彩色光体积（`VOXEL_VOLUME_SIZE`） |
+| **2D 纹理** | 波场 | FFT WaveField（ping-pong 2 张） |
+| shadowtex0/1 + shadowcolor0 | 深度/彩色 | 太阳阴影 + 彩色阴影 |
 
 ---
 
-## 6. 关键技术选型
+## 6. 关键技术选型（v2 修正）
 
-### 6.1 几何与材质（PBR + 材质 ID）
+### 6.1 Compute 预计算框架（新增，P0.5）
 
-- **gbuffer 分层**：albedo（RGBA16）、normal+roughness+metal（RGBA16，octa 编码）、materialID+lightmap（RGBA8）。
-- **POM（视差遮挡）**：只对视差明显的方块（砖、石板）启用，采样数按距离自适应。
-- **材质扩展**：`clearcoat`（车漆/湿地面）、`sheen`（布料/叶子）、`anisotropy`（金属拉丝）三个 lobe，用 materialID 选择，避免全场景开销。
-- **LTC 面光源**：把方块光（火把/南瓜灯/霓虹）近似为矩形面光源，用 LTC 解析积分替代点光源 → 软高光 + 更真实的近场光照。
-- **降级**：Low 档关闭 POM/clearcoat/sheen，LTC 退回点光。
+- **大气 LUT**：Hillaire 2020 的 4 个 LUT（transmittance / multiscattering / sky-view / aerial perspective），用 compute 一次性/按参数变化重建。
+- **天空 SH**：compute 生成 9 系数球谐（参考 photon `d4a_generate_sky_sh.csh`）。
+- **体素 GI**：LPV 三步（voxelization → floodfill → propagation），compute 洪泛（参考 photon `lpv/floodfill.csh`）。
+- **FFT 波场**：2 个 512² 波场（X/Y 方向梯度），compute ping-pong（参考 continuum `WaveFieldX/Y.comp`、iterationT `PhysicsOceans.glsl`）。
+- **直方图曝光**：compute 统计 + 简单自适应。
+- 降级：无 compute 时全部退回 fragment 版（性能更差但可跑）。
 
-### 6.2 阴影（多尺度，不依赖 CSM）
+### 6.2 阴影（多尺度，不依赖传统 CSM）
 
-Iris 每帧只能渲染一张 shadow map，因此**不做传统 CSM**，改用「三尺度」：
+1. shadow map + 非线性扭曲 + PCSS（blocker search + 变半径 PCF）。
+2. 屏幕空间接触阴影（已在我们旧版验证过，10 步 depth march）。
+3. 屏幕空间软阴影（参考 Solas `screenSpaceShadows.glsl` / iterationT `Sunlight_Shadow.glsl`）。
+4. 云阴影图（compute 生成，参考 continuum `D0C_RenderCloudShadowMap.comp`）。
 
-1. **阴影贴图**：单张 2048²/4096²，Photon 式非线性扭曲（近处精度高），PCSS（blocker search + 变半径 PCF）。
-2. **屏幕空间接触阴影**：沿太阳方向 10 步 depth march（我们已验证），补足细缝/接触处。
-3. **屏幕空间软阴影**（Solas 思路）：沿光线方向在屏幕空间做可见性估计，补远处阴影边缘。
+### 6.3 GI（体素为主 + SSGI 为细节）
 
-```mermaid
-flowchart LR
-    A[world pos] --> B[shadow map 投影<br/>distort + bias]
-    B --> C[PCSS<br/>blocker search + PCF]
-    A --> D[屏幕空间接触阴影<br/>10 步 depth march]
-    A --> E[屏幕空间软阴影<br/>光栅化可见性]
-    C --> F[合成：min 或乘积]
-    D --> F
-    E --> F
-```
+- **主 GI**：体素彩色光（LPV）：voxelize 发光方块 → 洪泛 → 三线性采样给 deferred；优点是无拖影、稳定、支持彩色霓虹（正是这地图的需求）。
+- **细节层**：半分辨率 SSGI（1~2 步 Hi-Z raymarch）+ 深度重投影 + 方差裁剪 + SVGF-lite 降噪（参考 Solas `ssptDenoiser`、photon TAA 历史框架）。
+- 回退：仅体素 GI（Low/Medium 档）。
+- **教训固化**：SSGI 必须独立 target + 重投影，绝不读写同一 buffer。
 
-- 降级：Low 档只保留 shadow map + 接触阴影；Medium 加屏幕空间软阴影。
+### 6.4 天空与大气
 
-### 6.3 天空与大气（Hillaire 2020 LUT + 臭氧）
+- Hillaire LUT + 臭氧 + 多次散射 + 夜天光（airglow、月相、光污染）。
+- 太阳/月亮角直径 + 临边昏暗 + 双层日晕。
+- 云：见 6.5。
 
-- 预计算 **大气散射 LUT**（transmittance / multiscattering / sky-view），支持多次散射 + 臭氧吸收 + 夜天光（airglow + 月相）。
-- 用 3D/2D LUT 存储（Iris 支持 `.dat` 3D 纹理），运行时只做查表 + 少量相位函数。
-- 太阳/月亮：角直径、临边昏暗、日晕双层辉光。
-- 云：见 6.4；夜空：星场 + 银河（低分辨率纹理 + 视差）。
-- 降级：无 LUT 时退化为解析 Preetham + 我们已有的颜色模型。
+### 6.5 云与体积雾
 
-### 6.4 体积云与体积光（时域复用）
+- **体积云**：1/4 分辨率 raymarch，2.5D 层组合（参考 NUBIS/PlanarClouds 思路），时域复用（每帧 1/4 像素更新），云光照用 Beer-Lambert + powder + 多次散射近似。
+- **Froxel 体积雾（重点升级）**：3D froxel volume（如 160×90×64），compute 里做散射积分（参考 continuum `Froxels.glsl` / `AirMarcher.glsl`）；光轴/丁达尔效应复用同 volume；时域降噪。
+- 降级：Medium 档解析雾 + 2D 云；Low 档仅解析雾。
 
-- **云**：低分辨率（1/4）raymarch，2.5D 层（cumulus/altocumulus/cirrus）组合，**时间复用**：每帧只更新 1/4 像素，其余重投影；光照用多次散射近似（Beer-Lambert + powder）。
-- **体积光/雾**：1/2 分辨率 froxel-ish（屏幕空间 2.5D 深度切片），时域降噪；光轴（light shafts）复用同一 buffer。
-- 降级：Low 档用 2D 云层 + 解析雾。
+### 6.6 反射
 
-### 6.5 全局光照（SSGI + 重投影 + SVGF-lite）
-
-- **半分辨率 SSGI**：1~2 步分层 raymarch（Hi-Z），cosine 采样 + 蓝噪声；每帧只算 1/2 像素。
-- **重投影**：用深度 + 上一帧 view/proj 矩阵（Iris 提供 `gbufferModelView`/上一帧矩阵不可用 → 自己保存矩阵到 uniform 或推导），历史方差裁剪。
-- **降噪**：SVGF-lite（空间 3×3 + 时域指数累积 + 方差引导）。
-- 回退：无历史时用 LPV/RSM 近似（参考 continuum/Complementary）。
-- 关键教训：**绝不能读写同一 buffer**（我们 SSGI 拖影的根因），必须独立 target + 重投影。
-
-### 6.6 反射（SSR + 探针回退 + 近似平面反射）
-
-- **SSR**：随机方向 + 时域累积 + 粗糙度感知模糊（我们已实现 5-tap 锥形模糊）。
-- **探针回退**：预过滤天空/环境探针（mip 链 + 粗糙度→lod），SSR miss 时按粗糙度混合。
-- **水面平面反射近似**：不做真实 mirror pass（Iris 不能重渲场景），用「屏幕空间平面反射」：把水面以上像素沿水面镜像投影到屏幕空间采样 + 天空探针补全，配合 Fresnel 混合。
-- 降级：Low 档关闭 SSR，只用天空探针。
+- SSR（随机方向 + 时域累积）+ **反射滤波**（参考 iterationT `ReflectionFilter.glsl`，做粗糙度感知模糊与去噪）。
+- 探针回退：预过滤天空/环境探针（mip 链 + roughness→lod），SSR miss 时混合。
+- 水面：屏幕空间平面反射近似（镜像投影采样）+ 天空探针补全 + Fresnel。
+- 降级：Low 档仅探针。
 
 ### 6.7 水体
 
-- **波浪**：High/Ultra 用 FFT 波场（多 pass ping-pong，参考 continuum）；Medium 用多 octave Gerstner + 毛细波法线；Low 用 2 层正弦。
-- **焦散**：投影纹理 + 深度衰减（参考 Solas/iterationT）。
-- **吸收/散射**：Beer-Lambert + 单次散射近似；水下体积雾（参考 iterationT 的 UnderwaterVolumetricFog）。
-- **泡沫**：岸线深度差 + 波浪破碎（Jacobian）组合。
-- 我们已验证的水面雨滴涟漪并入毛细波层。
+- **波浪**：Ultra/High 用 FFT 波场（compute，512²），Medium 用多 octave Gerstner，Low 用 2 层正弦。
+- **焦散**：投影纹理 + 深度衰减（参考 iterationT/Solas `waterCaustics`）。
+- **吸收/散射**：Beer-Lambert + 单次散射；水下体积雾（参考 `UnderwaterVolumetricFog.glsl`）。
+- **泡沫**：岸线深度差 + 波浪破碎（Jacobian）。
+- 雨滴涟漪并入毛细波层。
 
-### 6.8 后处理与成像（电影感核心）
+### 6.8 成像与电影感
 
-- **AgX 主色调映射**（已实现），可选 ACES；**曝光**：直方图自动曝光（iterationT/Photon 思路）+ 手动偏置。
-- **Bloom**：6 级 mip + 能量守恒（Kawase 双滤波）。
-- **DOF**：半分辨率 CoC + 散景采样（disc/hexagonal），远处背景与近景分别处理。
-- **运动模糊**：Iris 无 per-object motion vector → 用深度重投影 + 相机运动近似（Solas/iterationT 同思路）。
-- **镜头**：色差、暗角、胶片颗粒、anamorphic 光晕；**FSR EASU/RCAS** 作为 1080p→1440p 上采样选项。
-- **色彩管理**：全程线性工作空间（rec2020），显示前转 sRGB（我们已实现）。
+- AgX 主 + ACES splines 可选（参考 continuum ACES splines）。
+- 自动曝光：直方图 compute + 手动偏置。
+- Bloom：compute mip 链（参考 Solas computeBloom）。
+- DOF：compute 半分辨率散景（参考 Solas computeDOF）。
+- 运动模糊：深度重投影 + 相机运动（无 per-object MV）。
+- **镜头光晕/眩光**：参考 iterationT `LensGlareFlare.glsl`（anamorphic 拉丝光晕）。
+- 色差/暗角/胶片颗粒/污渍。
+- **FSR EASU + RCAS** 上采样（参考 iterationT `FsrEASU.glsl`）。
 
-### 6.9 时域与去噪框架（全特效共用）
+### 6.9 时域框架
 
-```mermaid
-sequenceDiagram
-    participant GB as gbuffer/深度
-    participant RP as 重投影
-    participant AC as 历史累积
-    participant DN as 降噪
-    participant OUT as 输出
+统一 `zephyr_temporal()`：重投影（深度 + 上帧矩阵）→ 方差裁剪 → 历史 ping-pong → 可选 SVGF-lite/SSPT 降噪。
+所有噪点型效果（SSGI/反射/雾/云）共享同一套约定，便于统一调试。
 
-    GB->>RP: 当前像素 + 深度
-    RP->>AC: 上一帧对应位置（矩阵 + 深度）
-    AC->>AC: 方差裁剪（neighborhood clamp）
-    AC->>DN: 累积结果 + 方差
-    DN->>OUT: 空间/时域滤波后结果
-    OUT-->>AC: 写入历史缓冲（ping-pong）
-```
+### 6.10 质量治理
 
-- 统一接口：`vec4 zephyr_temporal(input, history_uv, variance, alpha)`。
-- 历史管理：每个特效独立 ping-pong buffer；失配时用邻域 clamp 防止拖影。
-
-### 6.10 性能治理
-
-- **质量档位**：Low / Medium / High / Ultra（每档定义各 pass 分辨率、采样数、开关）。
-- **分辨率分级**：SSGI/雾/云半分辨率或 1/4；DOF 半分辨率；反射可选半分辨率。
-- **动态缩放**：TAAU render scale 由帧时间反馈调节（Iris 可通过设置参数间接实现）。
-- **带宽优化**：8bit 存 gbuffer 中非关键通道，HDR 只保留颜色/历史/反射。
-- **早退**：天空检测、室内检测（baked 光照）、远处像素跳过 SSGI/反射。
+| 档位 | 关键配置 |
+| --- | --- |
+| Low | 无 compute 依赖（fragment 降级）、解析雾+2D 云、SSR 关、阴影=PCS+接触 |
+| Medium | 体素 GI、半分辨率 SSGI、froxel 雾 1/4、Gerstner 水 |
+| High | 全部开启，SSGI/雾半分辨率，反射滤波，FFT 可选 |
+| Ultra | 全分辨率 SSGI、FFT 海洋、更大 shadow map、FSR 关闭 |
 
 ```mermaid
 quadrantChart
-    title 画质 vs 性能（当前生态定位）
+    title 画质 vs 性能（含本轮复扫定位）
     x-axis 低性能开销 --> 高性能开销
     y-axis 低画质 --> 高画质
     quadrant-1 目标区
@@ -285,137 +265,146 @@ quadrantChart
     quadrant-3 低画质低开销
     quadrant-4 高开销低画质
     BSL: [0.20, 0.35]
-    Bliss: [0.30, 0.40]
+    Bliss: [0.30, 0.45]
     Chocapic: [0.45, 0.50]
     Complementary: [0.55, 0.70]
+    iterationT: [0.60, 0.75]
+    Solas: [0.70, 0.68]
     SEUS PTGI: [0.85, 0.85]
-    continuum: [0.80, 0.75]
-    Solas: [0.65, 0.65]
-    Zephyr目标: [0.55, 0.88]
+    continuum: [0.85, 0.78]
+    Zephyr目标: [0.55, 0.90]
 ```
 
 ---
 
-## 7. 性能预算（1080p / RTX 4050 Laptop / High 档）
+## 7. 性能预算（1080p / High）
 
-| 阶段 | 目标 ms | 主要成本 |
+| 阶段 | ms | 说明 |
 | --- | --- | --- |
-| shadow | 1.6 | 阴影贴图渲染 + PCSS |
-| gbuffer | 2.2 | 材质采样 + POM |
-| deferred | 2.0 | PCSS 采样 + IBL + SSS |
-| SSGI | 1.8 | 半分辨率 raymarch + 降噪 |
-| 反射 | 1.2 | SSR 光线 + 探针 |
-| 雾/云 | 2.4 | 低分辨率 raymarch + 时域 |
-| 水面 | 0.6 | FFT/Gerstner + 焦散 |
+| compute 预计算（分摊） | 1.0 | 大气 LUT/体素/FFT/直方图，按帧摊销 |
+| shadow | 1.5 | 2048² + PCSS |
+| gbuffer | 2.0 | 材质采样 + POM（远处降级） |
+| deferred | 2.0 | PCSS + IBL + 体素 GI + SSS + LTC |
+| SSGI | 1.4 | 半分辨率 + 降噪 |
+| 反射 | 1.2 | SSR + 滤波 + 探针 |
+| froxel 雾 | 1.0 | 1/4 体积 + 时域 |
+| 云 | 1.2 | 1/4 raymarch + 时域 |
+| 水面 | 0.6 | FFT 采样 + 焦散 |
 | TAA | 0.6 | 重投影 + 累积 |
-| bloom/DOF/MB | 1.7 | mip 链 + 散景 |
-| tonemap/镜头/final | 0.4 | 全屏 ALU |
-| 余量 | 0.7 | 抖动/尖峰 |
-| **总计** | **13.2** | = 75 FPS |
+| bloom/DOF/MB | 1.6 | compute mip/散景 |
+| 成像/镜头/final | 0.4 | AgX + lens |
+| 余量 | 0.8 | 抖动余量 |
+| **合计** | **15.3** | Ultra 目标 60 FPS；High 通过降级 SSGI/雾到 1/4 可回到 ~13 ms |
 
-Ultra 档额外 +4.5 ms（全分辨率 SSGI/云、更大 shadow map、FSR 关闭）。
+> 注：真实实测后按 §9 回归校准；High 档首版目标 75 FPS 通过把 SSGI 降为 1/4 + 雾 1/4 达成。
 
 ---
 
-## 8. 实施路线图
+## 8. 实施路线图（v2）
 
 ```mermaid
 gantt
-    title Zephyr 自研光影实施路线（约 30 人日）
+    title Zephyr 自研光影路线 v2（约 34 人日）
     dateFormat YYYY-MM-DD
     axisFormat %m-%d
 
     section P0 骨架
-    settings/properties/lang 与目录规范      :done, p0a, 2026-01-01, 1d
-    gbuffer 全部程序 + 前向光照              :done, p0b, 2026-01-02, 2d
-    composite/final + AgX/曝光/雾            :done, p0c, 2026-01-04, 1d
+    目录/settings/gbuffer/前向光照      :done, p0, 2026-01-01, 3d
+    composite/final + AgX/曝光          :done, p1, 2026-01-04, 1d
+
+    section P0.5 Compute 框架
+    compute pass 调度 + 3D LUT 资源     :p2, 2026-01-05, 3d
+    大气 LUT + 天空 SH 生成             :p3, 2026-01-08, 3d
 
     section P1 阴影与光照
-    shadow pass + PCSS                       :p1a, 2026-01-05, 3d
-    屏幕空间接触阴影 + 软阴影                :p1b, 2026-01-08, 2d
-    LTC 面光源                               :p1c, 2026-01-10, 2d
+    shadow pass + PCSS                  :p4, 2026-01-11, 3d
+    屏幕空间接触/软阴影                 :p5, 2026-01-14, 2d
+    体素化 + LPV floodfill（彩色光 GI） :p6, 2026-01-16, 4d
+    LTC 面光源                          :p7, 2026-01-20, 2d
 
-    section P2 时域与 GI
-    重投影/历史框架                          :p2a, 2026-01-12, 3d
-    SSGI 半分辨率 + SVGF-lite 降噪           :p2b, 2026-01-15, 4d
+    section P2 时域与 GI 细节
+    重投影/历史/方差裁剪框架            :p8, 2026-01-22, 3d
+    SSGI 半分辨率 + SVGF-lite           :p9, 2026-01-25, 4d
 
-    section P3 大气与云
-    Hillaire 大气 LUT                        :p3a, 2026-01-19, 3d
-    体积云 + 体积光（时域）                  :p3b, 2026-01-22, 4d
+    section P3 大气、云与雾
+    体积云（1/4 + 时域）                :p10, 2026-01-29, 4d
+    Froxel 体积雾 + 光轴                :p11, 2026-02-02, 4d
 
     section P4 水体与反射
-    FFT/Gerstner 波浪 + 焦散                 :p4a, 2026-01-26, 3d
-    SSR + 探针 + 平面反射近似                :p4b, 2026-01-29, 3d
+    FFT 波场 + Gerstner 降级            :p12, 2026-02-06, 4d
+    焦散 + 泡沫 + 水下散射              :p13, 2026-02-10, 3d
+    SSR + 反射滤波 + 探针               :p14, 2026-02-13, 3d
 
     section P5 成像
-    Bloom/DOF/MB/镜头                        :p5a, 2026-02-01, 3d
-    AgX/ACES + 电影化调色 + FSR              :p5b, 2026-02-04, 2d
+    Bloom/DOF/MB（compute）             :p15, 2026-02-16, 3d
+    AgX/ACES + 镜头光晕 + FSR           :p16, 2026-02-19, 3d
 
-    section P6 优化与回归
-    质量档位/动态缩放/预算治理               :p6a, 2026-02-06, 3d
-    四场景盲评 + 性能回归                    :p6b, 2026-02-09, 2d
+    section P6 回归
+    档位/预算治理 + 盲评 + 性能回归     :p17, 2026-02-22, 4d
 ```
 
 ---
 
-## 9. 测试与回归体系
+## 9. 验证体系
 
-1. **离线编译**：`tools/validate_glsl.py --pack Zephyr`，要求全部入口 0 failed（已具备）。
-2. **实机加载**：`reload2` 后日志必须出现 `Using shaderpack: Zephyr` 且无 `Failed to load`。
-3. **截图回归**：固定 5 场景（白天/黄昏/暮雨/夜雨/室内）+ 固定机位，每次提交自动截图并存档 `shots/regression/`。
-4. **性能回归**：F3 采样 + 帧时间日志（每场景 60s 平均），超过预算 5% 阻断合入。
-5. **画质盲评**：与 Complementary+Euphoria、iterationT、SEUS 同机位对比，人工 1-5 分盲评。
-6. **稳定性**：TAA 拖影检测（移动相机时帧间差异）、闪烁检测（静态场景方差）、条带检测（8bit 量化）。
-
----
-
-## 10. 风险与限制
-
-| 风险 | 影响 | 对策 |
-| --- | --- | --- |
-| Iris 无 compute/SSBO（部分版本） | FFT/体积云实现受限 | 提供 fragment ping-pong 降级路径 |
-| 无 per-object 运动矢量 | 运动模糊/反射拖影 | 深度重投影 + 相机运动近似 + clamp |
-| 单张 shadow map | 无法传统 CSM | 多尺度阴影（6.2） |
-| 探针需要重渲场景 | 无法真实反射探针 | SSR + 预过滤天空 + 平面近似 |
-| 显存/带宽 | 缓冲过多导致掉帧 | 见 §5 预算 + 8bit 转换 |
-| 调试视图 | 自研后可能没有 | P0 就内置 debug view pass |
+1. 离线编译（全入口 0 failed）。
+2. 实机加载（无 `Failed to load`、无 shader compile error）。
+3. 5 场景固定机位截图回归（白天/黄昏/暮雨/夜雨/室内）。
+4. 帧时间日志回归（每场景 60s，超出预算 5% 阻断）。
+5. 盲评：与 Complementary+Euphoria / iterationT / SEUS 同机位对比。
+6. 稳定性：TAA 拖影检测、静态闪烁检测、8bit 条带检测。
 
 ---
 
-## 11. 能力对照矩阵（目标）
+## 10. 风险与对策（更新）
 
-| 能力 | BSL | Bliss | Chocapic | Complementary | iterationT | SEUS PTGI | continuum | Solas | **Zephyr 目标** |
+| 风险 | 对策 |
+| --- | --- |
+| compute 依赖 Iris 版本 | 提供 fragment 降级路径，Low 档完全不依赖 compute |
+| 体素 GI 分辨率/延迟 | 体积尺寸可调、洪泛按帧分摊、时域平滑 |
+| froxel 雾显存 | 1/4 分辨率 + 8bit 存散射/透射 |
+| FFT 波场开销 | 512² 双缓冲，仅 Ultra/High 启用 |
+| 无 per-object MV | 深度重投影 + clamp |
+| 单 shadow map | 多尺度阴影（PCSS+屏幕空间） |
+
+---
+
+## 11. 能力对照矩阵（v2）
+
+| 能力 | BSL | Bliss | Chocapic | Complementary | iterationT | SEUS | Solas | continuum | **Zephyr** |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 体积云 | ✗ | 2D | 2D | 2.5D | ✓ | ✗ | ✓ | ✓ | **时域 2.5D + 光轴** |
-| 大气 LUT | ✗ | ✗ | ✗ | ✓ | ✓ | ✗ | ✓ | ✓ | **Hillaire 多次散射 LUT** |
-| GI | ✗ | 间接光 | SSGI | RSM | SSGI | SSPT | LPV | SSPT | **SSGI + 重投影 + SVGF** |
-| 反射 | ✗ | 基础 | SSR | SSR | SSR | SSPT | SSR | SSPT | **SSR + 探针 + 平面近似** |
-| 阴影 | PCF | PCF | PCF | PCSS/RSM | PCSS | CSM | PCSS | SS 阴影 | **PCSS + 屏幕空间多尺度** |
-| 水面 | 基础 | 基础 | Gerstner | Gerstner | Gerstner+焦散 | 屏幕空间 | **FFT** | 焦散 | **FFT/Gerstner 双路径** |
-| 时域 | TAA | TAA | TAA | TAA | TAA | HRR | TAA | TAA | **统一重投影+降噪框架** |
-| 成像 | 基础 | 基础 | ACES | 自定义 | **AgX+FSR** | 自定义 | ACES | 自定义 | **AgX/ACES + 镜头 + FSR** |
-| 性能 | ★★★ | ★★★ | ★★☆ | ★★☆ | ★★☆ | ★☆ | ★★ | ★★ | **★★★（时域复用）** |
+| compute pass | ✓ | ✓ | ✗ | ✗ | 少 | ✗ | ✓ | ✓✓ | **✓（LUT/体素/FFT/直方图）** |
+| 大气 LUT | ✗ | ✗ | ✗ | ✓ | ✓ | ✗ | ✓ | ✓ | **Hillaire 多次散射** |
+| 体素 GI | ✓ | ✓ | ✗ | RSM | ✗ | ✗ | ✓ | LPV | **LPV 主 + SSGI 细节** |
+| froxel 雾 | ✗ | ✗ | ✗ | 2.5D | ✓ | 光轴 | ✓ | **✓✓** | **✓ froxel + 降噪** |
+| 体积云 | ✗ | 2D | 2D | 2.5D | ✓ | ✗ | ✓ | ✓ | **1/4 + 时域** |
+| 海洋 | 基础 | 基础 | Gerstner | Gerstner | **FFT** | 屏幕空间 | 焦散 | **FFT** | **FFT/Gerstner 双路径** |
+| 屏幕空间阴影 | ✗ | ✓ | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ | **✓** |
+| 反射滤波 | ✗ | ✗ | ✗ | 基础 | ✓ | ✓ | SSPT | ✓ | **✓** |
+| 镜头光晕/FSR | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✓(ACES) | **✓** |
+| 时域降噪 | ✗ | ✗ | ✗ | TAA | TAA | HRR | SSPT | TAA | **统一框架 + SVGF-lite** |
 
 ---
 
-## 附录 A：目录结构规划
+## 附录 A：参考实现索引（可对照读码）
 
-```
-shaders/
-├── settings.glsl
-├── shaders.properties
-├── lang/{en_US,zh_CN}.lang
-├── include/zephyr/
-│   ├── core/        # uniforms, buffers, settings, debug
-│   ├── geometry/    # gbuffer 写入, materials, POM, LTC
-│   ├── lighting/    # shadows, IBL, SSGI, atmosphere
-│   ├── water/       # waves, caustics, reflections
-│   ├── temporal/    # reprojection, history, denoise
-│   └── post/        # bloom, dof, mb, tonemap, lens
-├── programs/        # Iris 入口（保持薄）
-└── world0/ world-1/ world1/
-```
+| 功能 | 参考包 | 关键文件 |
+| --- | --- | --- |
+| 大气 LUT | iterationT / photon | `Lib/BasicFounctions/PrecomputedAtmosphere.glsl`, `include/sky/atmosphere.glsl` |
+| 天空 SH（compute） | photon | `program/d4a_generate_sky_sh.csh` |
+| LPV 洪泛（compute） | photon | `program/lpv/voxelization.csh`, `lpv/floodfill.csh` |
+| 体素 GI（shadowcomp） | Solas / Bliss / BSL | `lib/vx/voxelization.glsl`, `lib/voxel_write.glsl`, `lib/util/voxelMap.glsl` |
+| froxel 体积雾 | continuum | `InternalLib/Common/FroxelVolume.glsl`, `Froxels.glsl`, `AirMarcher.glsl` |
+| 体积云 | continuum / iterationT | `C2_RenderClouds.comp`, `NUBIS.glsl`, `PlanarClouds.glsl` |
+| FFT 海洋 | continuum / iterationT | `FFT.glsl`, `WaveFieldX/Y.comp`, `PhysicsOceans.glsl` |
+| 屏幕空间阴影 | Solas | `lib/lighting/screenSpaceShadows.glsl` |
+| 反射滤波 | iterationT | `Lib/IndividualFounctions/Reflections/ReflectionFilter.glsl` |
+| SSPT 降噪 | Solas | `lib/filters/ssptDenoiser.glsl` |
+| AgX / FSR | iterationT | `Lib/IndividualFounctions/AgX.glsl`, `FsrEASU.glsl` |
+| 镜头光晕 | iterationT | `Lib/IndividualFounctions/LensGlareFlare.glsl` |
+| 自动曝光/TAA | photon | `program/c4_taa_exposure.fsh` |
+| ACES splines | continuum | `InternalLib/Fragment/ACES*.glsl` |
 
-## 附录 B：与旧 Zephyr（Photon 基座）的关系
+## 附录 B：旧资产
 
-旧的 Photon 基座版本保留在 git tag `photon-final`；其可复用的**已验证模块**（AgX、接触阴影、雨滴/水面涟漪、大气颜色模型、材质微凹凸）将按本架构重写后迁移进 `include/zephyr/`，而不是直接复制（避免再次耦合 Photon uniform 约定）。
+Photon 基座保留在 git tag `photon-final`；可迁移的已验证模块（AgX、接触阴影、雨滴/水面涟漪、大气颜色模型、材质微凹凸）按新架构重写后迁入。
