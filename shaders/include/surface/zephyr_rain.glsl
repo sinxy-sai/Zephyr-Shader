@@ -10,7 +10,7 @@
   - wetness is modulated by a large-scale noise field ("macro wetness") so the
     ground does not alternate between bone-dry patches and mirror puddles
   - horizontal faces get one coherent wet coat (albedo darkening + roughness +
-    f0 + ssr), plus rain impact ripples and small splash foam glints
+    f0 + ssr), plus normal-only rain impact ripples (no splash particles)
   - vertical faces get a wet sheen and slow running streaks
   - everything is driven by rainStrength (impacts) and wetness (coat, survives
     the rain), and real Photon puddles are still applied afterwards
@@ -36,11 +36,10 @@ float zephyr_macro_wetness(vec3 world_pos) {
 	return 0.55 + 0.45 * smoothstep(0.25, 0.75, n);
 }
 
-// Expanding impact ripples + splash strength. Returns world-space horizontal
-// normal offset; splash receives the short-lived core of each impact.
-vec2 zephyr_ripple_offset(vec3 world_pos, float time, out float splash) {
+// Expanding impact ripples. Returns a world-space horizontal normal offset.
+// No splash particles / no foam: the user explicitly wanted those gone.
+vec2 zephyr_ripple_offset(vec3 world_pos, float time) {
 	vec2 result = vec2(0.0);
-	splash = 0.0;
 
 	for (int layer = 0; layer < 2; ++layer) {
 		float scale = layer == 0 ? 5.4 : 7.7;
@@ -61,7 +60,6 @@ vec2 zephyr_ripple_offset(vec3 world_pos, float time, out float splash) {
 		      ring *= (1.0 - phase) * smoothstep(0.0, 0.05, phase);
 
 		result += d * ring;
-		splash += exp2(-dist * 55.0) * (1.0 - phase) * step(phase, 0.35);
 	}
 
 	return result;
@@ -108,20 +106,13 @@ void zephyr_rain_surface(
 		f0        = mix(f0, vec3(0.030), coat);
 		ssr_multiplier = max(ssr_multiplier, coat * 1.00);
 
-		// Impacts: ripples + tiny splash glints
+		// Impacts: normal-only ripples (no bright particles)
 		if (falling > 0.01 && ZEPHYR_RAIN_RIPPLE > 0.0) {
 			float fade  = smoothstep(0.0, 5.0, length(world_pos - cameraPosition));
-			float splash;
-			vec2 offset = zephyr_ripple_offset(world_pos, frameTimeCounter, splash);
+			vec2 offset = zephyr_ripple_offset(world_pos, frameTimeCounter);
 
 			float k = falling * fade * ZEPHYR_RAIN_RIPPLE;
 			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.34 * k);
-
-			// splash foam: brief bright flecks where a drop lands
-			float crown = splash * splash;
-			albedo    += vec3(0.060, 0.066, 0.074) * (crown + 0.35 * splash) * k;
-			roughness  = mix(roughness, 0.10, splash * k * 0.6);
-			ssr_multiplier = max(ssr_multiplier, splash * k * 0.7);
 		}
 	} else if (up < 0.30) {
 		// Wet walls: sheen + running water lines

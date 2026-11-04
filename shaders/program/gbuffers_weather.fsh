@@ -49,7 +49,9 @@ void main() {
 #endif
 
 	vec4 base_color = texture(gtexture, uv);
-	if (base_color.a < 0.1) discard;
+	// Higher cutout: the faint 1-pixel blobs of the vanilla rain texture are what
+	// read as "blue particles" on screen. Only keep the actual streaks.
+	if (base_color.a < 0.30) discard;
 
 	bool is_rain = (abs(base_color.r - base_color.b) > eps);
 
@@ -60,8 +62,18 @@ void main() {
 	float drop_alpha = 1.0;
 #endif
 
+	vec3 rain_color = get_rain_color();
+
+	// Complementary-style rain tint: the raw Photon rain color is strongly blue
+	// (0.49, 0.65, 1.00) and its small specks read as "blue particles". Keep only
+	// a hint of blue and push it toward neutral grey, like Complementary does.
+	float rain_lum = dot(rain_color, vec3(0.2126, 0.7152, 0.0722));
+	vec3  rain_grey = vec3(rain_lum) * vec3(0.97, 0.99, 1.01);
+	rain_color = mix(rain_color, rain_grey, 0.90);
+	rain_color *= 0.85;
+
 	frag_color = is_rain
-		? vec4(get_rain_color(), RAIN_OPACITY * base_color.a * drop_alpha) * tint
+		? vec4(rain_color, RAIN_OPACITY * base_color.a * drop_alpha) * tint
 		: vec4(get_snow_color(), SNOW_OPACITY * base_color.a) * tint;
 	frag_color.rgb *= frag_color.a;
 }

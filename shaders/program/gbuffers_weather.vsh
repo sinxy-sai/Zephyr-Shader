@@ -45,27 +45,10 @@ void main() {
 	vec3 scene_pos = transform(gbufferModelViewInverse, view_pos);
 	vec3 world_pos = scene_pos + cameraPosition;
 
-	// Zephyr rain streaks: longer, thinner, with per-drop variation.
-	// Rain quads are one block tall, 0.2 wide and aligned to that grid, so we
-	// can stretch them around the nearest block/grid anchor without snapping.
+	// Zephyr: per-drop alpha variation only. (Earlier versions also stretched and
+	// narrowed the quads around world anchors; that tore quads that crossed a
+	// block boundary and produced the small blue "particle" specks.)
 	rain_seed = fract(sin(dot(floor(world_pos.xz * 5.0), vec2(12.9898, 78.233))) * 43758.5453);
-#ifdef ZEPHYR_RAIN_SHAPE
-	if (rainStrength > 0.01 && biome_may_snow < 0.5) {
-		const float vertical_scale = 1.0 + 1.15 * ZEPHYR_RAIN_STREAK;
-		const float width_scale    = 1.0 - 0.45 * ZEPHYR_RAIN_STREAK;
-
-		float seed = rain_seed;
-
-		// Stretch around the block base, with a little per-drop length variance
-		float stretch = vertical_scale * (0.75 + 0.5 * seed);
-		float anchor_y = floor(world_pos.y);
-		world_pos.y = anchor_y + (world_pos.y - anchor_y) * stretch;
-
-		// Thin around the 0.2-wide grid cell centre
-		vec2 anchor_xz = floor(world_pos.xz / 0.2) * 0.2 + 0.1;
-		world_pos.xz = anchor_xz + (world_pos.xz - anchor_xz) * width_scale;
-	}
-#endif
 
 	float wind_phase = dot(world_pos, vec3(3.0, 0.5, 3.0)) + frameTimeCounter * 0.20;
 	vec2  rot        = vec2(sin(wind_phase), cos(wind_phase));

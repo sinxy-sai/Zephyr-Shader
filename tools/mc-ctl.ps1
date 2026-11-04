@@ -12,12 +12,16 @@
 # - 聊天命令走「剪贴板 + Ctrl+V」，绕开中文输入法
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("shot", "reload", "chat", "key", "capture", "focus", "info", "look")]
+    [ValidateSet("shot", "reload", "chat", "key", "capture", "focus", "info", "look", "session")]
     [string]$Action,
 
     [string]$Text = "",
     [string]$Key = "",
     [string]$OutDir = "",
+    [string]$Chats = "",
+    [switch]$Resume,
+    [switch]$ReloadFirst,
+    [int]$ReloadWait = 13000,
     [int]$DX = 0,
     [int]$DY = 0,
     [int]$WaitMs = 4000
@@ -212,6 +216,29 @@ switch ($Action) {
         [Win32Mc]::mouse_event(0x0001, $DX, $DY, 0, [UIntPtr]::Zero)
         Start-Sleep -Milliseconds 350
         Write-Output ("look dx=" + $DX + " dy=" + $DY)
+    }
+    "session" {
+        # One shot with everything in a single focused pass: the game pauses when
+        # it loses focus between script invocations, so resume + chat + reload +
+        # screenshot must happen while the window is foreground.
+        Focus-Mc $proc | Out-Null
+        Start-Sleep -Milliseconds 400
+        if ($Resume) {
+            [Win32Mc]::Tap(0x1B)   # ESC closes the pause menu
+            Start-Sleep -Milliseconds 800
+        }
+        foreach ($message in ($Chats -split "\|")) {
+            if (-not $message) { continue }
+            Send-TextToChat $message
+            Start-Sleep -Milliseconds 350
+        }
+        if ($ReloadFirst) {
+            [Win32Mc]::Tap(0x52)
+            Start-Sleep -Milliseconds $ReloadWait
+        }
+        Start-Sleep -Milliseconds $WaitMs
+        $path = New-Screenshot $OutDir
+        Write-Output ("SHOT=" + $path)
     }
     "shot" {
         $path = New-Screenshot $OutDir
