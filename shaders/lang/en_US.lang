@@ -810,3 +810,6 @@ option.ZEPHYR_RAIN_WIND_Z               = Rain Wind Z
 option.ZEPHYR_RAIN_WIND_Z.comment       = Depth-axis wind drift of rain
 option.ZEPHYR_RAIN_DISTURBANCE          = Rain Turbulence
 option.ZEPHYR_RAIN_DISTURBANCE.comment  = Waviness added on top of the wind drift
+option.ZEPHYR_ATMOSPHERE=§bZephyr Atmosphere
+option.ZEPHYR_ATMOSPHERE_STRENGTH=Atmosphere Strength
+option.ZEPHYR_WATER_TINT=Water Tint

@@ -170,6 +170,7 @@ const bool colortex11MipmapEnabled = true;
 #include "/include/surface/rain_puddles.glsl"
 #include "/include/surface/zephyr_rain.glsl"
 #include "/include/surface/zephyr_relief.glsl"
+#include "/include/zephyr/atmosphere.glsl"
 #include "/include/sky/sky.glsl"
 #include "/include/utility/bicubic.glsl"
 #include "/include/utility/color.glsl"
@@ -299,6 +300,16 @@ void main() {
 
 		// Apply purkinje shift
 		fragment_color = purkinje_shift(fragment_color, vec2(0.0, 1.0));
+	
+
+#if defined ZEPHYR_ATMOSPHERE && defined WORLD_OVERWORLD
+	fragment_color = mix(
+		fragment_color,
+		fragment_color * zephyr_sky_tint(direction_world, sun_dir, rainStrength)
+		+ zephyr_sky_glow(direction_world, sun_dir, rainStrength),
+		ZEPHYR_ATMOSPHERE_STRENGTH
+	);
+#endif
 	} else { // Terrain
 		// Sample ambient occlusion a while before using it (latency hiding)
 

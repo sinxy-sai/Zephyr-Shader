@@ -91,6 +91,7 @@ uniform float desert_sandstorm;
 #include "/include/sky/aurora_colors.glsl"
 #include "/include/lighting/colors/light_color.glsl"
 #include "/include/lighting/colors/weather_color.glsl"
+#include "/include/zephyr/atmosphere.glsl"
 #include "/include/weather/clouds.glsl"
 #include "/include/weather/fog.glsl"
 #include "/include/weather/rainbow.glsl"
@@ -123,6 +124,22 @@ void main() {
 
 	light_color = get_light_color();
 	ambient_color = get_ambient_color();
+
+#if defined ZEPHYR_ATMOSPHERE && defined WORLD_OVERWORLD
+	{
+		const vec3 lw = vec3(0.2126, 0.7152, 0.0722);
+		float zelev = sun_dir.y;
+
+		vec3 zl = zephyr_light_color(zelev, rainStrength);
+		light_color = mix(light_color, zl * (max(dot(light_color, lw), 1e-5) / max(dot(zl, lw), 1e-5)), ZEPHYR_ATMOSPHERE_STRENGTH);
+
+		vec3 za = zephyr_ambient_color(zelev, rainStrength);
+		ambient_color = mix(ambient_color, za * (max(dot(ambient_color, lw), 1e-5) / max(dot(za, lw), 1e-5)), ZEPHYR_ATMOSPHERE_STRENGTH);
+
+		vec3 zs = zephyr_ambient_color(zelev, rainStrength) * tau;
+		sky_color = mix(sky_color, zs * (max(dot(sky_color, lw), 1e-5) / max(dot(zs, lw), 1e-5)), ZEPHYR_ATMOSPHERE_STRENGTH);
+	}
+#endif
 
 #if defined WORLD_OVERWORLD
 	aurora_amount = get_aurora_amount();

@@ -818,3 +818,6 @@ option.ZEPHYR_RAIN_WIND_Z               = 雨的风向 Z
 option.ZEPHYR_RAIN_WIND_Z.comment       = 雨滴在纵深方向的风向偏移
 option.ZEPHYR_RAIN_DISTURBANCE          = 雨的扰动
 option.ZEPHYR_RAIN_DISTURBANCE.comment  = 在风向之上叠加的波动
+option.ZEPHYR_ATMOSPHERE=§bZephyr 大气
+option.ZEPHYR_ATMOSPHERE_STRENGTH=大气强度
+option.ZEPHYR_WATER_TINT=水体色调

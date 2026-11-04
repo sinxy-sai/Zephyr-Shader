@@ -1,5 +1,32 @@
 # Changelog
 
+## v2.0 — 自建大气/光照/水体色调（2026-11-05）
+
+你说「脱离 Photon 光环后傍晚很丑」——原来的问题是 Photon 的日落直接给到
+过饱和的橙黄（`shots/v2.0-dusk-baseline.jpg`，同一机位/时间 12300 的对照）。
+这次不再只调参数，而是加了一层**自己的颜色模型**（`shaders/include/zephyr/atmosphere.glsl`）：
+
+- `zephyr_light_color(elev, rain)`：太阳从正午中性白 → 黄金时刻暖橙 → 黄昏紫罗兰
+  → 夜晚冷蓝，雨天去色；再按「保持原亮度、只换色相」的方式替换 Photon 的
+  `light_color`（不会因为调色导致整体忽明忽暗）
+- `zephyr_ambient_color(elev, rain)`：天光补色，黄昏偏玫瑰紫，夜里深蓝，
+  同样按亮度归一化替换 `ambient_color` / `sky_color`
+- `zephyr_sky_tint(dir, sun_dir, rain)` + `zephyr_sky_glow(...)`：天空色相偏移
+  （天顶冷蓝、地平线黄金/紫红）+ 太阳附近与地平线的辉光层，
+  在 `d0_sky_map`（反射/环境光用的天空图）和 `d4` 的可见天空上同时生效
+- `zephyr_water_color(base, elev, rain)`：水体在白天偏青蓝、黄昏偏暗玫瑰、
+  夜里近黑蓝，雨天去色后混入 `biome_water_color`
+
+开关（游戏内「Zephyr 大气」页/settings）：
+`ZEPHYR_ATMOSPHERE`（总开关）、`ZEPHYR_ATMOSPHERE_STRENGTH`（0~1，默认 0.85，
+调 0 即回到 Photon 原色）、`ZEPHYR_WATER_TINT`（水体色调强度，默认 0.70）
+
+对照图：
+- `shots/v2.0-dusk-baseline.jpg`（强度 0，Photon 原始日落）
+- `shots/v2.0-dusk-atmosphere.jpg`（强度 0.85，Zephyr 大气）
+- `shots/v2.0-night-atmosphere.jpg`（夜间）
+
+
 ## v1.1 — 默认关闭涟漪（按你的意见）（2026-11-05）
 
 「别做坑坑洼洼的地面了」→ 涟漪默认关掉：

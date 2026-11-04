@@ -123,6 +123,7 @@ uniform float biome_may_snow;
 #include "/include/sky/aurora.glsl"
 #endif
 
+#include "/include/zephyr/atmosphere.glsl"
 #include "/include/sky/sky.glsl"
 #include "/include/sky/projection.glsl"
 
@@ -144,6 +145,15 @@ void main() {
 		vec3 ray_dir = unproject_sky(uv);
 
 		sky_map = draw_sky(ray_dir);
+
+#if defined ZEPHYR_ATMOSPHERE && defined WORLD_OVERWORLD
+		sky_map = mix(
+			sky_map,
+			sky_map * zephyr_sky_tint(ray_dir, sun_dir, rainStrength)
+			+ zephyr_sky_glow(ray_dir, sun_dir, rainStrength),
+			ZEPHYR_ATMOSPHERE_STRENGTH
+		);
+#endif
 
 #if defined WORLD_OVERWORLD
 		// Apply analytic fog over sky

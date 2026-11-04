@@ -168,6 +168,7 @@ uniform vec4 entityColor;
 #include "/include/misc/material_masks.glsl"
 #include "/include/misc/purkinje_shift.glsl"
 #include "/include/surface/water_normal.glsl"
+#include "/include/zephyr/atmosphere.glsl"
 #include "/include/utility/color.glsl"
 #include "/include/utility/encoding.glsl"
 #include "/include/utility/fast_math.glsl"
@@ -250,6 +251,10 @@ vec4 water_absorption_approx(
 	float cloud_shadows
 ) {
 	vec3 biome_water_color = srgb_eotf_inv(tint.rgb) * rec709_to_working_color;
+
+#if defined ZEPHYR_ATMOSPHERE && defined WORLD_OVERWORLD
+	biome_water_color = mix(biome_water_color, zephyr_water_color(biome_water_color, sun_dir.y, rainStrength), ZEPHYR_WATER_TINT);
+#endif
 	vec3 absorption_coeff = biome_water_coeff(biome_water_color);
 	float dist = layer_dist * float(isEyeInWater != 1 || NoV >= 0.0);
 
