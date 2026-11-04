@@ -1,5 +1,18 @@
 # Changelog
 
+## v4.1 — P3：自建水体法线（默认开启）（2026-11-05）
+
+`include/zephyr/water.glsl`：不再用 Photon 的 Gerstner + 噪声水面法线，改为：
+
+- 4 组一维正弦波（波长 9.0 / 4.6 / 2.1 / 0.75 格），方向/速度不同，振幅随波长递减
+- 叠加 v2.6 的程序化雨滴涟漪（`ZEPHYR_WATER_RINGS`）
+- 法线按 `WATER_WAVE_STRENGTH` 与朝向权重混合回平面法线
+- 开关 `ZEPHYR_OWN_WATER`
+
+挂载点：`water_normal.glsl` 的 `get_water_normal()` 入口，开启时直接返回自建法线；
+Photon 的视差/反射/吸收/折射仍沿用（P3 只替换法线模型，水面材质后续再搬）。
+
+
 ## v4.0 — P2：自建天空（默认开启）（2026-11-05）
 
 `include/zephyr/sky.glsl`：不再调用 Photon 的 `draw_sky()`，自己算天空辐亮度：

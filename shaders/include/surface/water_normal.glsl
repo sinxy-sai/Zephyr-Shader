@@ -3,6 +3,7 @@
 
 #include "/include/utility/space_conversion.glsl"
 #include "/include/zephyr/water_rings.glsl"
+#include "/include/zephyr/water.glsl"
 
 float gerstner_wave(vec2 coord, vec2 wave_dir, float t, float noise, float wavelength) {
 	// Gerstner wave function from Belmu in #snippets, modified
@@ -97,6 +98,9 @@ float get_water_height(vec2 coord, vec2 wave_dir, mat2 wave_rot, float t) {
 
 
 vec3 get_water_normal(vec3 world_pos, vec3 flat_normal, vec2 coord, vec2 flow_dir, float skylight, bool flowing_water) {
+#ifdef ZEPHYR_OWN_WATER
+	return zephyr_water_normal(world_pos, flat_normal, coord, rainStrength, frameTimeCounter);
+#endif
 	vec2 wave_dir; mat2 wave_rot; float t;
 	water_waves_setup(flowing_water, flow_dir, wave_dir, wave_rot, t);
 
