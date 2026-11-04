@@ -2,7 +2,7 @@
 
 > 目标：把 MC 画面做成一整套「雨夜湿地面 + 黄昏逆光 + 动漫写实混合」的电影感。
 > 参考基准：用户截图中的异环/光追画面；舒适度基准：`ComplementaryReimagined_r5.7.1 + EuphoriaPatches_1.8.6`。
-> 当前版本：**v0.3（Rain shape & surface）**：电影感调色 + 天气自适应 + 重塑的雨丝与雨水表面反应。
+> 当前版本：**v0.4（Wet ground / splash / fog）**：电影感调色 + 天气自适应 + 雨丝重塑 + 统一湿地面与飞溅 + 雾与光柱。
 
 ---
 
@@ -13,7 +13,8 @@
 | **Zephyr Cinematic 层** | `shaders/include/post_processing/zephyr_cinematic.glsl` | 分离色调（青暗部/暖高光）、胶片 S 曲线、黑位抬升、自然饱和度、高光去饱和、胶片颗粒、2.35:1 电影黑边 |
 | **天气自适应调色** | 同上 + `c14_color_grading.fsh` 的 `rainStrength` | 雨天/阴天自动柔化对比、抬黑位、加冷雾、降低饱和度、柔化高光；对应参考图的「雨天不通透发黑」 |
 | **雨滴形状** | `shaders/program/gbuffers_weather.vsh/.fsh` | 雨丝拉长变细、长度/透明度逐滴随机（不再是原版等长白线） |
-| **雨水表面反应** | `shaders/include/surface/zephyr_rain.glsl`（挂在 `d4_deferred_shading.fsh`） | 地面湿润高光 + 雨点扩散涟漪；墙面湿润 sheen + 流下的水线；雨停后地面仍保持湿润 |
+| **雨水表面反应 v2** | `shaders/include/surface/zephyr_rain.glsl`（挂在 `d4_deferred_shading.fsh`） | 宏观湿度场让整条街统一潮湿；雨点涟漪 + 飞溅白点；水洼柔化；墙面 sheen 与水线 |
+| **雾 / 光柱** | `settings.glsl`（Photon 的 VL / CREPUSCULAR_RAYS） | 雨/黄昏 Mie 雾提升、雨天泛光增强；体积光与屏幕空间光柱强度 1.6 |
 | 管线挂载点 | `program/c14_color_grading.fsh`（色调映射前后）/ `program/final.fsh`（颗粒/黑边） | 与 Photon 原有 ACES/tonemap 共存，可单独开关 |
 | 设置界面 | `settings.glsl` + `shaders.properties` + `lang/*.lang` | 游戏内：光影设置 → 后处理 → **Zephyr Cinematic** |
 | **Cinematic 预设** | `shaders.properties` 的 `profile.cinematic` | 一键启用 DoF / 动态模糊 / 更高泛光与暗角 |
@@ -41,19 +42,18 @@
 
 ---
 
-## 3. 实机画面（v0.3，Sayama-0.3）
+## 3. 实机画面（v0.4，Sayama-0.3）
 
-| 原版雨丝（改动前） | 重塑后的雨丝 |
+| 统一潮湿的路面（不再一块干一块水坑） | 近看湿地面 |
 | --- | --- |
-| ![before](shots/v0.3-00-before-vanilla-rain.jpg) | ![rain](shots/v0.3-01-rain-streaks-sky.jpg) |
+| ![wet uniform](shots/v0.4-00-wet-ground-uniform.jpg) | ![closeup](shots/v0.4-01-wet-ground-closeup.jpg) |
 
-| 地面涟漪 + 湿润高光 | 近看地面 |
+| 雨天 + 雾 + 雨丝 | 黄昏阳光落在湿街尽头 |
 | --- | --- |
-| ![ripples](shots/v0.3-02-wet-ground-ripples.jpg) | ![closeup](shots/v0.3-03-wet-ground-closeup.jpg) |
+| ![rain sky](shots/v0.4-02-rain-and-sky.jpg) | ![sun street](shots/v0.4-03-sun-down-street.jpg) |
 
-| 墙面湿润 sheen | 湿街全景 |
-| --- | --- |
-| ![wall](shots/v0.3-04-wall-sheen.jpg) | ![wide](shots/v0.3-05-wet-street-wide.jpg) |
+> 全部是 Sayama-0.3 上的实机截图：`tools/mc-ctl.ps1` 发聊天命令 + 按 R 重载 + F2 截图。
+> v0.3 的雨滴形状对比图仍在 `shots/v0.3-*.jpg`。
 
 > 全部用 `tools/mc-ctl.ps1` 实机操作：`/time set 11800` + `/weather rain`，每改一次 shader 按 **R** 重载后 F2。
 > 最近两版（v0.2/v0.3）的实机图也保留在 `shots/`。

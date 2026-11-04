@@ -19,7 +19,7 @@ float get_puddle_noise(vec3 world_pos, vec3 flat_normal, vec2 light_levels) {
 	const float puddle_frequency = 0.025;
 
 	float puddle = texture(noisetex, world_pos.xz * puddle_frequency).w;
-	      puddle = linear_step(0.45, 0.55, puddle) * wetness * biome_may_rain * step(0.99, flat_normal.y);
+	      puddle = smoothstep(0.40, 0.62, puddle) * wetness * biome_may_rain * step(0.99, flat_normal.y);
 
 	// Prevent puddles from appearing indoors
 	puddle *= (1.0 - cube(light_levels.x)) * linear_step(14.0 / 15.0, 1.0, light_levels.y);
@@ -44,9 +44,9 @@ bool get_rain_puddles(
 #endif
 
 	const float puddle_f0                      = 0.02;
-	const float puddle_roughness               = 0.002;
-	const float puddle_darkening_factor        = 0.33;
-	const float puddle_darkening_factor_porous = 0.67;
+	const float puddle_roughness               = 0.055;
+	const float puddle_darkening_factor        = 0.20;
+	const float puddle_darkening_factor_porous = 0.55;
 
 	if (wetness < 0.0 || biome_may_rain < 0.0 || material_mask == MATERIAL_LEAVES) return false;
 

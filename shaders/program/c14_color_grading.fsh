@@ -191,7 +191,7 @@ void main() {
 #ifdef BLOOM
 	vec3 fog_bloom;
 	vec3 bloom = get_bloom(fog_bloom);
-	float bloom_intensity = 0.12 * BLOOM_INTENSITY;
+	float bloom_intensity = 0.12 * BLOOM_INTENSITY * (1.0 + 0.30 * rainStrength);
 
 	scene_color = mix(scene_color, bloom, bloom_intensity);
 

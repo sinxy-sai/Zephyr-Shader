@@ -133,6 +133,20 @@ ZEPHYR_FILM_CURVE          = 0.85
 
 > 注意：涟漪只在**正在下雨**（rainStrength > 0）时出现；湿润高光由 `wetness` 驱动，雨停后还会保留一段时间。
 
+## 3.6 湿地面 / 飞溅 / 雾 / 光柱（v0.4）
+
+| 想要的效果 | 参数 / 位置 |
+| --- | --- |
+| 地面整体更湿（不出现干块） | `zephyr_rain.glsl` 的 `zephyr_macro_wetness`（0.55~1.0 区间） |
+| 湿地面更亮/更暗 | 同文件里 `albedo *= 1.0 - 0.20 * coat` 的 `0.20` |
+| 水洼更明显/更弱 | `rain_puddles.glsl` 的 `smoothstep(0.40, 0.62)` 与 `puddle_roughness` |
+| 飞溅白点更强 | `zephyr_rain.glsl` 里 `albedo += vec3(0.045,…) * splash * k` |
+| 雨/黄昏雾更浓 | `AIR_FOG_MIE_DENSITY_RAIN / _EVENING`、`OVERWORLD_FOG_INTENSITY` |
+| 雨天泛光 | `c14_color_grading.fsh` 的 `(1.0 + 0.30 * rainStrength)` |
+| 光柱更强 | `CREPUSCULAR_RAYS_INTENSITY`（当前 1.60）+ Photon 的 `VL` |
+
+> 雾的甜点区：`RAIN 0.060 / EVENING 0.0046`。再高（0.085 / 0.0090）会整屏发白。
+
 ## 4. 安全守则（踩过的坑）
 
 1. **GLSL 的 `#if` 里不能出现浮点字面量**
