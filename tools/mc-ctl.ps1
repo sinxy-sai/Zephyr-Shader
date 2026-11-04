@@ -12,12 +12,14 @@
 # - 聊天命令走「剪贴板 + Ctrl+V」，绕开中文输入法
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("shot", "reload", "chat", "key", "capture", "focus", "info")]
+    [ValidateSet("shot", "reload", "chat", "key", "capture", "focus", "info", "look")]
     [string]$Action,
 
     [string]$Text = "",
     [string]$Key = "",
     [string]$OutDir = "",
+    [int]$DX = 0,
+    [int]$DY = 0,
     [int]$WaitMs = 4000
 )
 
@@ -41,28 +43,39 @@ public class Win32Mc {
     [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
+    [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int Left, Top, Right, Bottom; }
 
     public const uint KEYEVENTF_KEYUP = 0x0002;
 
-    public static void Focus(IntPtr hWnd) {
+    [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+
+    public static bool Focus(IntPtr hWnd) {
         if (IsIconic(hWnd)) ShowWindow(hWnd, 9);
         ShowWindow(hWnd, 5);
         uint pid; uint tid = GetWindowThreadProcessId(hWnd, out pid);
         uint cur = GetCurrentThreadId();
-        AttachThreadInput(cur, tid, true);
-        SetForegroundWindow(hWnd);
-        AttachThreadInput(cur, tid, false);
-        System.Threading.Thread.Sleep(120);
+        for (int attempt = 0; attempt < 3; attempt++) {
+            AttachThreadInput(cur, tid, true);
+            BringWindowToTop(hWnd);
+            SetForegroundWindow(hWnd);
+            AttachThreadInput(cur, tid, false);
+            // ALT tap unlock: allows SetForegroundWindow from background apps
+            keybd_event(0x12, 0, 0, UIntPtr.Zero);
+            keybd_event(0x12, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            System.Threading.Thread.Sleep(150);
+            if (GetForegroundWindow() == hWnd) return true;
+        }
+        return GetForegroundWindow() == hWnd;
     }
 
     public static void Tap(byte vk) {
         keybd_event(vk, 0, 0, UIntPtr.Zero);
-        System.Threading.Thread.Sleep(40);
+        System.Threading.Thread.Sleep(80);
         keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-        System.Threading.Thread.Sleep(40);
+        System.Threading.Thread.Sleep(60);
     }
 }
 "@
@@ -161,8 +174,10 @@ switch ($Action) {
         Write-Output ("PID=" + $proc.Id + " TITLE=" + $proc.MainWindowTitle + " HWND=" + $proc.MainWindowHandle)
     }
     "focus" {
-        Focus-Mc $proc
-        Write-Output "focused"
+        $ok = [Win32Mc]::Focus($proc.MainWindowHandle)
+        Start-Sleep -Milliseconds 250
+        $fg = [Win32Mc]::GetForegroundWindow()
+        Write-Output ("focused=" + $ok + " fg=" + $fg + " target=" + $proc.MainWindowHandle)
     }
     "reload" {
         Focus-Mc $proc
@@ -190,6 +205,13 @@ switch ($Action) {
         Start-Sleep -Milliseconds 300
         Send-TextToChat $Text
         Write-Output ("chat sent: " + $Text)
+    }
+    "look" {
+        Focus-Mc $proc
+        Start-Sleep -Milliseconds 250
+        [Win32Mc]::mouse_event(0x0001, $DX, $DY, 0, [UIntPtr]::Zero)
+        Start-Sleep -Milliseconds 350
+        Write-Output ("look dx=" + $DX + " dy=" + $DY)
     }
     "shot" {
         $path = New-Screenshot $OutDir

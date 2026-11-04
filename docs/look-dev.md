@@ -120,6 +120,19 @@ ZEPHYR_FILM_CURVE          = 0.85
 
 ---
 
+## 3.5 雨水相关的参数
+
+| 想要的效果 | 参数 |
+| --- | --- |
+| 雨丝更长/更细 | `ZEPHYR_RAIN_STREAK`（0 = 原版；0.5 默认；>0.8 很电影） |
+| 关掉雨丝重塑 | `ZEPHYR_RAIN_SHAPE` 关闭 |
+| 地面更湿更亮 | `ZEPHYR_RAIN_WETNESS`（0.8 默认；1.0 接近刚下过雨） |
+| 雨点涟漪更明显 | `ZEPHYR_RAIN_RIPPLE`（0.9 默认；1.4 很夸张） |
+| 墙面水线更明显 | `zephyr_rain.glsl` 里 `zephyr_wall_streak` 的倍率与 `0.055` 法线扰动 |
+| 涟漪更细/更粗 | `zephyr_rain.glsl` 中 ripple 的 `scale`（4.2 / 6.7）与 `radius`（0.42） |
+
+> 注意：涟漪只在**正在下雨**（rainStrength > 0）时出现；湿润高光由 `wetness` 驱动，雨停后还会保留一段时间。
+
 ## 4. 安全守则（踩过的坑）
 
 1. **GLSL 的 `#if` 里不能出现浮点字面量**

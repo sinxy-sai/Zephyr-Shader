@@ -168,6 +168,7 @@ const bool colortex11MipmapEnabled = true;
 #include "/include/surface/material.glsl"
 #include "/include/misc/purkinje_shift.glsl"
 #include "/include/surface/rain_puddles.glsl"
+#include "/include/surface/zephyr_rain.glsl"
 #include "/include/sky/sky.glsl"
 #include "/include/utility/bicubic.glsl"
 #include "/include/utility/color.glsl"
@@ -362,6 +363,23 @@ void main() {
 
 #ifdef DISTANT_HORIZONS
 		}
+#endif
+
+		// Zephyr: rain on wet surfaces (before puddles, so puddles still win)
+
+#if defined WORLD_OVERWORLD && defined ZEPHYR_RAIN_SURFACE
+		zephyr_rain_surface(
+			position_world,
+			flat_normal,
+			normalize(position_world - cameraPosition),
+			material_mask,
+			is_hand,
+			normal,
+			material.albedo,
+			material.f0,
+			material.roughness,
+			material.ssr_multiplier
+		);
 #endif
 
 		// Rain puddles

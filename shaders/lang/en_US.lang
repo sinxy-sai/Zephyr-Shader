@@ -785,3 +785,15 @@ profile.rainynight                      = §9Rain Night
 
 option.ZEPHYR_WEATHER_ADAPT                = Weather-Adaptive Grade
 option.ZEPHYR_WEATHER_ADAPT.comment        = Softens and cools the film grade in rain/overcast (luminous wet-street look)
+
+option.ZEPHYR_RAIN_SURFACE              = Rain on Surfaces
+option.ZEPHYR_RAIN_SURFACE.comment      = Wet sheen, ripple rings on ground and running water streaks on walls while it rains
+option.ZEPHYR_RAIN_WETNESS              = Wet Sheen
+option.ZEPHYR_RAIN_WETNESS.comment      = How glossy rain-exposed surfaces become (stays after the rain stops)
+option.ZEPHYR_RAIN_RIPPLE               = Rain Ripples
+option.ZEPHYR_RAIN_RIPPLE.comment       = Strength of the expanding ripple rings where drops hit the ground
+
+option.ZEPHYR_RAIN_SHAPE               = Rain Streak Shape
+option.ZEPHYR_RAIN_SHAPE.comment       = Reshape vanilla rain: longer, thinner, non-uniform streaks
+option.ZEPHYR_RAIN_STREAK              = Rain Streak Length
+option.ZEPHYR_RAIN_STREAK.comment      = How long/thin the streaks get (0 = vanilla)

@@ -793,3 +793,15 @@ profile.rainynight                      = §9雨夜霓虹
 
 option.ZEPHYR_WEATHER_ADAPT                = 天气自适应调色
 option.ZEPHYR_WEATHER_ADAPT.comment        = 雨天/阴天自动柔化并偏冷，做出湿地面电影感
+
+option.ZEPHYR_RAIN_SURFACE              = 雨水表面反应
+option.ZEPHYR_RAIN_SURFACE.comment      = 下雨时地面湿润高光、雨点涟漪，墙面出现流下的水线
+option.ZEPHYR_RAIN_WETNESS              = 湿润高光
+option.ZEPHYR_RAIN_WETNESS.comment      = 被雨淋到的表面有多亮（雨停后仍然保留）
+option.ZEPHYR_RAIN_RIPPLE               = 雨点涟漪
+option.ZEPHYR_RAIN_RIPPLE.comment       = 雨滴落地形成的扩散圆环强度
+
+option.ZEPHYR_RAIN_SHAPE               = 雨滴形状
+option.ZEPHYR_RAIN_SHAPE.comment       = 重塑原版雨丝：更长、更细、每条雨滴有差异
+option.ZEPHYR_RAIN_STREAK              = 雨丝长度
+option.ZEPHYR_RAIN_STREAK.comment      = 雨丝被拉长/变细的程度（0 = 原版）

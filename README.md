@@ -2,7 +2,7 @@
 
 > 目标：把 MC 画面做成一整套「雨夜湿地面 + 黄昏逆光 + 动漫写实混合」的电影感。
 > 参考基准：用户截图中的异环/光追画面；舒适度基准：`ComplementaryReimagined_r5.7.1 + EuphoriaPatches_1.8.6`。
-> 当前版本：**v0.2（Weather-adaptive）**：在 Photon 1.2a 的成熟管线上叠加 Zephyr 调色/镜头层，并加入天气自适应。
+> 当前版本：**v0.3（Rain shape & surface）**：电影感调色 + 天气自适应 + 重塑的雨丝与雨水表面反应。
 
 ---
 
@@ -12,6 +12,8 @@
 | --- | --- | --- |
 | **Zephyr Cinematic 层** | `shaders/include/post_processing/zephyr_cinematic.glsl` | 分离色调（青暗部/暖高光）、胶片 S 曲线、黑位抬升、自然饱和度、高光去饱和、胶片颗粒、2.35:1 电影黑边 |
 | **天气自适应调色** | 同上 + `c14_color_grading.fsh` 的 `rainStrength` | 雨天/阴天自动柔化对比、抬黑位、加冷雾、降低饱和度、柔化高光；对应参考图的「雨天不通透发黑」 |
+| **雨滴形状** | `shaders/program/gbuffers_weather.vsh/.fsh` | 雨丝拉长变细、长度/透明度逐滴随机（不再是原版等长白线） |
+| **雨水表面反应** | `shaders/include/surface/zephyr_rain.glsl`（挂在 `d4_deferred_shading.fsh`） | 地面湿润高光 + 雨点扩散涟漪；墙面湿润 sheen + 流下的水线；雨停后地面仍保持湿润 |
 | 管线挂载点 | `program/c14_color_grading.fsh`（色调映射前后）/ `program/final.fsh`（颗粒/黑边） | 与 Photon 原有 ACES/tonemap 共存，可单独开关 |
 | 设置界面 | `settings.glsl` + `shaders.properties` + `lang/*.lang` | 游戏内：光影设置 → 后处理 → **Zephyr Cinematic** |
 | **Cinematic 预设** | `shaders.properties` 的 `profile.cinematic` | 一键启用 DoF / 动态模糊 / 更高泛光与暗角 |
@@ -39,18 +41,22 @@
 
 ---
 
-## 3. 实机画面（v0.2，Weston City V0.3）
+## 3. 实机画面（v0.3，Sayama-0.3）
 
-| 雨后湿地面 + 霓虹反射 | 黄昏金光 + 湿街 |
+| 原版雨丝（改动前） | 重塑后的雨丝 |
 | --- | --- |
-| ![wet after rain](shots/v0.2-wet-street-after-rain.jpg) | ![wet golden](shots/v0.2-wet-golden-hour.jpg) |
+| ![before](shots/v0.3-00-before-vanilla-rain.jpg) | ![rain](shots/v0.3-01-rain-streaks-sky.jpg) |
 
-| 蓝调时刻 + 霓虹 | 落日长街 |
+| 地面涟漪 + 湿润高光 | 近看地面 |
 | --- | --- |
-| ![dusk](shots/v0.2-dusk-neon-wet.jpg) | ![sunset](shots/v0.2-sunset-street.jpg) |
+| ![ripples](shots/v0.3-02-wet-ground-ripples.jpg) | ![closeup](shots/v0.3-03-wet-ground-closeup.jpg) |
 
-> 这几张是用 `tools/mc-ctl.ps1` 在游戏里实际跑出来的：`/time set` 11600~12250 + `/weather rain|clear`，
-> 每改一次 shader 按 **R** 重载后 F2 截图。相机位置是玩家位置，没有额外摆拍。
+| 墙面湿润 sheen | 湿街全景 |
+| --- | --- |
+| ![wall](shots/v0.3-04-wall-sheen.jpg) | ![wide](shots/v0.3-05-wet-street-wide.jpg) |
+
+> 全部用 `tools/mc-ctl.ps1` 实机操作：`/time set 11800` + `/weather rain`，每改一次 shader 按 **R** 重载后 F2。
+> 最近两版（v0.2/v0.3）的实机图也保留在 `shots/`。
 
 ## 4. 参考图 → 参数对照
 
@@ -69,7 +75,8 @@
 ```
 Zephyr/
 ├─ shaders/                 # 光影本体（Photon 1.2a 基底 + Zephyr 修改）
-│  ├─ include/post_processing/zephyr_cinematic.glsl   # ← Zephyr 新模块
+│  ├─ include/post_processing/zephyr_cinematic.glsl   # ← Zephyr 调色 / 天气自适应
+├─ include/surface/zephyr_rain.glsl                # ← Zephyr 雨水表面反应
 │  ├─ program/c14_color_grading.fsh                   # ← 挂载点 A
 │  ├─ program/final.fsh                               # ← 挂载点 B
 │  ├─ settings.glsl                                   # ← Zephyr 设置块 + 默认值
@@ -78,7 +85,7 @@ Zephyr/
 ├─ tools/validate_glsl.py   # 离线 GLSL 校验（需要开发 venv）
 ├─ tools/analyze_look.py    # 参考图量化 + 调色曲线/色卡图
 ├─ tools/mc-test.ps1        # 实机启动 + 截图 + 日志验证
-├─ tools/mc-ctl.ps1         # 实机操控（R 重载 / 聊天 / F2 截图）
+├─ tools/mc-ctl.ps1         # 实机操控（R 重载 / 聊天 / F2 截图 / 鼠标视角）
 ├─ tools/mc-launch.ps1      # quickPlay 受控启动
 ├─ reports/                 # 实机验证报告（Iris 编译日志、启动报告）
 ├─ shots/                   # 实机截图证据
@@ -129,7 +136,8 @@ powershell -File tools\mc-test.ps1
 
 - **v0.1**：电影感调色层、Cinematic 预设、默认观感调校、离线校验 + 实机验证闭环。
 - **v0.2（当前）**：天气自适应调色（雨天柔光/冷雾/抬黑）、日落去橙、湿地面与雨雾调优、实机 R 键迭代闭环 + 截图证据。
-- **v0.2.1**：湿地面专项（雨纹法线扰动、反射拉长）、泛光形状（neon 横向 streak）、镜头光晕。
+- **v0.3（当前）**：雨滴形状重塑、地面涟漪、墙面湿润 sheen 与水线、实机 R 循环验证。
+- **v0.3.1**：反射拉长（湿地面竖条反光）、泛光形状（neon 横向 streak）、镜头光晕。
 - **v0.3**：天空/体积雾按「黄昏 · 雨夜 · 蓝调」三套预设；樱花/雪景低饱和分支。
 - **v0.4**：参考图逐张校准（截图 vs 参考图 的色板/直方图对比脚本）。
 

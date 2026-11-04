@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.3 — 雨滴形状 + 雨水表面反应（2026-11-05）
+
+本轮全部在 **Sayama-0.3**（实际使用的地图）上通过「改代码 → R 重载 → F2 截图」迭代，
+截图见 `shots/v0.3-*.jpg`。
+
+### 新增：雨滴形状（`gbuffers_weather.vsh/.fsh`）
+
+原版雨丝是等长等宽的细白线。现在：
+
+- 顶点着色器把雨丝沿世界 Y 拉伸 `1.0 + 1.15 × ZEPHYR_RAIN_STREAK`，横向压细 `1.0 − 0.45 × 拉伸`，
+  绕方块/0.2 网格锚点缩放，不会出现接缝
+- 每滴雨用 `hash(floor(world_pos.xz × 5))` 生成 seed：长度 ±25%、透明度 0.45~1.35 倍随机，
+  雨不再是「复制粘贴」
+- 设置：`ZEPHYR_RAIN_SHAPE`（开关）、`ZEPHYR_RAIN_STREAK`（0 = 原版）
+
+### 新增：雨水落到表面（`include/surface/zephyr_rain.glsl` + `d4_deferred_shading.fsh`）
+
+挂在 deferred 里、puddle 之前（真实水洼仍然优先）：
+
+- **水平面（地面/屋顶）**：湿润高光 coat（`f0 0.03`、roughness 0.22，雨停后仍保留）
+  + 雨点落地扩散圆环：两层网格（4.2 / 6.7 频率）+ 每格随机相位/中心，法线扰动 0.42，
+  近处增强、6 格后淡出
+- **垂直面（墙/建筑外表面）**：湿润 sheen（f0 0.036、roughness 0.30）+ 沿墙面缓慢流下的细水线
+  （按墙面水平坐标分格、随时间下移），并给法线加 0.055 的水线扰动
+- 设置：`ZEPHYR_RAIN_SURFACE`、`ZEPHYR_RAIN_WETNESS`、`ZEPHYR_RAIN_RIPPLE`（都做了中英文标签 + 滑块）
+
+### 工具
+
+- `tools/mc-ctl.ps1` 增强：`-Action look -DX -DY`（相对鼠标视角）、可靠的 `SetForegroundWindow`
+  （AttachThreadInput + BringWindowToTop + ALT 解锁 + 校验前台窗口）、按键按住 80ms 更稳
+- 截图自动等待 PNG 写盘完成（避免 0 字节）
+
+### 验证
+
+- 离线：209/209 入口编译通过（62 个被禁用，0 失败）
+- 实机：Sayama-0.3 多轮 R 重载 + F2 截图，无编译错误
+
+
 ## v0.2 — 天气自适应与实机迭代（2026-11-05）
 
 在 Weston City V0.3 上用 Iris 的 **R 键重载**做了真实画面迭代（实机截图见 `shots/`）。

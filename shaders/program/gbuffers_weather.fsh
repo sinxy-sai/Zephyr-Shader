@@ -19,6 +19,8 @@ in vec2 uv;
 
 flat in vec4 tint;
 
+in float rain_seed;
+
 // ------------
 //   Uniforms
 // ------------
@@ -51,8 +53,15 @@ void main() {
 
 	bool is_rain = (abs(base_color.r - base_color.b) > eps);
 
+#ifdef ZEPHYR_RAIN_SHAPE
+	// Per-drop opacity/width variation: vanilla rain is perfectly uniform.
+	float drop_alpha = mix(1.0, 0.45 + 0.9 * rain_seed, ZEPHYR_RAIN_STREAK);
+#else
+	float drop_alpha = 1.0;
+#endif
+
 	frag_color = is_rain
-		? vec4(get_rain_color(), RAIN_OPACITY * base_color.a) * tint
+		? vec4(get_rain_color(), RAIN_OPACITY * base_color.a * drop_alpha) * tint
 		: vec4(get_snow_color(), SNOW_OPACITY * base_color.a) * tint;
 	frag_color.rgb *= frag_color.a;
 }
