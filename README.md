@@ -16,7 +16,7 @@
 | **Cinematic 预设** | `shaders.properties` 的 `profile.cinematic` | 一键启用 DoF / 动态模糊 / 更高泛光与暗角 |
 | 默认观感（已按参考图调） | `settings.glsl` | 色温 6300K、橙色饱和度 +0.06、青 +0.14、泛光 1.30、暗角 1.25、黄昏/雨天 Mie 雾提高 |
 | 离线校验工具 | `tools/validate_glsl.py` | 不开游戏就能编译全部 209 个光影程序入口 |
-| 观感分析工具 | `tools/analyze_look.py` | 把参考图量化成数值，并渲染调色曲线 / 色卡对比 |
+| 观感分析工具 | `tools/analyze_look.py` | 把参考图量化成数值，并渲染调色曲线 / 色卡对比（结果见 `docs/look-analysis.md`） |
 | 实机验证工具 | `tools/mc-test.ps1` | 启动 MC → 进存档 → 自动截图 → 抓 Iris 编译日志（由 mc-harness 搭建） |
 
 当前默认配置下，**离线 GLSL 校验 209/209 通过**（62 个被光影自身禁用的 pass 跳过，0 失败）。
@@ -27,7 +27,10 @@
 
 1. 打开游戏 → 选项 → 视频设置 → 光影 → 选择 **Zephyr**。
 2. 光影设置 → 后处理 → **Zephyr Cinematic**：调节强度、胶片曲线、颗粒等。
-3. 想要「截图模式」：光影设置顶部切换 profile 为 **Cinematic**（开启景深/动态模糊/更强泛光与黑边可选）。
+3. 想要现成的成片风格：在光影选择界面切换 **profile**：
+   - **Cinematic**：默认推荐（DoF + 动态模糊 + 更强泛光/暗角，强度 1.0）
+   - **Sunset**：黄昏逆光（暖影调、更强泛光、无 DoF）
+   - **Rain Night**：雨夜霓虹（青调暗部、更高黑位与泛光）
 4. 设置会被 Iris 存到 `shaderpacks/Zephyr.txt`；删掉它即可恢复默认。
 
 > 提示：`ZEPHYR_LETTERBOX = On` 会画 2.35:1 黑边，只建议截图时开。

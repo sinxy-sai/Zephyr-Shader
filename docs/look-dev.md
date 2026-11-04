@@ -50,6 +50,7 @@ Zephyr 的调色层插在 Photon 的 `c14_color_grading` 里，顺序如下：
 | 截图时的胶片颗粒 | 胶片颗粒 0.2~0.4 |
 | 2.35:1 电影黑边 | 电影黑边 = 开，画幅 2.35 |
 | 更强的景深/动态模糊 | 顶部 profile 切到 **Cinematic** |
+| 一键黄昏 / 雨夜风格 | 顶部 profile 切到 **Sunset** / **Rain Night** |
 
 ### 2.2 需要改 `settings.glsl`（零风险、不涉及 GLSL 逻辑）
 
