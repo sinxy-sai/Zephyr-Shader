@@ -49,8 +49,8 @@ vec2 zephyr_ripple_offset(vec3 world_pos, float time, out float wave_sum) {
 	const float FRAMES = 16.0;
 
 	for (int layer = 0; layer < 2; ++layer) {
-		float scale = layer == 0 ? 0.85 : 1.55;   // tile repeats per block
-		float speed = layer == 0 ? 0.50 : 0.85;   // animation cycles per second
+		float scale = layer == 0 ? 0.45 : 0.85;   // tile repeats per block
+		float speed = layer == 0 ? 0.45 : 0.75;   // animation cycles per second
 
 		float frame = fract(time * speed) * FRAMES;
 		float f0    = floor(frame);
@@ -123,11 +123,11 @@ void zephyr_rain_surface(
 			vec2 offset = zephyr_ripple_offset(world_pos, frameTimeCounter, wave);
 
 			float k = falling * fade * ZEPHYR_RAIN_RIPPLE;
-			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.35 * k);
+			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.25 * k);
 
 			// Rings also disturb the mirror: crests are slightly rougher, so the
 			// circular wavefronts read as dark/light rings instead of glitter.
-			roughness += clamp01(wave) * 0.22 * k;
+			roughness += clamp01(wave) * 0.10 * k;
 		}
 	} else if (up < 0.30) {
 		// Wet walls: sheen + running water lines
