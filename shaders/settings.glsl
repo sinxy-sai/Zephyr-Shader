@@ -532,13 +532,9 @@ const float wetnessHalflife         = 70.0;
   #define ZEPHYR_CONTACT_SHADOWS            // [0 1]
   // Volumetric ground mist + local light scattering (P2)
   #define ZEPHYR_MIST                       // [0 1]
-  // Screen-space one-bounce GI
-  #define ZEPHYR_SSGI                       // [0 1]
   // Rain impact rings on water surfaces
   #define ZEPHYR_SKY_CITY_GLOW 0.35 // [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.50 0.60 0.70 0.80 1.00]
   #define ZEPHYR_WATER_RINGS 0.60 // [0.00 0.10 0.20 0.30 0.40 0.50 0.60 0.80 1.00 1.20 1.50]
-  #define ZEPHYR_SSGI_STRENGTH 0.35 // [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.60 0.70 0.80 1.00]
-  #define ZEPHYR_SSGI_RADIUS   1.50 // [0.50 0.75 1.00 1.25 1.50 2.00 2.50 3.00 4.00]
   #define ZEPHYR_MIST_DENSITY 0.0060 // [0.0000 0.0010 0.0020 0.0030 0.0040 0.0050 0.0060 0.0070 0.0080 0.0100 0.0120 0.0150 0.0200]
   #define ZEPHYR_MIST_HEIGHT  5.0 // [2.0 3.0 4.0 5.0 6.0 8.0 10.0 12.0 16.0]
   #define ZEPHYR_LIGHT_FOG_SCALE 1.60 // [0.50 0.60 0.70 0.80 0.90 1.00 1.10 1.20 1.30 1.40 1.50 1.60 1.80 2.00 2.20 2.50 3.00]
@@ -547,7 +543,6 @@ const float wetnessHalflife         = 70.0;
   #define ZEPHYR_WATER_TINT          0.70 // [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 1.00]
 // [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 1.00 1.05 1.10 1.15 1.20 1.25 1.30 1.35 1.40 1.45 1.50 1.55 1.60 1.65 1.70 1.75 1.80 1.85 1.90 1.95 2.00]
   #define ZEPHYR_RAIN_SHAPE
-
   #define ZEPHYR_MATERIAL_RELIEF  0.50 // [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 1.00]
   #define ZEPHYR_RAIN_WIND_X      0.10 // [-0.30 -0.25 -0.20 -0.15 -0.10 -0.05 0.00 0.05 0.10 0.15 0.20 0.25 0.30]
   #define ZEPHYR_RAIN_WIND_Z      0.05 // [-0.30 -0.25 -0.20 -0.15 -0.10 -0.05 0.00 0.05 0.10 0.15 0.20 0.25 0.30]
@@ -683,8 +678,6 @@ const float wetnessHalflife         = 70.0;
 #ifdef ZEPHYR_MIST
 #endif
 
-#ifdef ZEPHYR_SSGI
-#endif
 
 #ifdef ZEPHYR_WATER_RINGS
 #endif

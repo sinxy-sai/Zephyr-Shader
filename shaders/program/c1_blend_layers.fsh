@@ -132,7 +132,6 @@ uniform float time_midnight;
 #include "/include/utility/encoding.glsl"
 #include "/include/utility/fast_math.glsl"
 #include "/include/utility/space_conversion.glsl"
-#include "/include/zephyr/ssgi.glsl"
 
 #ifdef WORLD_OVERWORLD
 #include "/include/fog/overworld/analytic.glsl"
@@ -368,12 +367,6 @@ void main() {
 	// Volumetric fog
 
 	fragment_color = fragment_color * fog_transmittance + fog_scattering;
-
-#ifdef ZEPHYR_SSGI
-	// One-bounce screen-space GI, added before TAA (c4) so the sampling pattern is
-	// temporally resolved instead of leaving static grain in the final image.
-	fragment_color += zephyr_ssgi(uv, texelFetch(depthtex0, texel, 0).x) * ZEPHYR_SSGI_STRENGTH;
-#endif
 
 	#ifdef BLOOMY_FOG
 	bloomy_fog = clamp01(dot(fog_transmittance, vec3(luminance_weights_rec2020)));

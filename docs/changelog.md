@@ -1,5 +1,25 @@
 # Changelog
 
+## v3.0 — 移除 SSGI（拖影/反馈环问题）（2026-11-05）
+
+实机反馈：SSGI 出现明显拖影。根因有两个，确实是设计问题：
+
+1. **读写同一张 buffer 的反馈环**：SSGI 放在 `c1_blend_layers`（该 pass 的输出目标就是
+   `colortex0`），却又从 `colortex0` 采样邻居颜色 → 同一 pass 内读写同一渲染目标，
+   行为未定义，硬件上表现为上一帧内容被反复混进来 = 拖影
+2. **没有重投影**：即使换个 buffer，逐像素屏幕空间采样在相机/物体移动时仍会拖尾
+
+结论：这个近似做不到「稳定」，直接移除：
+
+- `c1_blend_layers.fsh`：删除 SSGI include 与叠加
+- 删除 `include/zephyr/ssgi.glsl`
+- 移除 `ZEPHYR_SSGI / _STRENGTH / _RADIUS` 设置、菜单项、滑块与语言条目
+
+间接光仍由 Photon 自带的 SH 天光 + 反弹光（`BOUNCED_LIGHT_I`）+ 体积光提供。
+如果以后要做真 GI，需要「独立渲染目标 + 历史重投影 + 时域降噪」，而不是在合成
+pass 里直接读自己。
+
+
 ## v2.9 — 水体升级：焦散 + 浑浊度 + 岸线（2026-11-05）
 
 在 Photon 已有的 Gerstner 波浪 / 视差 / 吸收 / 折射基础上调默认与开关：
