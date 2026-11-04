@@ -1,4 +1,14 @@
 /*
+  Zephyr | post: cinematic grade
+  Contract (host must declare):
+    uniforms: none (all parameters come from settings.glsl)
+  Interface:
+    vec3 zephyr_pre_tonemap(vec3 scene_linear)
+    vec3 zephyr_post_tonemap(vec3 display_linear, float weather)
+  Units: scene_linear = exposed scene colour (linear, unbounded);
+         display_linear = tonemapped colour in [0,1].
+*/
+/*
 --------------------------------------------------------------------------------
 
   Zephyr Cinematic Look

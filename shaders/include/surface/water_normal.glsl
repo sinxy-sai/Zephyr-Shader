@@ -2,6 +2,7 @@
 #define INCLUDE_MISC_WATER_NORMAL
 
 #include "/include/utility/space_conversion.glsl"
+#include "/include/zephyr/water_rings.glsl"
 
 float gerstner_wave(vec2 coord, vec2 wave_dir, float t, float noise, float wavelength) {
 	// Gerstner wave function from Belmu in #snippets, modified
@@ -94,33 +95,6 @@ float get_water_height(vec2 coord, vec2 wave_dir, mat2 wave_rot, float t) {
 	return height * amplitude_normalization_factor;
 }
 
-
-// Zephyr: rain impact rings on the water surface. Procedural (no texture) so it
-// needs no extra sampler and costs almost nothing: each grid cell spawns one
-// expanding ring, only ~40%% of cells are active so it doesn't tile visibly.
-vec2 zephyr_water_rain_rings(vec2 coord, float time, float rain) {
-	vec2 result = vec2(0.0);
-	if (rain < 0.01) return result;
-
-	for (int layer = 0; layer < 2; ++layer) {
-		float scale = 2.4 + float(layer) * 1.6;   // cells per block
-		vec2 p = coord * scale;
-		vec2 cell = floor(p);
-		vec2 f = fract(p) - 0.5;
-
-		float h = fract(sin(dot(cell + float(layer) * 31.7, vec2(12.9898, 78.233))) * 43758.5453);
-		if (h < 0.55) continue;
-
-		float phase = fract(time * (0.9 + float(layer) * 0.5) + h * 7.0);
-		float r = length(f) * 2.0;               // 0..1 over the cell
-		float radius = phase;
-
-		float ring = exp2(-sqr((r - radius) * 9.0)) * (1.0 - phase) * (1.0 - phase);
-		result += normalize(f + 1e-5) * ring;
-	}
-
-	return result;
-}
 
 vec3 get_water_normal(vec3 world_pos, vec3 flat_normal, vec2 coord, vec2 flow_dir, float skylight, bool flowing_water) {
 	vec2 wave_dir; mat2 wave_rot; float t;

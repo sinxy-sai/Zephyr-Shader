@@ -33,7 +33,7 @@ uniform float frameTimeCounter;
 uniform sampler2D shadowtex0;
 #endif
 
-#include "/include/post_processing/zephyr_cinematic.glsl"
+#include "/include/zephyr/cinematic.glsl"
 #include "/include/utility/bicubic.glsl"
 #include "/include/utility/color.glsl"
 #include "/include/utility/dithering.glsl"

@@ -1,5 +1,21 @@
 # Changelog
 
+## v3.1 — 工程化重构（Zephyr 层模块化 + 契约化）（2026-11-05）
+
+详细报告见 `docs/refactor-report.md`（坏味道清单 / SOLID 映射 / 改动点 / 测试要点 /
+Photon 替换路线）。本轮只做「不改变行为」的重构：
+
+- `c14_color_grading.fsh`：226 → 177 行，内联光柱抽成 `include/zephyr/godrays.glsl`，
+  采样数/衰减/系数改为具名常量（`ZEPHYR_GODRAYS_SAMPLES/DECAY/FINAL_SCALE`）
+- `post_processing/zephyr_cinematic.glsl` → `include/zephyr/cinematic.glsl`，
+  `c14` 与 `final.fsh` 的 include 同步更新
+- `surface/water_normal.glsl` 内联的水面涟漪抽成 `include/zephyr/water_rings.glsl`
+- 每个 Zephyr 模块头部加 **Contract 注释**（host 必须声明的 uniform / 函数签名 / 单位）
+- 删除已废弃的 SSGI 模块（v3.0 已移除）
+
+校验：209/209 compiled, 0 failed（行为不变）。
+
+
 ## v3.0 — 移除 SSGI（拖影/反馈环问题）（2026-11-05）
 
 实机反馈：SSGI 出现明显拖影。根因有两个，确实是设计问题：
