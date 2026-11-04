@@ -16,6 +16,7 @@
 | **Cinematic 预设** | `shaders.properties` 的 `profile.cinematic` | 一键启用 DoF / 动态模糊 / 更高泛光与暗角 |
 | 默认观感（已按参考图调） | `settings.glsl` | 色温 6300K、橙色饱和度 +0.06、青 +0.14、泛光 1.30、暗角 1.25、黄昏/雨天 Mie 雾提高 |
 | 离线校验工具 | `tools/validate_glsl.py` | 不开游戏就能编译全部 209 个光影程序入口 |
+| 观感分析工具 | `tools/analyze_look.py` | 把参考图量化成数值，并渲染调色曲线 / 色卡对比 |
 | 实机验证工具 | `tools/mc-test.ps1` | 启动 MC → 进存档 → 自动截图 → 抓 Iris 编译日志（由 mc-harness 搭建） |
 
 当前默认配置下，**离线 GLSL 校验 209/209 通过**（62 个被光影自身禁用的 pass 跳过，0 失败）。
@@ -57,10 +58,13 @@ Zephyr/
 │  ├─ shaders.properties                              # ← 设置界面 / Cinematic 预设
 │  └─ lang/{en_US,zh_CN}.lang                         # ← 中英文标签
 ├─ tools/validate_glsl.py   # 离线 GLSL 校验（需要开发 venv）
+├─ tools/analyze_look.py    # 参考图量化 + 调色曲线/色卡图
 ├─ tools/mc-test.ps1        # 实机启动 + 截图 + 日志验证
 ├─ reports/                 # 实机验证报告（Iris 编译日志、启动报告）
 ├─ shots/                   # 实机截图证据
 ├─ docs/look-dev.md         # 观感开发手册（调参攻略）
+├─ docs/look-analysis.md    # 参考图量化分析与目标参数（自动生成）
+├─ docs/images/look-analysis/  # 曲线图 / 色卡对比图
 ├─ docs/changelog.md        # 版本记录
 ├─ NOTICE.md                # 许可与二次开发声明
 └─ LICENSE                  # Photon 原始许可（必须保留）
@@ -79,10 +83,13 @@ $py = "C:\Users\liubingliang\Downloads\_shader_lab\venv\Scripts\python.exe"
 #    只测某几个 pass：
 & $py tools\validate_glsl.py --only composite14 final
 
-# 2) 实机验证（启动游戏 → 截图 → 抓日志）
+# 2) 参考图量化：更新 docs/look-analysis.md 与曲线/色卡图
+& $py tools\analyze_look.py
+
+# 3) 实机验证（启动游戏 → 截图 → 抓日志）
 powershell -File tools\mc-test.ps1
 
-# 3) 看结果
+# 4) 看结果
 #    reports\launch-report.md   是否编译成功 / 耗时 / 问题
 #    shots\                     实机截图
 ```

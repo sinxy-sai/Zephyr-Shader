@@ -35,6 +35,7 @@
 ### 工具
 
 - `tools/validate_glsl.py`：离线 GLSL 校验（moderngl + PyOpenGL 真实驱动编译；Iris 宏注入 + `#include` 解析 + `shaders.properties` 启用条件）
+- `tools/analyze_look.py` + `docs/look-analysis.md`：把参考截图量化（影调/暗部色偏/高光色偏），并离线渲染调色响应曲线与色卡对比（可直接看 Zephyr 层对画面的影响）
 - `tools/mc-test.ps1`：MC 启动 → 进存档 → 自动截图 → 抓 Iris 日志
 - 文档：`README.md`、`docs/look-dev.md`、`NOTICE.md`
 

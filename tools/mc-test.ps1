@@ -6,11 +6,12 @@
 .DESCRIPTION
     Launch (reusing PCL's LatestLaunch.bat java command) -> quickPlay into a world
     -> wait for world load / Iris pipeline creation -> send chat commands
-    -> press F2 for screenshots -> collect logs -> quit game -> restore configs
+    -> press F2 for screenshots -> collect logs -> quit game -> restore options.txt
     -> write evidence into reports/ and shots/.
 
-    Nothing under shaders/ is written. Only config/iris.properties and options.txt
-    are temporarily changed (backed up first, restored at the end).
+    Nothing under shaders/ is written. config/iris.properties is set to the requested
+    pack and is kept afterwards (use -RestoreIris to put back the pre-run backup);
+    options.txt is backed up first and restored at the end.
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File tools\mc-test.ps1
@@ -595,6 +596,8 @@ try {
     # ------------------------------------------------------- launch --------
     $phase = 'launch'
     foreach ($f in @($consoleLog, $consoleErr)) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue } }
+    $preLogMarker = Get-LogSessionMarker -Path $latestLog
+    $result.notes += ('pre-launch latest.log first line: ' + $preLogMarker)
     Write-Log 'launching Minecraft...'
     $launchTime = Get-Date
     $spArgs = @{
@@ -604,6 +607,7 @@ try {
         PassThru = $true
         RedirectStandardOutput = $consoleLog
         RedirectStandardError = $consoleErr
+        WindowStyle = 'Hidden'
     }
     $proc = Start-Process @spArgs
     $result.launchPid = $proc.Id
@@ -631,6 +635,19 @@ try {
             throw ('game process exited during ' + $phase + '. last log hints: ' + ($hints -join ' || '))
         }
         $log = Get-LogText -Path $latestLog
+        $newSession = Test-NewLogSession -Path $latestLog -OldMarker $preLogMarker
+        if (-not $newSession) {
+            if (((Get-Date) - $lastProgressPrint).TotalSeconds -ge 15) {
+                $lastProgressPrint = Get-Date
+                Write-Log 'waiting for a fresh latest.log session (old log not rotated yet)'
+            }
+            Start-Sleep -Milliseconds 1500
+            continue
+        }
+        if ($log -and (-not $script:NewSessionLogged)) {
+            $script:NewSessionLogged = $true
+            Write-Log 'fresh latest.log session detected'
+        }
         if ($log) {
             if (-not $shaderpackAt -and ($log -match ('Using shaderpack:\s*' + [regex]::Escape($ShaderPack)))) {
                 $shaderpackAt = Get-Date
@@ -640,9 +657,9 @@ try {
                 $pipelineAt = Get-Date
                 Write-Log 'Iris pipeline creation started'
             }
-            if (-not $joinAt -and ($log -match 'joined the game')) {
+            if (-not $joinAt -and ($log -match 'joined the game|加入了游戏|Preparing start region for dimension')) {
                 $joinAt = Get-Date
-                Write-Log 'player joined the world (integrated server)'
+                Write-Log 'world loading started (integrated server)'
             }
             if ($log -match 'Failed to create shader rendering pipeline|ShaderCompileException|Shader compilation log for|Unable to load shaderpack') {
                 Write-Log 'IRIS COMPILE/LOAD FAILURE detected in latest.log' 'ERROR'
@@ -650,12 +667,12 @@ try {
                 break
             }
             if ($pipelineAt -and (((Get-Date) - $pipelineAt).TotalSeconds -ge $SettleSeconds)) { $done = $true; break }
-            if ($joinAt -and (((Get-Date) - $joinAt).TotalSeconds -ge $SettleSeconds)) { $done = $true; break }
+            if ($joinAt -and (((Get-Date) - $joinAt).TotalSeconds -ge ($SettleSeconds + 8))) { $done = $true; break }
         }
         if (((Get-Date) - $lastProgressPrint).TotalSeconds -ge 15) {
             $lastProgressPrint = Get-Date
             $snippet = ''
-            if ($log) { $snippet = (($log -split "`r?`n") | Where-Object { $_ -match 'Preparing|Loading|Loaded|joined|Creating pipeline|Reloading|Starting' } | Select-Object -Last 1) }
+            if ($log) { $snippet = (($log -split "`r?`n") | Where-Object { $_ -match 'Preparing|Loading|Loaded|joined|加入了|Creating pipeline|Reloading|Starting' } | Select-Object -Last 1) }
             Write-Log ('still waiting for world... ' + $snippet)
         }
         Start-Sleep -Milliseconds 2500
@@ -804,16 +821,20 @@ try {
         if ($result.screenshots.Count -eq 0) { $result.notes += 'no screenshot captured' }
 
         if (-not $NoRestore) {
-            if ($irisBackup -and (Test-Path -LiteralPath $irisBackup)) {
-                Copy-Item -LiteralPath $irisBackup -Destination $irisCfg -Force
-                Write-Log 'iris.properties restored'
+            if ($RestoreIris) {
+                if ($irisBackup -and (Test-Path -LiteralPath $irisBackup)) {
+                    Copy-Item -LiteralPath $irisBackup -Destination $irisCfg -Force
+                    Write-Log 'iris.properties restored from pre-run backup'
+                }
+            } else {
+                Write-Log ('iris.properties left as shaderPack=' + $ShaderPack + ' (project convention: keep Zephyr active)')
             }
             if ($optionsBackup -and (Test-Path -LiteralPath $optionsBackup)) {
                 Copy-Item -LiteralPath $optionsBackup -Destination $optionsTxt -Force
                 Write-Log 'options.txt restored'
             }
         } else {
-            Write-Log 'NoRestore set - iris.properties/options.txt left modified' 'WARN'
+            Write-Log 'NoRestore set - options.txt left untouched (iris.properties is always left as-is)' 'WARN'
         }
 
         $result.timings['totalSeconds'] = [math]::Round(((Get-Date) - $script:StartedAt).TotalSeconds, 1)

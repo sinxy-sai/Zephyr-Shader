@@ -1,0 +1,578 @@
+[
+  {
+    "caption": "秋日逆光·红跑车",
+    "category": "sunset",
+    "stats": {
+      "shadow": {
+        "share": 0.5485837887067395,
+        "rgb_ratio": [
+          1.872,
+          0.648,
+          0.479
+        ],
+        "saturation": 0.721,
+        "hue_deg": 10.0
+      },
+      "midtone": {
+        "share": 0.33213570127504555,
+        "rgb_ratio": [
+          1.748,
+          0.743,
+          0.51
+        ],
+        "saturation": 0.724,
+        "hue_deg": 14.6
+      },
+      "highlight": {
+        "share": 0.11928051001821494,
+        "rgb_ratio": [
+          1.285,
+          0.924,
+          0.791
+        ],
+        "saturation": 0.39,
+        "hue_deg": 17.6
+      },
+      "global": {
+        "luma_p5": 0.0137,
+        "luma_p50": 0.0875,
+        "luma_p95": 0.6539,
+        "contrast_p95_p5": 0.6402,
+        "mean_saturation": 0.682,
+        "rgb_ratio": [
+          1.574,
+          0.803,
+          0.623
+        ]
+      }
+    }
+  },
+  {
+    "caption": "雾林·红跑车",
+    "category": "fog",
+    "stats": {
+      "shadow": {
+        "share": 0.3233956729006234,
+        "rgb_ratio": [
+          0.895,
+          0.846,
+          1.259
+        ],
+        "saturation": 0.421,
+        "hue_deg": 247.9
+      },
+      "midtone": {
+        "share": 0.5462962962962963,
+        "rgb_ratio": [
+          0.922,
+          0.905,
+          1.173
+        ],
+        "saturation": 0.306,
+        "hue_deg": 243.9
+      },
+      "highlight": {
+        "share": 0.13030803080308032,
+        "rgb_ratio": [
+          0.951,
+          0.934,
+          1.115
+        ],
+        "saturation": 0.185,
+        "hue_deg": 245.8
+      },
+      "global": {
+        "luma_p5": 0.0274,
+        "luma_p50": 0.1631,
+        "luma_p95": 0.5719,
+        "contrast_p95_p5": 0.5445,
+        "mean_saturation": 0.327,
+        "rgb_ratio": [
+          0.929,
+          0.909,
+          1.161
+        ]
+      }
+    }
+  },
+  {
+    "caption": "沙滩·动漫角色",
+    "category": "anime",
+    "stats": {
+      "shadow": {
+        "share": 0.2965602284527518,
+        "rgb_ratio": [
+          1.482,
+          0.859,
+          0.659
+        ],
+        "saturation": 0.587,
+        "hue_deg": 17.0
+      },
+      "midtone": {
+        "share": 0.47261163032191067,
+        "rgb_ratio": [
+          1.085,
+          0.903,
+          1.012
+        ],
+        "saturation": 0.329,
+        "hue_deg": 323.2
+      },
+      "highlight": {
+        "share": 0.23082814122533749,
+        "rgb_ratio": [
+          1.144,
+          0.937,
+          0.918
+        ],
+        "saturation": 0.252,
+        "hue_deg": 5.2
+      },
+      "global": {
+        "luma_p5": 0.0076,
+        "luma_p50": 0.2376,
+        "luma_p95": 0.5838,
+        "contrast_p95_p5": 0.5762,
+        "mean_saturation": 0.388,
+        "rgb_ratio": [
+          1.127,
+          0.917,
+          0.955
+        ]
+      }
+    }
+  },
+  {
+    "caption": "雨路·黄昏",
+    "category": "rain",
+    "stats": {
+      "shadow": {
+        "share": 0.5962871287128713,
+        "rgb_ratio": [
+          1.635,
+          0.711,
+          0.654
+        ],
+        "saturation": 0.579,
+        "hue_deg": 4.4
+      },
+      "midtone": {
+        "share": 0.24471947194719473,
+        "rgb_ratio": [
+          1.471,
+          0.783,
+          0.747
+        ],
+        "saturation": 0.515,
+        "hue_deg": 3.6
+      },
+      "highlight": {
+        "share": 0.158993399339934,
+        "rgb_ratio": [
+          1.348,
+          0.928,
+          0.724
+        ],
+        "saturation": 0.461,
+        "hue_deg": 21.8
+      },
+      "global": {
+        "luma_p5": 0.0127,
+        "luma_p50": 0.0733,
+        "luma_p95": 0.6278,
+        "contrast_p95_p5": 0.6151,
+        "mean_saturation": 0.545,
+        "rgb_ratio": [
+          1.432,
+          0.848,
+          0.72
+        ]
+      }
+    }
+  },
+  {
+    "caption": "雨林·尾灯",
+    "category": "rain",
+    "stats": {
+      "shadow": {
+        "share": 0.8322882288228823,
+        "rgb_ratio": [
+          1.332,
+          0.792,
+          0.876
+        ],
+        "saturation": 0.386,
+        "hue_deg": 349.6
+      },
+      "midtone": {
+        "share": 0.13343417675100844,
+        "rgb_ratio": [
+          1.226,
+          0.811,
+          0.963
+        ],
+        "saturation": 0.35,
+        "hue_deg": 336.6
+      },
+      "highlight": {
+        "share": 0.034277594426109274,
+        "rgb_ratio": [
+          1.316,
+          0.892,
+          0.791
+        ],
+        "saturation": 0.398,
+        "hue_deg": 12.8
+      },
+      "global": {
+        "luma_p5": 0.0112,
+        "luma_p50": 0.0349,
+        "luma_p95": 0.3514,
+        "contrast_p95_p5": 0.3401,
+        "mean_saturation": 0.381,
+        "rgb_ratio": [
+          1.29,
+          0.822,
+          0.888
+        ]
+      }
+    }
+  },
+  {
+    "caption": "雨后街道·灰调",
+    "category": "wet",
+    "stats": {
+      "shadow": {
+        "share": 0.5305593093093093,
+        "rgb_ratio": [
+          0.902,
+          0.984,
+          1.115
+        ],
+        "saturation": 0.243,
+        "hue_deg": 216.1
+      },
+      "midtone": {
+        "share": 0.4374924924924925,
+        "rgb_ratio": [
+          0.886,
+          0.996,
+          1.118
+        ],
+        "saturation": 0.223,
+        "hue_deg": 210.7
+      },
+      "highlight": {
+        "share": 0.0319481981981982,
+        "rgb_ratio": [
+          0.94,
+          1.002,
+          1.058
+        ],
+        "saturation": 0.149,
+        "hue_deg": 208.2
+      },
+      "global": {
+        "luma_p5": 0.031,
+        "luma_p50": 0.092,
+        "luma_p95": 0.3837,
+        "contrast_p95_p5": 0.3527,
+        "mean_saturation": 0.231,
+        "rgb_ratio": [
+          0.896,
+          0.994,
+          1.11
+        ]
+      }
+    }
+  },
+  {
+    "caption": "雨后商店街",
+    "category": "wet",
+    "stats": {
+      "shadow": {
+        "share": 0.6414127423822714,
+        "rgb_ratio": [
+          0.763,
+          0.951,
+          1.286
+        ],
+        "saturation": 0.398,
+        "hue_deg": 216.6
+      },
+      "midtone": {
+        "share": 0.34803785780240076,
+        "rgb_ratio": [
+          0.872,
+          1.0,
+          1.128
+        ],
+        "saturation": 0.261,
+        "hue_deg": 208.9
+      },
+      "highlight": {
+        "share": 0.010549399815327792,
+        "rgb_ratio": [
+          0.939,
+          0.995,
+          1.067
+        ],
+        "saturation": 0.155,
+        "hue_deg": 213.3
+      },
+      "global": {
+        "luma_p5": 0.0153,
+        "luma_p50": 0.0659,
+        "luma_p95": 0.3198,
+        "contrast_p95_p5": 0.3045,
+        "mean_saturation": 0.348,
+        "rgb_ratio": [
+          0.843,
+          0.985,
+          1.171
+        ]
+      }
+    }
+  },
+  {
+    "caption": "夏日乡野·绣球",
+    "category": "day",
+    "stats": {
+      "shadow": {
+        "share": 0.5222995873857943,
+        "rgb_ratio": [
+          0.979,
+          1.277,
+          0.743
+        ],
+        "saturation": 0.495,
+        "hue_deg": 91.5
+      },
+      "midtone": {
+        "share": 0.3615421455938697,
+        "rgb_ratio": [
+          0.796,
+          1.091,
+          1.113
+        ],
+        "saturation": 0.645,
+        "hue_deg": 183.9
+      },
+      "highlight": {
+        "share": 0.11615826702033599,
+        "rgb_ratio": [
+          0.955,
+          1.01,
+          1.036
+        ],
+        "saturation": 0.282,
+        "hue_deg": 198.9
+      },
+      "global": {
+        "luma_p5": 0.0137,
+        "luma_p50": 0.0875,
+        "luma_p95": 0.6275,
+        "contrast_p95_p5": 0.6138,
+        "mean_saturation": 0.524,
+        "rgb_ratio": [
+          0.882,
+          1.075,
+          1.044
+        ]
+      }
+    }
+  },
+  {
+    "caption": "夜营·暖灯",
+    "category": "night",
+    "stats": {
+      "shadow": {
+        "share": 0.9145404663923182,
+        "rgb_ratio": [
+          0.731,
+          1.033,
+          1.236
+        ],
+        "saturation": 0.566,
+        "hue_deg": 202.4
+      },
+      "midtone": {
+        "share": 0.05905692729766804,
+        "rgb_ratio": [
+          1.319,
+          1.002,
+          0.679
+        ],
+        "saturation": 0.636,
+        "hue_deg": 32.7
+      },
+      "highlight": {
+        "share": 0.026402606310013718,
+        "rgb_ratio": [
+          1.304,
+          1.003,
+          0.693
+        ],
+        "saturation": 0.452,
+        "hue_deg": 32.7
+      },
+      "global": {
+        "luma_p5": 0.0034,
+        "luma_p50": 0.0115,
+        "luma_p95": 0.2348,
+        "contrast_p95_p5": 0.2313,
+        "mean_saturation": 0.567,
+        "rgb_ratio": [
+          1.102,
+          1.013,
+          0.884
+        ]
+      }
+    }
+  },
+  {
+    "caption": "夜雪·樱花街道",
+    "category": "night",
+    "stats": {
+      "shadow": {
+        "share": 0.6285356652949246,
+        "rgb_ratio": [
+          1.002,
+          0.796,
+          1.203
+        ],
+        "saturation": 0.275,
+        "hue_deg": 271.9
+      },
+      "midtone": {
+        "share": 0.27616598079561044,
+        "rgb_ratio": [
+          1.19,
+          0.906,
+          0.904
+        ],
+        "saturation": 0.367,
+        "hue_deg": 0.3
+      },
+      "highlight": {
+        "share": 0.09529835390946502,
+        "rgb_ratio": [
+          1.205,
+          1.017,
+          0.778
+        ],
+        "saturation": 0.357,
+        "hue_deg": 35.1
+      },
+      "global": {
+        "luma_p5": 0.0,
+        "luma_p50": 0.0603,
+        "luma_p95": 0.6531,
+        "contrast_p95_p5": 0.6531,
+        "mean_saturation": 0.308,
+        "rgb_ratio": [
+          1.167,
+          0.936,
+          0.898
+        ]
+      }
+    }
+  },
+  {
+    "caption": "雨夜霓虹·跑车",
+    "category": "neon",
+    "stats": {
+      "shadow": {
+        "share": 0.77710219478738,
+        "rgb_ratio": [
+          1.524,
+          0.83,
+          0.646
+        ],
+        "saturation": 0.551,
+        "hue_deg": 14.9
+      },
+      "midtone": {
+        "share": 0.19158093278463648,
+        "rgb_ratio": [
+          1.498,
+          0.878,
+          0.623
+        ],
+        "saturation": 0.564,
+        "hue_deg": 20.4
+      },
+      "highlight": {
+        "share": 0.03131687242798354,
+        "rgb_ratio": [
+          1.374,
+          0.954,
+          0.672
+        ],
+        "saturation": 0.495,
+        "hue_deg": 26.7
+      },
+      "global": {
+        "luma_p5": 0.0068,
+        "luma_p50": 0.0261,
+        "luma_p95": 0.3738,
+        "contrast_p95_p5": 0.3669,
+        "mean_saturation": 0.551,
+        "rgb_ratio": [
+          1.479,
+          0.881,
+          0.64
+        ]
+      }
+    }
+  },
+  {
+    "caption": "桥下·暖阳",
+    "category": "sunset",
+    "stats": {
+      "shadow": {
+        "share": 0.9211351165980796,
+        "rgb_ratio": [
+          1.294,
+          0.93,
+          0.776
+        ],
+        "saturation": 0.43,
+        "hue_deg": 19.5
+      },
+      "midtone": {
+        "share": 0.07406721536351166,
+        "rgb_ratio": [
+          1.406,
+          0.925,
+          0.67
+        ],
+        "saturation": 0.52,
+        "hue_deg": 23.4
+      },
+      "highlight": {
+        "share": 0.004797668038408779,
+        "rgb_ratio": [
+          1.334,
+          0.947,
+          0.719
+        ],
+        "saturation": 0.456,
+        "hue_deg": 24.5
+      },
+      "global": {
+        "luma_p5": 0.0045,
+        "luma_p50": 0.0153,
+        "luma_p95": 0.1385,
+        "contrast_p95_p5": 0.1339,
+        "mean_saturation": 0.436,
+        "rgb_ratio": [
+          1.336,
+          0.929,
+          0.734
+        ]
+      }
+    }
+  }
+]
