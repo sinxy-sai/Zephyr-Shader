@@ -1,5 +1,20 @@
 # Changelog
 
+## v5.0 — 自研化 S0：final 后处理不再依赖 Photon（2026-11-05）
+
+自研化路线见 `docs/selfhosted-rewrite-plan.md`（依赖清单、S0~S8 阶段、验收标准、
+约 30 人日估时）。本轮完成 **S0**：
+
+- 新增 `shaders/include/zephyr/engine/final.glsl`：完全独立的 final 实现
+  （自有 sRGB EOTF/OETF、自有 CAS 锐化、自有 Bayer 抖动、自有信箱与颗粒），
+  **不 include 任何 Photon 文件**
+- 重写 `shaders/program/final.fsh`：只保留 Iris 管线契约 `buffers.glsl`，
+  其余全部走 Zephyr engine
+- 移除 Photon 的 DEBUG_VIEW 调试视图（后续 S1 自建简易调试视图补回）
+
+验证：209/209 compiled, 0 failed。
+
+
 ## v4.2 — P4：自建阴影采样（默认开启，仅主世界）（2026-11-05）
 
 `include/zephyr/shadows.glsl`：替换 Photon 的 `calculate_shadows()` 调用：
