@@ -164,9 +164,30 @@ vec3 sample_ggx_vndf(vec3 viewer_dir, vec2 alpha, vec2 hash) {
 //*/
 }
 
-vec3 get_sky_reflection(vec3 ray_dir, float skylight) {
+// Roughness-aware sky reflection: Photon samples the (low-res) sky map with one
+// direction, which makes a rough wet surface mirror the sky too sharply. Average
+// a small cone of directions here instead, so SSR misses blend smoothly into the
+// environment instead of looking like a broken mirror.
+vec3 get_sky_reflection(vec3 ray_dir, float skylight, float roughness) {
 #if defined WORLD_OVERWORLD
-	return bicubic_filter(colortex4, project_sky(ray_dir)).rgb * pow12(linear_step(0.0, 0.75, skylight));
+	vec3 color = bicubic_filter(colortex4, project_sky(ray_dir)).rgb;
+
+	if (roughness > 0.06) {
+		// build an arbitrary orthonormal basis around the ray
+		vec3 up = abs(ray_dir.y) < 0.95 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+		vec3 t1 = normalize(cross(up, ray_dir));
+		vec3 t2 = cross(ray_dir, t1);
+
+		float spread = roughness * 0.30;
+		vec3 sum = color;
+		sum += bicubic_filter(colortex4, project_sky(normalize(ray_dir + t1 * spread))).rgb;
+		sum += bicubic_filter(colortex4, project_sky(normalize(ray_dir - t1 * spread))).rgb;
+		sum += bicubic_filter(colortex4, project_sky(normalize(ray_dir + t2 * spread))).rgb;
+		sum += bicubic_filter(colortex4, project_sky(normalize(ray_dir - t2 * spread))).rgb;
+		color = sum / 5.0;
+	}
+
+	return color * pow12(linear_step(0.0, 0.75, skylight));
 #else
 	return texture(colortex4, project_sky(ray_dir)).rgb;
 #endif
@@ -181,7 +202,8 @@ vec3 trace_specular_ray(
 	float skylight,
 	uint intersection_step_count,
 	uint refinement_step_count,
-	int mip_level
+	int mip_level,
+	float roughness
 ) {
 	vec3 view_dir = mat3(gbufferModelView) * ray_dir;
 
@@ -202,7 +224,7 @@ vec3 trace_specular_ray(
 #endif
 
 #ifdef SKY_REFLECTIONS
-	vec3 sky_reflection = get_sky_reflection(ray_dir, skylight);
+	vec3 sky_reflection = get_sky_reflection(ray_dir, skylight, roughness);
 #else
 	const vec3 sky_reflection = vec3(0.0);
 #endif
@@ -294,7 +316,7 @@ vec3 get_specular_reflections(
 			float NoL = dot(normal, ray_dir);
 			if (NoL < eps) continue;
 
-			vec3 radiance = trace_specular_ray(screen_pos, view_pos, world_pos, ray_dir, dither, skylight, SSR_INTERSECTION_STEPS_ROUGH, SSR_REFINEMENT_STEPS, int(mip_level));
+			vec3 radiance = trace_specular_ray(screen_pos, view_pos, world_pos, ray_dir, dither, skylight, SSR_INTERSECTION_STEPS_ROUGH, SSR_REFINEMENT_STEPS, int(mip_level), material.roughness);
 
 			float NoV = max(1e-2, dot(flat_normal, -world_dir));
 			float MoV = max(1e-2, dot(microfacet_normal, -world_dir));
@@ -347,7 +369,7 @@ vec3 get_specular_reflections(
 	float v1 = v1_smith_ggx(NoV, alpha_squared);
 	float v2 = v2_smith_ggx(NoL, NoV, alpha_squared);
 
-	vec3 reflection  = trace_specular_ray(screen_pos, view_pos, world_pos, ray_dir, dither, skylight, SSR_INTERSECTION_STEPS_SMOOTH, SSR_REFINEMENT_STEPS, 0);
+	vec3 reflection  = trace_specular_ray(screen_pos, view_pos, world_pos, ray_dir, dither, skylight, SSR_INTERSECTION_STEPS_SMOOTH, SSR_REFINEMENT_STEPS, 0, material.roughness);
 	     reflection *= albedo_tint * fresnel;
 
 	if (any(isnan(reflection))) reflection = vec3(0.0); // don't reflect NaNs
