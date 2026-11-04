@@ -104,9 +104,9 @@ void zephyr_rain_surface(
 		// dry paving stop looking like two different materials.
 		float coat = rain * ZEPHYR_RAIN_WETNESS;
 		albedo *= 1.0 - 0.20 * coat;
-		roughness = mix(roughness, 0.24, coat * 0.72);
+		roughness = mix(roughness, 0.16, coat * 0.78);
 		f0        = mix(f0, vec3(0.030), coat);
-		ssr_multiplier = max(ssr_multiplier, coat * 0.80);
+		ssr_multiplier = max(ssr_multiplier, coat * 1.00);
 
 		// Impacts: ripples + tiny splash glints
 		if (falling > 0.01 && ZEPHYR_RAIN_RIPPLE > 0.0) {
@@ -115,10 +115,11 @@ void zephyr_rain_surface(
 			vec2 offset = zephyr_ripple_offset(world_pos, frameTimeCounter, splash);
 
 			float k = falling * fade * ZEPHYR_RAIN_RIPPLE;
-			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.50 * k);
+			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.34 * k);
 
 			// splash foam: brief bright flecks where a drop lands
-			albedo    += vec3(0.045, 0.050, 0.055) * splash * k;
+			float crown = splash * splash;
+			albedo    += vec3(0.060, 0.066, 0.074) * (crown + 0.35 * splash) * k;
 			roughness  = mix(roughness, 0.10, splash * k * 0.6);
 			ssr_multiplier = max(ssr_multiplier, splash * k * 0.7);
 		}

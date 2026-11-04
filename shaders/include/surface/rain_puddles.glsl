@@ -44,7 +44,7 @@ bool get_rain_puddles(
 #endif
 
 	const float puddle_f0                      = 0.02;
-	const float puddle_roughness               = 0.055;
+	const float puddle_roughness               = 0.030;
 	const float puddle_darkening_factor        = 0.20;
 	const float puddle_darkening_factor_porous = 0.55;
 

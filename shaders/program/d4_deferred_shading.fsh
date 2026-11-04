@@ -169,6 +169,7 @@ const bool colortex11MipmapEnabled = true;
 #include "/include/misc/purkinje_shift.glsl"
 #include "/include/surface/rain_puddles.glsl"
 #include "/include/surface/zephyr_rain.glsl"
+#include "/include/surface/zephyr_relief.glsl"
 #include "/include/sky/sky.glsl"
 #include "/include/utility/bicubic.glsl"
 #include "/include/utility/color.glsl"
@@ -363,6 +364,12 @@ void main() {
 
 #ifdef DISTANT_HORIZONS
 		}
+#endif
+
+		// Zephyr: fake material relief (bump from albedo gradient)
+
+#if defined ZEPHYR_MATERIAL_RELIEF
+		zephyr_material_relief(position_scene, material.albedo, normal);
 #endif
 
 		// Zephyr: rain on wet surfaces (before puddles, so puddles still win)

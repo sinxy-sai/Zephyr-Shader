@@ -147,6 +147,18 @@ ZEPHYR_FILM_CURVE          = 0.85
 
 > 雾的甜点区：`RAIN 0.060 / EVENING 0.0046`。再高（0.085 / 0.0090）会整屏发白。
 
+## 3.7 光柱 / 材质立体 / 雨风感（v0.5）
+
+| 想要的效果 | 参数 / 位置 |
+| --- | --- |
+| 光柱更强/更弱 | `ZEPHYR_GODRAYS_INTENSITY`（0.2~0.8 安全；3.0 直接整屏白） |
+| 光柱只在缝隙出现 | `c14` 里 `openness = pow(coverage, 3.0)`，指数越大越只保留「视野开阔」的光柱 |
+| 材质凹凸更强 | `ZEPHYR_MATERIAL_RELIEF`（0~1）；太强会出现描边噪声 |
+| 雨被风吹斜 | `ZEPHYR_RAIN_WIND_X/Z`、`ZEPHYR_RAIN_DISTURBANCE` |
+| 反射更长更锐 | `zephyr_rain.glsl` 的 coat roughness（0.16）与 `ssr_multiplier`（1.00） |
+
+> 光柱是加法光：默认 0.40 很克制，截图时想要明显效果可以临时调到 0.7~0.9。
+
 ## 4. 安全守则（踩过的坑）
 
 1. **GLSL 的 `#if` 里不能出现浮点字面量**

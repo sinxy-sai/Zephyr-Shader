@@ -2,7 +2,7 @@
 
 > 目标：把 MC 画面做成一整套「雨夜湿地面 + 黄昏逆光 + 动漫写实混合」的电影感。
 > 参考基准：用户截图中的异环/光追画面；舒适度基准：`ComplementaryReimagined_r5.7.1 + EuphoriaPatches_1.8.6`。
-> 当前版本：**v0.4（Wet ground / splash / fog）**：电影感调色 + 天气自适应 + 雨丝重塑 + 统一湿地面与飞溅 + 雾与光柱。
+> 当前版本：**v0.5（God rays / material relief）**：电影感调色 + 天气自适应 + 雨丝、湿地面、飞溅、雾、**自己的光柱**与**材质立体感**。
 
 ---
 
@@ -15,6 +15,9 @@
 | **雨滴形状** | `shaders/program/gbuffers_weather.vsh/.fsh` | 雨丝拉长变细、长度/透明度逐滴随机（不再是原版等长白线） |
 | **雨水表面反应 v2** | `shaders/include/surface/zephyr_rain.glsl`（挂在 `d4_deferred_shading.fsh`） | 宏观湿度场让整条街统一潮湿；雨点涟漪 + 飞溅白点；水洼柔化；墙面 sheen 与水线 |
 | **雾 / 光柱** | `settings.glsl`（Photon 的 VL / CREPUSCULAR_RAYS） | 雨/黄昏 Mie 雾提升、雨天泛光增强；体积光与屏幕空间光柱强度 1.6 |
+| **Zephyr 光柱** | `c14_color_grading.fsh` 的 `zephyr_godrays()` | 朝太阳 ray-march 只累积天空像素：建筑缝隙/桥洞出光柱，不依赖太阳可见度 |
+| **材质立体感** | `include/surface/zephyr_relief.glsl`（挂在 d4） | 用 albedo 亮度梯度做赝造 bump 法线，无需材质包 |
+| **雨的风感** | `gbuffers_weather.vsh` | 风向 + 正弦扰动，雨丝随高度偏移 |
 | 管线挂载点 | `program/c14_color_grading.fsh`（色调映射前后）/ `program/final.fsh`（颗粒/黑边） | 与 Photon 原有 ACES/tonemap 共存，可单独开关 |
 | 设置界面 | `settings.glsl` + `shaders.properties` + `lang/*.lang` | 游戏内：光影设置 → 后处理 → **Zephyr Cinematic** |
 | **Cinematic 预设** | `shaders.properties` 的 `profile.cinematic` | 一键启用 DoF / 动态模糊 / 更高泛光与暗角 |
@@ -42,15 +45,19 @@
 
 ---
 
-## 3. 实机画面（v0.4，Sayama-0.3）
+## 3. 实机画面（v0.5，Sayama-0.3）
 
-| 统一潮湿的路面（不再一块干一块水坑） | 近看湿地面 |
+| 街景 + 阳光光晕 | 湿地面上的光柱 |
 | --- | --- |
-| ![wet uniform](shots/v0.4-00-wet-ground-uniform.jpg) | ![closeup](shots/v0.4-01-wet-ground-closeup.jpg) |
+| ![street sun](shots/v0.5-00-street-sun.jpg) | ![godrays](shots/v0.5-01-street-godrays.jpg) |
 
-| 雨天 + 雾 + 雨丝 | 黄昏阳光落在湿街尽头 |
+| 材质立体感（凹凸光） | 雨天地面 |
 | --- | --- |
-| ![rain sky](shots/v0.4-02-rain-and-sky.jpg) | ![sun street](shots/v0.4-03-sun-down-street.jpg) |
+| ![relief](shots/v0.5-02-material-relief.jpg) | ![rain ground](shots/v0.5-03-rain-ground.jpg) |
+
+| 雨中斑马线 | |
+| --- | --- |
+| ![rain crosswalk](shots/v0.5-04-rain-crosswalk.jpg) | |
 
 > 全部是 Sayama-0.3 上的实机截图：`tools/mc-ctl.ps1` 发聊天命令 + 按 R 重载 + F2 截图。
 > v0.3 的雨滴形状对比图仍在 `shots/v0.3-*.jpg`。

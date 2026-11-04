@@ -27,6 +27,7 @@ uniform mat4 gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
 uniform int frameCounter;
+uniform float frameTimeCounter;
 
 uniform vec2 taa_offset;
 uniform vec2 view_pixel_size;
@@ -65,6 +66,11 @@ void main() {
 		world_pos.xz = anchor_xz + (world_pos.xz - anchor_xz) * width_scale;
 	}
 #endif
+
+	float wind_phase = dot(world_pos, vec3(3.0, 0.5, 3.0)) + frameTimeCounter * 0.20;
+	vec2  rot        = vec2(sin(wind_phase), cos(wind_phase));
+	vec2  wind       = (vec2(ZEPHYR_RAIN_WIND_X, ZEPHYR_RAIN_WIND_Z) + rot * ZEPHYR_RAIN_DISTURBANCE);
+	world_pos.xz    += wind * scene_pos.y * 0.06;
 
 	scene_pos = world_pos - cameraPosition;
 

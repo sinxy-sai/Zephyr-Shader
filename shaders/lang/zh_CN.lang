@@ -805,3 +805,16 @@ option.ZEPHYR_RAIN_SHAPE               = 雨滴形状
 option.ZEPHYR_RAIN_SHAPE.comment       = 重塑原版雨丝：更长、更细、每条雨滴有差异
 option.ZEPHYR_RAIN_STREAK              = 雨丝长度
 option.ZEPHYR_RAIN_STREAK.comment      = 雨丝被拉长/变细的程度（0 = 原版）
+
+option.ZEPHYR_MATERIAL_RELIEF           = 材质立体感
+option.ZEPHYR_MATERIAL_RELIEF.comment   = 用纹理明暗梯度做赝造凹凸光照（不需要材质包）
+option.ZEPHYR_GODRAYS                   = 丁达尔光柱
+option.ZEPHYR_GODRAYS.comment           = 屏幕空间光柱，穿过建筑缝隙也有效（不依赖太阳可见度）
+option.ZEPHYR_GODRAYS_INTENSITY         = 光柱强度
+option.ZEPHYR_GODRAYS_INTENSITY.comment = Zephyr 光柱的强度
+option.ZEPHYR_RAIN_WIND_X               = 雨的风向 X
+option.ZEPHYR_RAIN_WIND_X.comment       = 雨滴的水平风向偏移
+option.ZEPHYR_RAIN_WIND_Z               = 雨的风向 Z
+option.ZEPHYR_RAIN_WIND_Z.comment       = 雨滴在纵深方向的风向偏移
+option.ZEPHYR_RAIN_DISTURBANCE          = 雨的扰动
+option.ZEPHYR_RAIN_DISTURBANCE.comment  = 在风向之上叠加的波动

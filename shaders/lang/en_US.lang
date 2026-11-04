@@ -797,3 +797,16 @@ option.ZEPHYR_RAIN_SHAPE               = Rain Streak Shape
 option.ZEPHYR_RAIN_SHAPE.comment       = Reshape vanilla rain: longer, thinner, non-uniform streaks
 option.ZEPHYR_RAIN_STREAK              = Rain Streak Length
 option.ZEPHYR_RAIN_STREAK.comment      = How long/thin the streaks get (0 = vanilla)
+
+option.ZEPHYR_MATERIAL_RELIEF           = Material Relief
+option.ZEPHYR_MATERIAL_RELIEF.comment   = Fake bump lighting from texture contrast (no resource pack needed)
+option.ZEPHYR_GODRAYS                   = God Rays
+option.ZEPHYR_GODRAYS.comment           = Screen-space light shafts through gaps (works even when the sun is hidden behind buildings)
+option.ZEPHYR_GODRAYS_INTENSITY         = God Ray Intensity
+option.ZEPHYR_GODRAYS_INTENSITY.comment = Strength of the Zephyr god rays
+option.ZEPHYR_RAIN_WIND_X               = Rain Wind X
+option.ZEPHYR_RAIN_WIND_X.comment       = Horizontal wind drift of rain
+option.ZEPHYR_RAIN_WIND_Z               = Rain Wind Z
+option.ZEPHYR_RAIN_WIND_Z.comment       = Depth-axis wind drift of rain
+option.ZEPHYR_RAIN_DISTURBANCE          = Rain Turbulence
+option.ZEPHYR_RAIN_DISTURBANCE.comment  = Waviness added on top of the wind drift

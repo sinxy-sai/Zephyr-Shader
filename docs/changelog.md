@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.5 — 光柱 / 材质立体 / 雨的风感 / 反射锐化（2026-11-05）
+
+四个方向同时推进 + 材质立体感。
+
+### 1. 自己的丁达尔光柱（`c14_color_grading.fsh`）
+
+- 新增 `zephyr_godrays()`：从每个像素朝太阳屏幕位置 ray-march，**只累积天空像素**，
+  因此建筑缝隙/桥洞会自然出现光柱，不依赖 Photon 的「太阳可见度」
+- 用 `openness^3`（天空覆盖率）+ 到太阳的屏幕距离衰减，避免整屏发白
+- 设置：`ZEPHYR_GODRAYS`、`ZEPHYR_GODRAYS_INTENSITY`（默认 0.40；调 3.0 会整屏白，
+  调试范围 0.2~0.8 比较安全）
+
+### 2. 材质立体感（`include/surface/zephyr_relief.glsl`）
+
+- 没有材质包 / labPBR 贴图，所以不用 POM，而是用 **albedo 亮度梯度的屏幕空间导数**
+  做赝造凹凸法线（bump），让石头/砖/木板有轻微立体起伏，湿表面挂光更自然
+- 10~30 格距离淡出，避免远处噪点
+- 设置：`ZEPHYR_MATERIAL_RELIEF`（0~1，默认 0.50）
+
+### 3. 雨的风感（`gbuffers_weather.vsh`）
+
+- 加入风向 `ZEPHYR_RAIN_WIND_X/Z` + 正弦扰动 `ZEPHYR_RAIN_DISTURBANCE`，
+  雨丝会随高度偏移、波动（类似 iterationT 的 wind/disturbance）
+
+### 4. 湿反射锐化 + 飞溅
+
+- 湿地面 roughness 0.24 → 0.16、SSR 乘数 0.80 → 1.00、水洼 roughness 0.030：
+  霓虹/灯在湿路面上的反射更长更锐（参考图那种竖条反光）
+- 涟漪法线扰动 0.34（更少噪点），飞溅改成「皇冠」形状：
+  `albedo += (crown + 0.35*splash) * 0.060`，落点中心更亮、外圈更淡
+
+### 验证
+
+- 离线：209/209 入口编译通过（62 个被禁用，0 失败）
+- 实机：Sayama-0.3，R 重载 + F2 截图（`shots/v0.5-*.jpg`）
+
+
 ## v0.4 — 湿地面重做 / 飞溅 / 雾 / 光柱（2026-11-05）
 
 参考了 `iterationT 3.2.0` 的做法（雨=alpha 遮罩 + rainAlpha 驱动泛光；飞溅=多层

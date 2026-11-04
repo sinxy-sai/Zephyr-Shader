@@ -37,6 +37,12 @@ uniform float eye_skylight;
 
 uniform vec2 view_pixel_size;
 
+// Zephyr god rays
+uniform sampler2D depthtex0;
+uniform mat4 gbufferModelView;
+uniform mat4 gbufferProjection;
+uniform vec3 sun_dir;
+
 #include "/include/post_processing/tonemap_operators.glsl"
 #include "/include/post_processing/zephyr_cinematic.glsl"
 #include "/include/utility/bicubic.glsl"
@@ -169,6 +175,68 @@ vec3 grade_output(vec3 rgb) {
 	return sqr(rgb);
 }
 
+
+// -----------------------------------------------------------------------------
+//   Zephyr god rays
+//   Screen-space light shafts that do NOT depend on Photon's sun visibility:
+//   they march from the pixel toward the sun and accumulate *sky* pixels only,
+//   so gaps between buildings / under bridges produce visible shafts while
+//   occluders stay dark.
+// -----------------------------------------------------------------------------
+vec3 zephyr_godrays(vec2 uv, float exposure) {
+#ifdef ZEPHYR_GODRAYS
+	vec3 sun_view = mat3(gbufferModelView) * sun_dir;
+	if (sun_view.z > -0.05) return vec3(0.0);
+
+	vec4 clip = gbufferProjection * vec4(sun_view * 1000.0, 1.0);
+	if (abs(clip.w) < 1e-5) return vec3(0.0);
+	vec2 sun_uv = clip.xy / clip.w * 0.5 + 0.5;
+	if (sun_uv.x < -0.4 || sun_uv.x > 1.4 || sun_uv.y < -0.4 || sun_uv.y > 1.4) return vec3(0.0);
+
+	const int samples = 28;
+
+	vec2  delta  = (sun_uv - uv) / float(samples);
+	vec2  coord  = uv;
+	float weight = 1.0;
+	float wsum   = 0.0;
+	vec3  color  = vec3(0.0);
+
+	for (int i = 0; i < samples; ++i) {
+		coord += delta;
+		if (clamp(coord, vec2(0.0), vec2(1.0)) != coord) break;
+
+		float depth = texelFetch(depthtex0, ivec2(coord * vec2(textureSize(depthtex0, 0))), 0).x;
+
+		// only sky pixels scatter into the shaft
+		float sky = step(0.99999, depth);
+		if (sky > 0.5) {
+			vec3 sample_color = texture(colortex5, coord).rgb;
+			float lum = dot(sample_color, vec3(0.2126, 0.7152, 0.0722));
+			// keep the shaft bright only where the sky is actually bright (sun glow)
+			float glow = smoothstep(0.15, 3.5, lum);
+			color += sample_color * glow * weight;
+			wsum  += weight;
+		}
+		weight *= 0.94;
+	}
+
+	if (wsum < 1e-4) return vec3(0.0);
+
+	float coverage = wsum / float(samples);
+	vec3  result   = color / max(wsum, 1e-4);
+
+	// Only the brightest, most open paths toward the sun should glow, and the
+	// effect fades with distance from the sun on screen. Without this the whole
+	// frame turns into a bright wash.
+	float openness = pow(clamp01(coverage), 3.0);
+	float falloff  = 1.0 - smoothstep(0.05, 0.75, length((uv - sun_uv) * vec2(aspectRatio, 1.0)));
+
+	return result * openness * falloff * ZEPHYR_GODRAYS_INTENSITY * exposure * 0.55;
+#else
+	return vec3(0.0);
+#endif
+}
+
 float vignette(vec2 uv) {
     const float vignette_size = 16.0;
     const float vignette_intensity = 0.08 * VIGNETTE_INTENSITY;
@@ -202,6 +270,8 @@ void main() {
 #endif
 
 	scene_color *= exposure;
+
+	scene_color += zephyr_godrays(uv, exposure);
 
 #ifdef VIGNETTE
 	scene_color *= vignette(uv);
