@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.6 — 水面雨滴涟漪（程序化，无额外贴图）（2026-11-05）
+
+`include/surface/water_normal.glsl` 增加 `zephyr_water_rain_rings()`：
+每格随机一个雨滴，环随时间扩散、随 (1-phase)² 淡出，两层不同尺度叠加，
+只作用于接近水平的水面，强度 `* rainStrength`，只在雨天出现。
+
+- 设置：`ZEPHYR_WATER_RINGS`（默认 0.60，0 关闭）
+- 程序化实现，不需要额外 sampler/贴图，也不会触发纹理声明相关的加载问题
+- 复用 Photon 已有的 Gerstner 波浪 + 视差，环只作为叠加扰动
+
+实机：`shots/v2.6-water-rain-rings.jpg`（12500 雨，河边）
+
+## 关于「CSM 级联阴影」
+
+调研结论：**在本管线里做不到干净的 CSM**。Iris/OptiFine 每帧只渲染一次
+shadow map（`shadowtex0/1`），composite 阶段无法再触发一次场景渲染，因此无法
+像游戏引擎那样为每个级联渲染一张 shadow map。而 Photon 的阴影已经是
+**PCSS**（`blocker_search()` 求平均遮挡深度 → 计算半影 → 变半径 PCF + 锐化）
++ `SHADOW_VPS` 方差阴影，属于这条管线的上限附近。提升阴影精度的可行方向只剩：
+- 提高 `shadowMapResolution` / 调小 `shadowDistance`（取舍）
+- 接触阴影（v2.1 已做）
+- SSR/反射探针来补远处视觉
+
+
 ## v2.5 — SSGI 移到 TAA 之前（消除静态颗粒）（2026-11-05）
 
 上一版 SSGI 在 c14（TAA 之后），采样噪声不会被时域累积，画面有静态颗粒。

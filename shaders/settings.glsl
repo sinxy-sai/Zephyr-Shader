@@ -534,6 +534,8 @@ const float wetnessHalflife         = 70.0;
   #define ZEPHYR_MIST                       // [0 1]
   // Screen-space one-bounce GI
   #define ZEPHYR_SSGI                       // [0 1]
+  // Rain impact rings on water surfaces
+  #define ZEPHYR_WATER_RINGS 0.60 // [0.00 0.10 0.20 0.30 0.40 0.50 0.60 0.80 1.00 1.20 1.50]
   #define ZEPHYR_SSGI_STRENGTH 0.35 // [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.60 0.70 0.80 1.00]
   #define ZEPHYR_SSGI_RADIUS   1.50 // [0.50 0.75 1.00 1.25 1.50 2.00 2.50 3.00 4.00]
   #define ZEPHYR_MIST_DENSITY 0.0060 // [0.0000 0.0010 0.0020 0.0030 0.0040 0.0050 0.0060 0.0070 0.0080 0.0100 0.0120 0.0150 0.0200]
@@ -681,6 +683,9 @@ const float wetnessHalflife         = 70.0;
 #endif
 
 #ifdef ZEPHYR_SSGI
+#endif
+
+#ifdef ZEPHYR_WATER_RINGS
 #endif
 
 // Not available on OF

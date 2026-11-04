@@ -822,3 +822,4 @@ option.ZEPHYR_LIGHT_FOG_SCALE=Local Light Fog Scale
 option.ZEPHYR_SSGI=SSGI (one bounce)
 option.ZEPHYR_SSGI_STRENGTH=SSGI Strength
 option.ZEPHYR_SSGI_RADIUS=SSGI Radius
+option.ZEPHYR_WATER_RINGS=Rain Rings on Water

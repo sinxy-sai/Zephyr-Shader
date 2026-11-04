@@ -830,3 +830,4 @@ option.ZEPHYR_LIGHT_FOG_SCALE=局部光雾强度
 option.ZEPHYR_SSGI=屏幕空间全局光照
 option.ZEPHYR_SSGI_STRENGTH=SSGI 强度
 option.ZEPHYR_SSGI_RADIUS=SSGI 半径
+option.ZEPHYR_WATER_RINGS=水面雨滴涟漪
