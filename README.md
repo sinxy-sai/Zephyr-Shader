@@ -2,7 +2,7 @@
 
 > 目标：把 MC 画面做成一整套「雨夜湿地面 + 黄昏逆光 + 动漫写实混合」的电影感。
 > 参考基准：用户截图中的异环/光追画面；舒适度基准：`ComplementaryReimagined_r5.7.1 + EuphoriaPatches_1.8.6`。
-> 当前版本：**v0.1（Cinematic layer）**，在 Photon 1.2a 的成熟管线上叠加 Zephyr 调色/镜头层。
+> 当前版本：**v0.2（Weather-adaptive）**：在 Photon 1.2a 的成熟管线上叠加 Zephyr 调色/镜头层，并加入天气自适应。
 
 ---
 
@@ -11,13 +11,15 @@
 | 模块 | 位置 | 说明 |
 | --- | --- | --- |
 | **Zephyr Cinematic 层** | `shaders/include/post_processing/zephyr_cinematic.glsl` | 分离色调（青暗部/暖高光）、胶片 S 曲线、黑位抬升、自然饱和度、高光去饱和、胶片颗粒、2.35:1 电影黑边 |
+| **天气自适应调色** | 同上 + `c14_color_grading.fsh` 的 `rainStrength` | 雨天/阴天自动柔化对比、抬黑位、加冷雾、降低饱和度、柔化高光；对应参考图的「雨天不通透发黑」 |
 | 管线挂载点 | `program/c14_color_grading.fsh`（色调映射前后）/ `program/final.fsh`（颗粒/黑边） | 与 Photon 原有 ACES/tonemap 共存，可单独开关 |
 | 设置界面 | `settings.glsl` + `shaders.properties` + `lang/*.lang` | 游戏内：光影设置 → 后处理 → **Zephyr Cinematic** |
 | **Cinematic 预设** | `shaders.properties` 的 `profile.cinematic` | 一键启用 DoF / 动态模糊 / 更高泛光与暗角 |
 | 默认观感（已按参考图调） | `settings.glsl` | 色温 6300K、橙色饱和度 +0.06、青 +0.14、泛光 1.30、暗角 1.25、黄昏/雨天 Mie 雾提高 |
 | 离线校验工具 | `tools/validate_glsl.py` | 不开游戏就能编译全部 209 个光影程序入口 |
 | 观感分析工具 | `tools/analyze_look.py` | 把参考图量化成数值，并渲染调色曲线 / 色卡对比（结果见 `docs/look-analysis.md`） |
-| 实机验证工具 | `tools/mc-test.ps1` | 启动 MC → 进存档 → 自动截图 → 抓 Iris 编译日志（由 mc-harness 搭建） |
+| 实机验证工具 | `tools/mc-test.ps1` | 启动 MC → 进存档 → 自动截图 → 抓 Iris 编译日志 |
+| 实机操控工具 | `tools/mc-ctl.ps1` / `tools/mc-launch.ps1` | 对运行中的游戏：聚焦、按键（R 重载光影）、聊天命令、F2 截图 |
 
 当前默认配置下，**离线 GLSL 校验 209/209 通过**（62 个被光影自身禁用的 pass 跳过，0 失败）。
 
@@ -37,7 +39,20 @@
 
 ---
 
-## 3. 参考图 → 参数对照
+## 3. 实机画面（v0.2，Weston City V0.3）
+
+| 雨后湿地面 + 霓虹反射 | 黄昏金光 + 湿街 |
+| --- | --- |
+| ![wet after rain](shots/v0.2-wet-street-after-rain.jpg) | ![wet golden](shots/v0.2-wet-golden-hour.jpg) |
+
+| 蓝调时刻 + 霓虹 | 落日长街 |
+| --- | --- |
+| ![dusk](shots/v0.2-dusk-neon-wet.jpg) | ![sunset](shots/v0.2-sunset-street.jpg) |
+
+> 这几张是用 `tools/mc-ctl.ps1` 在游戏里实际跑出来的：`/time set` 11600~12250 + `/weather rain|clear`，
+> 每改一次 shader 按 **R** 重载后 F2 截图。相机位置是玩家位置，没有额外摆拍。
+
+## 4. 参考图 → 参数对照
 
 | 参考画面 | 视觉特征 | Zephyr 对应参数 |
 | --- | --- | --- |
@@ -49,7 +64,7 @@
 
 ---
 
-## 4. 工程结构
+## 5. 工程结构
 
 ```
 Zephyr/
@@ -63,6 +78,8 @@ Zephyr/
 ├─ tools/validate_glsl.py   # 离线 GLSL 校验（需要开发 venv）
 ├─ tools/analyze_look.py    # 参考图量化 + 调色曲线/色卡图
 ├─ tools/mc-test.ps1        # 实机启动 + 截图 + 日志验证
+├─ tools/mc-ctl.ps1         # 实机操控（R 重载 / 聊天 / F2 截图）
+├─ tools/mc-launch.ps1      # quickPlay 受控启动
 ├─ reports/                 # 实机验证报告（Iris 编译日志、启动报告）
 ├─ shots/                   # 实机截图证据
 ├─ docs/look-dev.md         # 观感开发手册（调参攻略）
@@ -75,7 +92,7 @@ Zephyr/
 
 ---
 
-## 5. 开发流程
+## 6. 开发流程
 
 ```powershell
 # 0) 开发用 Python 环境（已装 moderngl / PyOpenGL / numpy）
@@ -89,10 +106,15 @@ $py = "C:\Users\liubingliang\Downloads\_shader_lab\venv\Scripts\python.exe"
 # 2) 参考图量化：更新 docs/look-analysis.md 与曲线/色卡图
 & $py tools\analyze_look.py
 
-# 3) 实机验证（启动游戏 → 截图 → 抓日志）
+# 3) 实机迭代（游戏已运行时）
+powershell -File tools\mc-ctl.ps1 -Action chat -Text "/time set 11600"
+powershell -File tools\mc-ctl.ps1 -Action reload          # 按 R 重载光影
+powershell -File tools\mc-ctl.ps1 -Action shot            # F2 截图 -> shots/
+
+# 4) 全自动启动验证（会启动一个新实例）
 powershell -File tools\mc-test.ps1
 
-# 4) 看结果
+# 5) 看结果
 #    reports\launch-report.md   是否编译成功 / 耗时 / 问题
 #    shots\                     实机截图
 ```
@@ -103,16 +125,17 @@ powershell -File tools\mc-test.ps1
 
 ---
 
-## 6. 版本规划
+## 7. 版本规划
 
-- **v0.1（当前）**：电影感调色层、Cinematic 预设、默认观感调校、离线校验 + 实机验证闭环。
-- **v0.2**：湿地面专项（雨纹法线扰动、反射拉长）、泛光形状（neon 横向 streak）、镜头光晕。
+- **v0.1**：电影感调色层、Cinematic 预设、默认观感调校、离线校验 + 实机验证闭环。
+- **v0.2（当前）**：天气自适应调色（雨天柔光/冷雾/抬黑）、日落去橙、湿地面与雨雾调优、实机 R 键迭代闭环 + 截图证据。
+- **v0.2.1**：湿地面专项（雨纹法线扰动、反射拉长）、泛光形状（neon 横向 streak）、镜头光晕。
 - **v0.3**：天空/体积雾按「黄昏 · 雨夜 · 蓝调」三套预设；樱花/雪景低饱和分支。
 - **v0.4**：参考图逐张校准（截图 vs 参考图 的色板/直方图对比脚本）。
 
 ---
 
-## 7. 许可与致谢
+## 8. 许可与致谢
 
 Zephyr 是 **Photon Shaders 1.2a**（作者 SixthSurge）的二次开发版本，遵循 Photon 的许可（个人使用、修改、保留许可文件后可再分发；不可在付费平台分发）。原始许可见 `LICENSE`，二次开发声明见 `NOTICE.md`。
 

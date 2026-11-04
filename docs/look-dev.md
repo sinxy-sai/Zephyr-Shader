@@ -138,7 +138,32 @@ ZEPHYR_FILM_CURVE          = 0.85
 
 ---
 
-## 5. 实机对比流程（推荐）
+## 5. 实机迭代（R 键重载）
+
+游戏运行中改 shader 的循环：
+
+```powershell
+# 设置场景（聊天命令走剪贴板，绕开输入法）
+powershell -File tools\mc-ctl.ps1 -Action chat -Text "/time set 11600"
+powershell -File tools\mc-ctl.ps1 -Action chat -Text "/weather rain"
+
+# 改完 shader 后：按 R 重载 → 等 8~12 秒编译 → F2 截图
+powershell -File tools\mc-ctl.ps1 -Action reload
+powershell -File tools\mc-ctl.ps1 -Action shot
+```
+
+`shots/` 里会多一张 PNG；对比新旧截图即可判断改动方向。Iris 的 R 键重载日志长这样：
+
+```
+[01:26:04] Destroying pipeline minecraft:overworld
+[01:26:05] Using shaderpack: Zephyr
+[01:26:05] Creating pipeline for dimension minecraft:overworld
+```
+
+> 如果日志里跟着 `Shader compilation log for ...` 或 `Failed to create shader rendering pipeline`，
+> 说明改坏了：先用 `tools/validate_glsl.py` 定位，再重载。
+
+## 6. 实机对比流程（推荐）
 
 1. 固定一个场景：`Weston City V0.3` + `/time set 12500` + `/weather rain` + 关闭昼夜循环。
 2. 用 `tools/mc-test.ps1` 自动截图，产物进 `shots/`。

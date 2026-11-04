@@ -76,9 +76,18 @@ vec3 zephyr_pre_tonemap(vec3 rgb) {
 //   rgb := display-linear rec.709, [0, 1]
 // -----------------------------------------------------------------------------
 
-vec3 zephyr_post_tonemap(vec3 rgb) {
+vec3 zephyr_post_tonemap(vec3 rgb, float weather) {
 #ifdef ZEPHYR_CINEMATIC
 	rgb = clamp01(rgb);
+
+	// weather == 1 during rain/heavy overcast. Rainy reference stills keep a
+	// luminous, milky shadow floor instead of crushed blacks, so the film
+	// grade gets softer and cooler as weather rises.
+#ifdef ZEPHYR_WEATHER_ADAPT
+	float wet = clamp01(weather);
+#else
+	float wet = 0.0;
+#endif
 
 	// Perceptual (sqrt) space: 0.5 is roughly middle grey, which makes the
 	// curve and split-tone pivots behave like photographic controls.
@@ -99,7 +108,8 @@ vec3 zephyr_post_tonemap(vec3 rgb) {
 
 	// 2. Filmic S-curve. smoothstep is an exact S-curve; blending keeps the
 	//    midtone pivot and only adds contrast in the transitions.
-	float curve = clamp(ZEPHYR_FILM_CURVE * ZEPHYR_STRENGTH, 0.0, 2.0);
+	// Softer curve when wet: rain scenes should read as airy, not contrasty.
+	float curve = clamp(ZEPHYR_FILM_CURVE * ZEPHYR_STRENGTH * (1.0 - 0.28 * wet), 0.0, 2.0);
 	if (curve > 0.0) {
 		c = mix(c, smoothstep(vec3(0.0), vec3(1.0), c), min(curve, 1.0));
 		if (curve > 1.0) {
@@ -109,21 +119,27 @@ vec3 zephyr_post_tonemap(vec3 rgb) {
 
 	// 3. Black lift / film fade. Raises the toe slightly and desaturates the
 	//    shadows, which is what gives the reference its "hazy film" feel.
-	float lift = ZEPHYR_BLACK_LIFT;
+	float lift = ZEPHYR_BLACK_LIFT + 0.014 * wet;
 	if (lift > 0.0) {
 		c = c * (1.0 - lift) + lift * 0.55;
 		c = mix(c, vec3(dot(c, zephyr_luma_709)), lift * 1.6);
+
+		// Cool mist floor: rainy light is skylight-dominated, so shadows keep a
+		// faint blue-grey veil (matches the wet-street references).
+		vec3 mist = vec3(0.86, 0.95, 1.06);
+		c = c * mix(vec3(1.0), mist, wet * 0.30);
 	}
 
 	// 4. Vibrance: boost restrained colors more than already saturated ones.
 	lum = dot(c, zephyr_luma_709);
 	float sat = max_of(c) - min_of(c);
-	float vibrance = ZEPHYR_VIBRANCE * ZEPHYR_STRENGTH * (1.0 - smoothstep(0.0, 0.55, sat));
+	float vibrance = ZEPHYR_VIBRANCE * ZEPHYR_STRENGTH * (1.0 - smoothstep(0.0, 0.55, sat)) * (1.0 - 0.35 * wet);
 	c = mix(vec3(lum), c, 1.0 + vibrance);
 
 	// 5. Highlight desaturation (film-like shoulder).
 	float shoulder = smoothstep(0.62, 1.0, lum);
-	c = mix(c, vec3(lum), shoulder * ZEPHYR_HIGHLIGHT_ROLLOFF * ZEPHYR_STRENGTH * 0.60);
+	float rolloff = ZEPHYR_HIGHLIGHT_ROLLOFF + 0.18 * wet;
+	c = mix(c, vec3(lum), shoulder * rolloff * ZEPHYR_STRENGTH * 0.60);
 
 	return sqr(clamp01(c));
 #else

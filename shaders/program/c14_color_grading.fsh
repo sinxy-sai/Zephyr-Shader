@@ -27,6 +27,7 @@ uniform sampler2D colortex5; // scene color
 
 uniform float aspectRatio;
 uniform float blindness;
+uniform float rainStrength;
 uniform float darknessFactor;
 uniform float frameTimeCounter;
 
@@ -218,7 +219,7 @@ void main() {
 
 	scene_color = clamp01(scene_color * working_to_display_color);
 	scene_color = grade_output(scene_color);
-	scene_color = zephyr_post_tonemap(scene_color);
+	scene_color = zephyr_post_tonemap(scene_color, rainStrength);
 
 #if 0 // Tonemap plot
 	const float scale = 2.0;

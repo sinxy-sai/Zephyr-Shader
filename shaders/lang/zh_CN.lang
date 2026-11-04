@@ -790,3 +790,6 @@ value.ZEPHYR_LETTERBOX.1                = 开
 
 profile.sunset                          = §6黄昏逆光
 profile.rainynight                      = §9雨夜霓虹
+
+option.ZEPHYR_WEATHER_ADAPT                = 天气自适应调色
+option.ZEPHYR_WEATHER_ADAPT.comment        = 雨天/阴天自动柔化并偏冷，做出湿地面电影感

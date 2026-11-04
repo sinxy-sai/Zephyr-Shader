@@ -782,3 +782,6 @@ value.ZEPHYR_LETTERBOX.1                = On
 
 profile.sunset                          = §6Sunset
 profile.rainynight                      = §9Rain Night
+
+option.ZEPHYR_WEATHER_ADAPT                = Weather-Adaptive Grade
+option.ZEPHYR_WEATHER_ADAPT.comment        = Softens and cools the film grade in rain/overcast (luminous wet-street look)

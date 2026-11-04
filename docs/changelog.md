@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.2 — 天气自适应与实机迭代（2026-11-05）
+
+在 Weston City V0.3 上用 Iris 的 **R 键重载**做了真实画面迭代（实机截图见 `shots/`）。
+
+### 新增
+
+- **天气自适应调色** `ZEPHYR_WEATHER_ADAPT`（`zephyr_cinematic.glsl`）
+  - 雨天/阴天自动：降低对比曲线 28%、黑位额外 +0.014、暗部加冷雾（`vec3(0.86,0.95,1.06)`）、
+    自然饱和度 -35%、高光柔化 +0.18 —— 对应参考图里「雨天不发黑、亮部不炸」的观感
+  - c14 新增 `rainStrength` uniform 传入调色层
+- `tools/mc-ctl.ps1`：对已运行的游戏窗口做聚焦 / 按键 / 聊天命令（剪贴板粘贴绕开输入法）/ F2 截图 / R 重载
+- `tools/mc-launch.ps1`：从 PCL 启动命令派生 `--quickPlaySingleplayer` 受控实例
+
+### 调优（实机对比后）
+
+- 湿地面/雨雾：`AIR_FOG_MIE_DENSITY_RAIN 0.038→0.055`、`OVERWORLD_FOG_INTENSITY 1.00→1.10`、
+  `BLOOM_INTENSITY 1.30→1.38`、`GRADE_BRIGHTNESS 0.97→1.02`
+- 日落去「整屏橙」：`ZEPHYR_WARMTH 0.70→0.15`、`GRADE_ORANGE_SAT_BOOST 0.06→0.02`、
+  `GRADE_WHITE_BALANCE 6300→6700`、`AIR_FOG_MIE_DENSITY_EVENING 0.0080→0.0058`
+
+### 验证
+
+- 离线：209/209 入口编译通过（62 个被禁用的 pass 跳过，0 失败）
+- 实机：Weston City V0.3 连续多轮 `R` 重载 + F2 截图，无编译错误
+
 ## v0.1 — Cinematic layer（2026-11-05）
 
 首个可运行版本：在 **Photon Shaders 1.2a**（SixthSurge）基础上加入 Zephyr 电影感层。
