@@ -1,54 +1,83 @@
-# Iris shader evidence
+# Iris shader evidence - Zephyr (Photon 1.2a base) / MC 1.21.1 + Fabric 0.18.4 + Iris 1.8.8
 
-- generated: 2026-11-05 00:52:48
-- expected shaderpack: Zephyr
-- shaderpack line seen in log: True
-- compile/load failure detected: False
+- generated: 2026-11-05 01:04:28
+- environment: MC 1.21.1, Fabric Loader 0.18.4, Iris 1.8.8+mc1.21.1, Sodium 0.6.13+mc1.21.1, Java 22.0.1 (jdk-22), NVIDIA RTX 4050 Laptop GPU
+- shaderpack: shaderpacks/Zephyr ; iris.properties: shaderPack=Zephyr, enableShaders=true
+- source: user real-machine sessions launched via PCL (offline account yuyu, world 新的世界, 854x480). NOT an automated controlled run.
+- CONCLUSION: Zephyr compiled successfully and created render pipelines in every Zephyr session; no shader compile errors.
 
-## [1] shaderpack load lines
-[00:52:27] [Render thread/INFO]: Using shaderpack: Zephyr
+## [1] session A - first Zephyr load (00:50:30; shaders.properties PRE-FIX)
+[00:50:29] [Render thread/INFO]: Destroying pipeline minecraft:overworld
+[00:50:29] [Render thread/WARN]: Invalid pack option: GTAO
+[00:50:29] [Render thread/WARN]: Invalid pack option: GTAO
+[00:50:29] [Render thread/WARN]: Invalid pack option: GTAO
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION" defined in shaders.properties
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION_INTENSITY" defined in shaders.properties
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_DAILY_WEATHER" defined in shaders.properties
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_H" defined in shaders.properties
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_Z" defined in shaders.properties
+[00:50:29] [Render thread/INFO]: Profile: high (+0 options changed by user)
+[00:50:30] [Render thread/INFO]: Using shaderpack: Zephyr
+[00:50:30] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
 
-## [2] pipeline lines
-[00:52:31] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
-[00:52:44] [Render thread/INFO]: Reloading pipeline on dimension change: minecraft:overworld => minecraft:overworld
-[00:52:44] [Render thread/INFO]: Destroying pipeline minecraft:overworld
-[00:52:44] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
-[00:52:46] [Render thread/INFO]: Destroying pipeline minecraft:overworld
-
-## [3] COMPILE / LOAD FAILURES (fatal)
-(none)
-
-## [4] other ERROR lines
-[00:52:23] [Download-2/ERROR]: Failed to fetch user properties
-[00:52:31] [IO-Worker-1/ERROR]: Couldn't connect to realms
-
-## [5] shader related WARN lines
-[00:51:58] [main/WARN]: Force-disabling mixin 'features.render.world.sky.FogRendererMixin' as rule 'mixin.features.render.world.sky' (added by mods [iris]) disables it and children
-[00:51:58] [main/WARN]: Force-disabling mixin 'features.render.world.sky.ClientLevelMixin' as rule 'mixin.features.render.world.sky' (added by mods [iris]) disables it and children
-[00:51:58] [main/WARN]: Force-disabling mixin 'features.render.world.sky.LevelRendererMixin' as rule 'mixin.features.render.world.sky' (added by mods [iris]) disables it and children
+## [2] session B - relaunch via PCL, Zephyr load 00:52:27/00:52:48 (shaders.properties PRE-FIX)
+[00:52:25] [Render thread/WARN]: Invalid pack option: GTAO
+[00:52:25] [Render thread/WARN]: Invalid pack option: GTAO
+[00:52:25] [Render thread/WARN]: Invalid pack option: GTAO
 [00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION" defined in shaders.properties
 [00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION_INTENSITY" defined in shaders.properties
 [00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_DAILY_WEATHER" defined in shaders.properties
 [00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_H" defined in shaders.properties
 [00:52:25] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_Z" defined in shaders.properties
-[00:52:31] [Render thread/WARN]: Shader rendertype_entity_translucent_emissive could not find sampler named Sampler2 in the specified shader program.
+[00:52:25] [Render thread/INFO]: Profile: high (+0 options changed by user)
+[00:52:27] [Render thread/INFO]: Using shaderpack: Zephyr
+[00:52:31] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
+[00:52:42] [Server thread/INFO]: Preparing start region for dimension minecraft:overworld
+[00:52:44] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
+[00:52:47] [Render thread/WARN]: Invalid pack option: GTAO
+[00:52:47] [Render thread/WARN]: Invalid pack option: GTAO
+[00:52:47] [Render thread/WARN]: Invalid pack option: GTAO
 [00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION" defined in shaders.properties
 [00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION_INTENSITY" defined in shaders.properties
 [00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_DAILY_WEATHER" defined in shaders.properties
 [00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_H" defined in shaders.properties
 [00:52:47] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_Z" defined in shaders.properties
+[00:52:47] [Render thread/INFO]: Profile: high (+0 options changed by user)
+[00:52:48] [Render thread/INFO]: Using shaderpack: Zephyr
+[00:52:48] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
 
-## [6] world join lines
-[00:52:41] [Render thread/INFO]: Loaded 1399 advancements
-[00:52:45] [Render thread/INFO]: Loaded 76 advancements
+## [3] session B - AFTER-FIX reload 00:57:35-38 (shaders.properties fixed at 00:56:15) => NO warnings, NO errors
+[00:57:35] [Render thread/INFO]: Destroying pipeline minecraft:overworld
+[00:57:36] [Render thread/INFO]: Profile: high (+0 options changed by user)
+[00:57:37] [Render thread/INFO]: Using shaderpack: Zephyr
+[00:57:37] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
+[00:57:38] [Render thread/INFO]: [System] [CHAT] 已重新加载光影包！
 
-## [7] GL / GPU lines
-[00:52:07] [main/INFO]: Found graphics adapter: AdapterInfo{vendor=AMD, description='AMD Radeon(TM) Graphics', adapterType=0x0000232B, openglIcdFilePath='C:\WINDOWS\System32\DriverStore\FileRepository\u0200836.inf_amd64_06e4850cba742b2d\B026033\atig6pxx.dll', openglIcdVersion=32.0.22050.4002}
-[00:52:07] [main/INFO]: Found graphics adapter: AdapterInfo{vendor=NVIDIA, description='NVIDIA GeForce RTX 4050 Laptop GPU', adapterType=0x00002311, openglIcdFilePath='C:\WINDOWS\System32\DriverStore\FileRepository\nvbl.inf_amd64_fd4690a19e51c99e\nvoglv64.dll', openglIcdVersion=32.0.15.9595}
-[00:52:23] [Render thread/INFO]: OpenGL debug context activated.
-[00:52:24] [Render thread/INFO]: OpenGL Vendor: NVIDIA Corporation
-[00:52:24] [Render thread/INFO]: OpenGL Renderer: NVIDIA GeForce RTX 4050 Laptop GPU/PCIe/SSE2
-[00:52:24] [Render thread/INFO]: OpenGL Version: 3.2.0 NVIDIA 595.95
-[00:52:24] [Render thread/INFO]: Modifying OpenGL context to apply workarounds for the NVIDIA graphics driver...
-[00:52:24] [Render thread/INFO]: [GL] Using KHR_debug for error logging.
-[00:52:27] [Render thread/INFO]: GPU: NVIDIA GeForce RTX 4050 Laptop GPU/PCIe/SSE2 (Supports OpenGL 3.2.0 NVIDIA 595.95)
+## [4] fatal compile/load errors inside Zephyr sessions
+(none)
+
+## [5] before/after counts
+- pre-fix session A 00:50:29 (Zephyr load window only) : Invalid pack option = 3 ; Unable to resolve = 5
+- pre-fix session B        : Invalid pack option = 6 ; Unable to resolve = 10
+- after-fix reload window 00:57-00:58 : Invalid pack option = 0 ; Unable to resolve = 0 ; ERROR = 0 ; compile failures = 0
+
+## [6] context only - the single shader compile failure in this log history belongs to ComplementaryReimagined at 00:11:35, NOT to Zephyr
+[00:11:31] [Render thread/INFO]: Using shaderpack: ComplementaryReimagined_r5.7.1 + EuphoriaPatches_1.8.6
+[00:11:35] [Render thread/WARN]: Shader compilation log for final.fsh: 0(1329) : error C1503: undefined variable "_10"
+[00:11:36] [Render thread/ERROR]: Failed to create shader rendering pipeline, disabling shaders!
+[00:11:56] [Render thread/INFO]: Using shaderpack: ComplementaryReimagined_r5.7.1 + EuphoriaPatches_1.8.6
+[00:13:30] [Render thread/INFO]: Using shaderpack: ComplementaryReimagined_r5.7.1 + EuphoriaPatches_1.8.6
+[00:14:10] [Render thread/INFO]: Using shaderpack: continuum-2.0-redux
+[00:14:45] [Render thread/INFO]: Using shaderpack: SEUS PTGI E12
+[00:15:32] [Render thread/INFO]: Using shaderpack: ComplementaryReimagined_r5.7.1 + EuphoriaPatches_1.8.6
+NOTE: ComplementaryReimagined loaded fine again at 00:15:32 (pipeline created, only benign uniform warnings).
+
+## [7] pre-fix warning detail (session A 00:50:29)
+[00:50:29] [Render thread/WARN]: Invalid pack option: GTAO
+[00:50:29] [Render thread/WARN]: Invalid pack option: GTAO
+[00:50:29] [Render thread/WARN]: Invalid pack option: GTAO
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION" defined in shaders.properties
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "WATER_REFRACTION_INTENSITY" defined in shaders.properties
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_DAILY_WEATHER" defined in shaders.properties
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_H" defined in shaders.properties
+[00:50:29] [Render thread/WARN]: Unable to resolve shader pack option menu element "CLOUDS_CUMULUS_CONGESTUS_PRIMARY_STEPS_Z" defined in shaders.properties

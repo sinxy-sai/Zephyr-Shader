@@ -189,7 +189,8 @@ function Get-LogText {
         $fs = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
         try {
             if ($fs.Length -gt $MaxBytes) { [void]$fs.Seek($fs.Length - $MaxBytes, [System.IO.SeekOrigin]::Begin) }
-            $sr = New-Object System.IO.StreamReader($fs, [System.Text.Encoding]::UTF8)
+            # Minecraft's log4j file appender uses the platform charset here (GBK on zh-CN Windows).
+            $sr = New-Object System.IO.StreamReader($fs, [System.Text.Encoding]::Default)
             return $sr.ReadToEnd()
         } finally { $fs.Dispose() }
     } catch { return '' }
