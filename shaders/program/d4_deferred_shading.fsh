@@ -556,7 +556,7 @@ void main() {
 				direction_world * tbn,
 				light_levels.y,
 				false
-			);
+			) * mix(0.35, 1.0, sqrt(clamp01(ao))); // specular occlusion (reflection probe fallback must not leak light into creases)
 		}
 #endif
 		// Edge highlight

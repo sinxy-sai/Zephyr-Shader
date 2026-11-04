@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.7 — 反射探针兜底：镜面遮蔽（2026-11-05）
+
+在 v2.2 的「粗糙度感知天空反射」基础上，补上**镜面遮蔽**：
+
+- `d4_deferred_shading` 的反射结果乘以 `mix(0.35, 1.0, sqrt(ao))`
+- 作用：缝隙、物体底部、墙角等 GTAO 判定为遮蔽的地方，天空反射不再「漏光」，
+  反射探针兜底亮度和周围直射/环境光一致
+- 没有改 `get_specular_reflections()` 的签名（其它程序 water/lightning/hand 也在调用，
+  改签名会连累 12 个入口），只在 d4 调用点乘系数
+
+
 ## v2.6 — 水面雨滴涟漪（程序化，无额外贴图）（2026-11-05）
 
 `include/surface/water_normal.glsl` 增加 `zephyr_water_rain_rings()`：
