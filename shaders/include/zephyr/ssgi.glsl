@@ -81,7 +81,7 @@ vec3 zephyr_ssgi(vec2 uv, float depth) {
 			// Hit when the ray went behind the surface
 			float diff = surface_view.z - probe_view.z;
 			if (diff > 0.0 && diff < 1.5) {
-				vec3 gathered = texture(colortex5, probe_uv).rgb;
+				vec3 gathered = texture(colortex0, probe_uv).rgb;
 				float falloff = 1.0 - float(s) / float(steps + 1);
 				float n_dot = max(dot(normal, normalize(surface_view - p0)), 0.0);
 				indirect += gathered * falloff * (0.35 + 0.65 * n_dot);

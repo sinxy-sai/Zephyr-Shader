@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.5 — SSGI 移到 TAA 之前（消除静态颗粒）（2026-11-05）
+
+上一版 SSGI 在 c14（TAA 之后），采样噪声不会被时域累积，画面有静态颗粒。
+这版把它挪到 `c1_blend_layers`（合成层 + 雾之后、TAA 之前）执行：
+
+- `c1_blend_layers.fsh`：在最终 `fragment_color` 合成完后加 `zephyr_ssgi(...)`
+- SSGI 的 gather 源从 `colortex5` 改为 `colortex0`（c1 里当前帧场景色）
+- 移除 c14 里的 SSGI hook（避免重复叠加）
+- 采样方向改为固定 pattern（TAA 会跨帧累积，不再需要逐帧 dither）
+
+实机：`shots/v2.5-ssgi-pretaa-night.jpg`（18000 夜，街道，颗粒消失）
+
+
 ## v2.4 — 屏幕空间一次反弹 GI（SSGI）（2026-11-05）
 
 `include/zephyr/ssgi.glsl`：从深度重建视空间位置与法线，在半球内做

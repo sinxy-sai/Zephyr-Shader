@@ -46,7 +46,6 @@ uniform mat4 gbufferProjectionInverse;
 uniform int frameCounter;
 uniform vec3 sun_dir;
 
-#include "/include/zephyr/ssgi.glsl"
 #include "/include/post_processing/tonemap_operators.glsl"
 #include "/include/post_processing/zephyr_cinematic.glsl"
 #include "/include/utility/bicubic.glsl"
@@ -274,14 +273,6 @@ void main() {
 #endif
 
 	scene_color *= exposure;
-
-#ifdef ZEPHYR_SSGI
-	{
-		float ssgi_depth = texelFetch(depthtex0, texel, 0).x;
-		vec3 indirect = zephyr_ssgi(uv, ssgi_depth);
-		scene_color += indirect * exposure * ZEPHYR_SSGI_STRENGTH;
-	}
-#endif
 
 	scene_color += zephyr_godrays(uv, exposure);
 
