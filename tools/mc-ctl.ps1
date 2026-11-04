@@ -186,7 +186,7 @@ switch ($Action) {
     "reload2" {
         # Reliable reload: press R, then verify the log shows a new pipeline build.
         $logPath = "C:\Users\liubingliang\Downloads\PCL-2.12.2\.minecraft\versions\1.21.1-Fabric 0.18.4\logs\latest.log"
-        $countLines = { (Select-String -Path $logPath -Pattern "Using shaderpack" -ErrorAction SilentlyContinue | Measure-Object).Count }
+        $countLines = { (Select-String -Path $logPath -Pattern "Shaders Reloaded" -ErrorAction SilentlyContinue | Measure-Object).Count }
         $before = & $countLines
         for ($attempt = 1; $attempt -le 5; $attempt++) {
             Focus-Mc $proc | Out-Null

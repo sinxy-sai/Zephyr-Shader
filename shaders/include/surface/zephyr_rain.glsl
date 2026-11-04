@@ -21,6 +21,8 @@
 
 #include "/include/misc/material_masks.glsl"
 
+uniform sampler2D zephyr_ripple; // image/ripple.png: baked ripple normal (RG)
+
 float zephyr_rain_hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
 	p3 += dot(p3, p3.yzx + 33.33);
@@ -36,30 +38,44 @@ float zephyr_macro_wetness(vec3 world_pos) {
 	return 0.55 + 0.45 * smoothstep(0.25, 0.75, n);
 }
 
-// Expanding impact ripples. Returns a world-space horizontal normal offset.
-// No splash particles / no foam: the user explicitly wanted those gone.
-vec2 zephyr_ripple_offset(vec3 world_pos, float time) {
+// Expanding impact ripples. Each drop is one circular wavefront that grows and
+// fades; the shape comes from the baked ripple normal texture (image/ripple.png),
+// sampled in a coordinate space centred on the drop. This gives real concentric
+// rings instead of the old grid "fish scale" tiling.
+vec2 zephyr_ripple_offset(vec3 world_pos, float time, out float wave_sum) {
 	vec2 result = vec2(0.0);
+	wave_sum = 0.0;
 
 	for (int layer = 0; layer < 2; ++layer) {
-		float scale = layer == 0 ? 5.4 : 7.7;
-		float speed = layer == 0 ? 1.30 : 1.90;
+		float scale = 2.4 + float(layer) * 1.9;   // cells per block -> 0.2-0.4m cells
+		float speed = 1.05 + float(layer) * 0.50; // drops per second
+		float max_radius = 0.62 - float(layer) * 0.10;
 
-		vec2  p      = world_pos.xz * scale;
-		vec2  cell   = floor(p);
-		vec2  f      = fract(p);
-		float h0     = zephyr_rain_hash12(cell + float(layer) * 31.7);
-		vec2  center = vec2(zephyr_rain_hash12(cell + 11.3), zephyr_rain_hash12(cell + 5.9)) * 0.7 + 0.15;
-		float phase  = fract(time * speed + h0);
+		vec2 p    = world_pos.xz * scale;
+		vec2 cell = floor(p);
+		vec2 f    = fract(p);
 
+		float h0    = zephyr_rain_hash12(cell + float(layer) * 17.3);
+		float spawn = step(0.55, h0);              // ~45% of cells spawn a drop
+
+		float phase  = fract(time * speed + h0 * 9.1);
+		float radius = phase * max_radius;
+		if (radius < 1e-4) { continue; }
+
+		vec2  center = vec2(zephyr_rain_hash12(cell + 4.7), zephyr_rain_hash12(cell + 8.9)) * 0.6 + 0.2;
 		vec2  d      = f - center;
-		float dist   = length(d);
-		float radius = phase * 0.46;
 
-		float ring = exp2(-abs(dist - radius) * 90.0);
-		      ring *= (1.0 - phase) * smoothstep(0.0, 0.05, phase);
+		// texture ring sits at 0.34 of the texture radius -> scale so that it
+		// lands exactly at the current world radius
+		vec2 ruv = 0.5 + d * (0.34 / radius);
+		vec4 rip = texture(zephyr_ripple, ruv);
+		vec2 nrm = rip.rg * 2.0 - 1.0;
+		nrm *= rip.a;
 
-		result += d * ring;
+		float fade = (1.0 - phase) * (1.0 - phase) * smoothstep(0.0, 0.08, phase);
+
+		result   += nrm * fade * spawn;
+		wave_sum += length(nrm) * fade * spawn;
 	}
 
 	return result;
@@ -102,17 +118,22 @@ void zephyr_rain_surface(
 		// dry paving stop looking like two different materials.
 		float coat = rain * ZEPHYR_RAIN_WETNESS;
 		albedo *= 1.0 - 0.20 * coat;
-		roughness = mix(roughness, 0.16, coat * 0.78);
+		roughness = mix(roughness, 0.22, coat * 0.72);
 		f0        = mix(f0, vec3(0.030), coat);
 		ssr_multiplier = max(ssr_multiplier, coat * 1.00);
 
 		// Impacts: normal-only ripples (no bright particles)
 		if (falling > 0.01 && ZEPHYR_RAIN_RIPPLE > 0.0) {
 			float fade  = smoothstep(0.0, 5.0, length(world_pos - cameraPosition));
-			vec2 offset = zephyr_ripple_offset(world_pos, frameTimeCounter);
+			float wave;
+			vec2 offset = zephyr_ripple_offset(world_pos, frameTimeCounter, wave);
 
 			float k = falling * fade * ZEPHYR_RAIN_RIPPLE;
-			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.34 * k);
+			normal = normalize(normal + vec3(offset.x, 0.0, offset.y) * 0.40 * k);
+
+			// Rings also disturb the mirror: crests are slightly rougher, so the
+			// circular wavefronts read as dark/light rings instead of glitter.
+			roughness += clamp01(wave) * 0.22 * k;
 		}
 	} else if (up < 0.30) {
 		// Wet walls: sheen + running water lines

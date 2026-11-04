@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.6 — 雨滴涟漪重做（真·一圈圈波纹）（2026-11-05）
+
+之前地面上的涟漪是「每个网格一个环」的平铺写法，看起来像鱼鳞斑纹。这次改成
+**每个雨滴一个独立扩散波前**：
+
+- 生成 `shaders/image/ripple.png`（128×128 法线贴图：两道同心环的斜率编码在 RG）
+- `zephyr_rain.glsl` 里每滴雨：随机格点 + 随机中心 + 随机相位；采样纹理时用
+  `uv = 0.5 + (f - center) * (0.34 / radius)`，让纹理里的环正好落在当前世界半径上
+  → 环随 phase 扩大、波前变宽、强度按 `(1-phase)²` 淡出
+- 只有 ~45% 的格子会在当前周期落雨，两层不同尺度/频率叠加，消除平铺感
+- 涟漪同时轻微提高粗糙度（`roughness += wave * 0.22`），让环在镜面反射里表现为
+  明暗圆环而不是散点闪光
+- **坑**：Iris 1.8.8 遇到两段式自定义纹理键（`texture.ripple = ...`）会抛
+  `StringIndexOutOfBoundsException` 导致整个包加载失败；必须用三段式
+  `texture.deferred.<sampler> = image/ripple.png`
+- `tools/mc-ctl.ps1` 的 `reload2` 改为用聊天行 `Shaders Reloaded!` 校验重载
+
+验证：02:30:27 `Using shaderpack: Zephyr` 加载成功；`shots/v0.6-ripples.jpg`
+
+
 ## v0.5.2 — 蓝色粒子真正定位并消除（2026-11-05）
 
 上次的「rain neutral」截图其实是在 Complementary 上截的（Iris 日志 02:13:09 显示当时
