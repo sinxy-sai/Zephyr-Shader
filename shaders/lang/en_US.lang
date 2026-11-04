@@ -779,3 +779,6 @@ option.ZEPHYR_LETTERBOX_RATIO.comment   = Aspect ratio used by the letterbox
 
 value.ZEPHYR_LETTERBOX.0                = Off
 value.ZEPHYR_LETTERBOX.1                = On
+
+profile.sunset                          = §6Sunset
+profile.rainynight                      = §9Rain Night

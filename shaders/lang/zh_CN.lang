@@ -787,3 +787,6 @@ option.ZEPHYR_LETTERBOX_RATIO.comment   = 黑边使用的画幅比例
 
 value.ZEPHYR_LETTERBOX.0                = 关
 value.ZEPHYR_LETTERBOX.1                = 开
+
+profile.sunset                          = §6黄昏逆光
+profile.rainynight                      = §9雨夜霓虹
