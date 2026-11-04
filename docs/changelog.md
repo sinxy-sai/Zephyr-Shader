@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.3 — P2 第一步：体积地面薄雾 + 局部光雾（2026-11-05）
+
+Photon 本身已有 LPV 体积光（`VL` + `LPV_VL`，24 步 raymarch、0.5 分辨率），
+所以这轮不是从零写 froxel，而是在它的体积光系数里加两层 Zephyr 的控制：
+
+- **地面薄雾层**（`include/fog/lpv_fog.glsl`）：
+  `mist = ZEPHYR_MIST_DENSITY * exp2(-(y - SEA_LEVEL)/ZEPHYR_MIST_HEIGHT)`，
+  直接加到体积散射/消光系数里 —— 薄雾贴地、几格高度内衰减，街道上会形成
+  「灯光周围的雾层」，而不是整屏发白
+- **局部光雾增强**：体积光采样到的 LPV 发射光乘 `ZEPHYR_LIGHT_FOG_SCALE`
+  （默认 1.60），让霓虹/路灯在雾里的辉光更明显
+
+设置（大气/雾 页）：
+`ZEPHYR_MIST`（开关）、`ZEPHYR_MIST_DENSITY`（默认 0.0060）、
+`ZEPHYR_MIST_HEIGHT`（默认 5.0 格）、`ZEPHYR_LIGHT_FOG_SCALE`（默认 1.60）
+
+实机：`shots/v2.3-mist-night.jpg`（18000 + 雨，街道视角）
+
+
 ## v2.2 — 反射兜底：粗糙度感知的天空反射（2026-11-05）
 
 SSR 打不到的时候（屏幕外、被遮挡）Photon 直接回退「一条方向采样天空图」，

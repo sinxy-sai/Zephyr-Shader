@@ -78,6 +78,18 @@ mat2x3 get_lpv_fog_coefficients(vec3 position_world) {
 		underground_factor
 	);
 
+#ifdef ZEPHYR_MIST
+	// Zephyr: low-lying ground mist (cinematic streets). Peaks at the ground and
+	// fades out over ZEPHYR_MIST_HEIGHT blocks, so it reads as a layer around
+	// street lights instead of a full-screen white wash.
+	float mist_height = max(position_world.y - SEA_LEVEL, 0.0);
+	float mist = ZEPHYR_MIST_DENSITY * exp2(-mist_height * rcp(ZEPHYR_MIST_HEIGHT));
+	vec3 mist_color = vec3(0.72, 0.80, 0.95) * rec709_to_working_color;
+
+	scattering += mist_color * mist;
+	extinction += vec3(mist) * vec3(0.90, 0.92, 1.00);
+#endif
+
 	return mat2x3(scattering, extinction);
 #elif defined WORLD_NETHER
 	float density = 0.05 * LPV_VL_INTENSITY_NETHER;
@@ -128,6 +140,9 @@ vec3 get_lpv_fog_scattering(
 
 		vec3 light = sqrt(sample_lpv(dithered_position_world));
 		light *= sqrt(sqrt(light));
+#ifdef ZEPHYR_MIST
+		light *= ZEPHYR_LIGHT_FOG_SCALE;
+#endif
 		mat2x3 coefficients = get_lpv_fog_coefficients(dithered_position_world) * step_length * distance_factor; // scattering, extinction
 
 		vec3 step_transmittance = exp(-coefficients[1]);
