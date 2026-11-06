@@ -3,6 +3,10 @@ __preprocessed_*.txt
 _val*.txt
 _gen_*.fsh
 *.log
+*.trace
+*.prof
+*.spv
+*.preprocessed
 
 # Python caches and local environments
 __pycache__/
@@ -25,16 +29,10 @@ captures/
 Thumbs.db
 .DS_Store
 
-# Local-only legacy development material
+# Local-only development material
 tools/
-docs/images/
-docs/look-analysis.md
-docs/look-dev.md
-docs/refactor-report.md
-docs/selfhosted-rewrite-plan.md
-docs/zephyr-architecture.md
-docs/changelog.md
-
-README-SELFHOSTED.md
-
 docs/dev/
+
+# Local agent state
+.agents/
+.codex/
