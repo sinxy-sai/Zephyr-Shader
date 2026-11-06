@@ -4,7 +4,7 @@ varying vec2 zephyrTexCoord;
 /* DRAWBUFFERS:0 */
 void main() {
     vec3 color = texture2D(colortex0, zephyrTexCoord).rgb;
-    color = color / (1.0 + color);
-    color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
-    gl_FragData[0] = vec4(color, 1.0);
+    // S0 receives the default framebuffer color path. Keep this pass neutral
+    // until the HDR exposure contract is established in the deferred stage.
+    gl_FragData[0] = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
