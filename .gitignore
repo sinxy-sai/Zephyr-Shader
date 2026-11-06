@@ -1,10 +1,40 @@
-# Zephyr 开发垃圾文件
-__pycache__/
-*.pyc
+# Local shader validation and generated preprocessing
+__preprocessed_*.txt
 _val*.txt
 _gen_*.fsh
-__preprocessed_*.txt
 *.log
 
-# 本地开发 venv / 工具产物（在 workspace 之外，这里只防误提交）
+# Python caches and local environments
+__pycache__/
+*.py[cod]
 .venv/
+venv/
+
+# Local Minecraft / Iris state
+reports/
+shots/
+screenshots/
+captures/
+*.bak
+*.tmp
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Local-only legacy development material
+tools/
+docs/images/
+docs/look-analysis.md
+docs/look-dev.md
+docs/refactor-report.md
+docs/selfhosted-rewrite-plan.md
+docs/zephyr-architecture.md
+docs/changelog.md
+
+README-SELFHOSTED.md
+
+docs/dev/
