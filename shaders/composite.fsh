@@ -1,6 +1,8 @@
 #version 120
 uniform sampler2D colortex0;
+uniform sampler2D colortex1;
 uniform sampler2D depthtex0;
+uniform vec3 sunPosition;
 varying vec2 zephyrTexCoord;
 /* DRAWBUFFERS:0 */
 
@@ -23,12 +25,24 @@ vec3 zephyr_sky(vec3 color, vec2 uv) {
     return mix(color, gradient, 0.78);
 }
 
+vec3 zephyr_direct_light(vec3 color, vec3 encodedNormal) {
+    vec3 normal = normalize(encodedNormal * 2.0 - 1.0);
+    float sunLength = dot(sunPosition, sunPosition);
+    vec3 fallbackSun = normalize(vec3(-0.25, 0.82, 0.35));
+    vec3 lightDirection = sunLength > 0.001 ? normalize(sunPosition) : fallbackSun;
+    float ndotl = max(dot(normal, lightDirection), 0.0);
+    float light = 0.68 + ndotl * 0.42;
+    return color * light;
+}
+
 void main() {
     vec4 scene = texture2D(colortex0, zephyrTexCoord);
     float depth = texture2D(depthtex0, zephyrTexCoord).r;
     vec3 color = zephyr_grade(scene.rgb);
     if (depth > 0.9995) {
         color = zephyr_sky(color, zephyrTexCoord);
+    } else {
+        color = zephyr_direct_light(color, texture2D(colortex1, zephyrTexCoord).rgb);
     }
     gl_FragData[0] = vec4(color, scene.a);
 }
