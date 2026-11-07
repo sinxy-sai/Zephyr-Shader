@@ -222,6 +222,10 @@ void main() {
         float VoH = max(dot(V, H), 0.0);
 
         float visibility = zephyr_shadowVisibility(viewPos, N, L);
+        // Moonlight casts soft, shallow shadows: a full-strength daylight
+        // shadow at night reads as an unnatural black cutout.
+        float nightAmount = 1.0 - dayAmount;
+        visibility = mix(1.0, visibility, mix(NIGHT_SHADOW_MIN, 1.0, dayAmount));
 
         float warm = zephyr_warmMix(sunDirWorld.y);
         vec3 sunNoon = vec3(1.15, 1.05, 0.92);
@@ -241,6 +245,9 @@ void main() {
         float stormNight = rain * (1.0 - dayAmount);
         skyAmbient += vec3(0.62, 0.72, 1.00) * STORM_NIGHT_BOUNCE
                     * stormNight * LIGHT_SKY_INTENSITY;
+        // Night sky glow / city bounce: an ambient floor so shadowed albedo
+        // survives exposure and tonemapping instead of crushing to black.
+        skyAmbient += vec3(0.62, 0.72, 1.00) * NIGHT_AMBIENT_FLOOR * nightAmount;
         vec3 blockRadiance = vec3(1.00, 0.58, 0.26) * pow(blockLight, 2.0) * 1.8
                            * (1.0 + rain * 0.45);
 
@@ -299,6 +306,9 @@ void main() {
             // Fixed spatial jitter (see zephyr_ssao) already removes temporal
             // shimmer without a history buffer or ghosting risk.
             float ao = zephyr_ssao(texCoord, viewPos, N);
+            // Contact AO still exists at night but must not double-darken
+            // geometry that is already only lit by weak ambient light.
+            ao = mix(ao, 1.0, nightAmount * NIGHT_AO_RELAX);
             color = direct * mix(1.0, ao, 0.35) + indirect * ao;
 #else
             color = direct + indirect;

@@ -44,6 +44,7 @@
 #define VL_MAX_DISTANCE          96.0
 #define VL_INTENSITY              1.10
 #define VL_DECAY                  0.94
+#define VL_SHADOW_SOFTNESS        0.0010
 
 #define WAVE_AMPLITUDE            0.055
 #define WATER_ABSORPTION          0.36
@@ -154,7 +155,14 @@ vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
 
 // Storm-night polish: bounce light, bounded exposure lift, fog distance shaping
 #define STORM_NIGHT_BOUNCE         0.075
-#define RAIN_NIGHT_EV              0.45
+#define RAIN_NIGHT_EV              0.55
+
+// M10 night balance: moonlight is weak, so its shadows should be soft and
+// shallow, while sky glow / city bounce must keep shadowed geometry readable.
+#define NIGHT_SHADOW_MIN           0.30
+#define NIGHT_AO_RELAX             0.50
+#define NIGHT_AMBIENT_FLOOR        0.050
+#define NIGHT_BLACK_LIFT           0.018
 #define RAIN_DAY_EV                0.30
 #define RAIN_FOG_DIST_POW          0.92
 #define RAIN_GRADE_CONTRAST        0.05

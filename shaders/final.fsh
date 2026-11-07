@@ -73,6 +73,14 @@ void main() {
     graded = mix(vec3(l), graded, gradeSat);
     graded = max((graded - 0.18) * gradeCtr + 0.18, vec3(0.0));
 
+    // Night shadow lift: dark albedo (foliage) otherwise collapses through
+    // the contrast pivot and the AgX toe into pure black. Geometry only, so
+    // the night sky stays deep; nightFactor is 0 during the day.
+    float nightLiftMask = step(texture(depthtex0, texCoord).r, 0.9999)
+                        * (1.0 - smoothstep(0.0, 0.09, zephyr_luma(graded)));
+    graded += vec3(0.62, 0.72, 1.00) * NIGHT_BLACK_LIFT
+            * nightFactor * nightLiftMask;
+
     vec3 mapped = zephyr_linearToSrgb(zephyr_tonemap(graded));
     float dither = (zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.71) - 0.5) / 255.0;
     outColor = vec4(clamp(mapped + dither, 0.0, 1.0), 1.0);

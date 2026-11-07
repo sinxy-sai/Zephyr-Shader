@@ -70,7 +70,12 @@ void main() {
         float vis = 0.0;
         if (sCoord.x > 0.0 && sCoord.x < 1.0 && sCoord.y > 0.0 && sCoord.y < 1.0 &&
             sCoord.z > 0.0 && sCoord.z < 1.0) {
-            vis = step(sCoord.z - 0.0012, texture(shadowtex0, sCoord.xy).r);
+            // Smooth comparison instead of a binary step: a hard 0/1 per
+            // raymarch step produces banded light shafts for the same reason
+            // a hard PCF produced banded shadows.
+            float closest = texture(shadowtex0, sCoord.xy).r;
+            vis = smoothstep(-VL_SHADOW_SOFTNESS, VL_SHADOW_SOFTNESS,
+                             closest - (sCoord.z - 0.0012));
         }
         shafts += vis * weight;
         weight *= VL_DECAY;
