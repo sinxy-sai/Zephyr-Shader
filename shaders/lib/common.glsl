@@ -93,6 +93,7 @@ float zephyr_warmMix(float sunY) {
 // Analytic single-scattering sky. Every pass that needs sky/fog/cloud colour
 // calls this function so the atmosphere stays a single source of truth (F4).
 vec3 zephyr_atmosphere(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
+    float storm = clamp(rain, 0.0, 1.0);
     float y = clamp(rd.y, -0.25, 1.0);
     float horizon = pow(1.0 - max(y, 0.0), 2.5);
     float mu = clamp(dot(rd, sunDir), -1.0, 1.0);
@@ -131,9 +132,15 @@ vec3 zephyr_atmosphere(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
 
     float disk = smoothstep(0.9993, 0.99980, mu);
     vec3 diskColor = mix(vec3(14.0, 5.0, 1.6), vec3(12.0, 10.0, 8.0), warm);
-    sky += diskColor * disk * dayAmount;
+    // The sun disc disappears behind the storm deck.
+    sky += diskColor * disk * dayAmount * (1.0 - storm);
 
-    sky = mix(sky, vec3(zephyr_luma(sky)), clamp(rain, 0.0, 1.0) * 0.60);
+    // Overcast: desaturate towards a cold slate grey AND cut the radiance.
+    // Desaturation on its own made storm skies brighter than clear ones.
+    vec3 stormSky = vec3(zephyr_luma(sky)) * vec3(0.78, 0.84, 0.98);
+    sky = mix(sky, stormSky, storm * 0.88);
+    // Keep some night detail: a storm night is dim, not pitch black.
+    sky *= mix(1.0, mix(0.62, 0.42, dayAmount), storm);
     return max(sky, vec3(0.0));
 }
 

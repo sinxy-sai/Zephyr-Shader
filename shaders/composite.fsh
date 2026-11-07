@@ -28,7 +28,10 @@ float zephyr_cloudDensity(vec3 p) {
     float base = zephyr_fbm(uv);
     float h = clamp((p.y - CLOUD_ALTITUDE) / CLOUD_THICKNESS, 0.0, 1.0);
     float shape = smoothstep(0.0, 0.22, h) * (1.0 - smoothstep(0.58, 1.0, h));
-    float cover = smoothstep(CLOUD_COVERAGE, CLOUD_COVERAGE + 0.13, base);
+    // Storms thicken and lower the cloud deck.
+    float storm = clamp(rainStrength, 0.0, 1.0);
+    float cover = smoothstep(CLOUD_COVERAGE - storm * 0.20,
+                             CLOUD_COVERAGE + 0.13 - storm * 0.10, base);
     return cover * shape * CLOUD_DENSITY;
 }
 
@@ -98,7 +101,7 @@ void main() {
                        * (1.0 - smoothstep(0.94, 1.0, hitUv.y));
             vec3 refl = max(texture(colortex3, hitUv).rgb, vec3(0.0));
             color = mix(color, refl, clamp(fres * 2.0 + 0.45, 0.0, 0.90)
-                                    * SSR_STRENGTH * edge);
+                                    * SSR_STRENGTH * edge * (1.0 + rain * 0.30));
         }
     }
 #endif
@@ -112,7 +115,8 @@ void main() {
             float stepLen = (t1 - t0) / float(CLOUD_STEPS);
             vec3 L = normalize(vec3(sunDirWorld.x, max(sunDirWorld.y, 0.10), sunDirWorld.z));
             float warmC = zephyr_warmMix(sunDirWorld.y);
-            vec3 cloudAmbient = mix(vec3(0.10, 0.13, 0.20), vec3(0.58, 0.66, 0.80), dayAmount);
+            vec3 cloudAmbient = mix(vec3(0.10, 0.13, 0.20), vec3(0.58, 0.66, 0.80), dayAmount)
+                              * mix(1.0, 0.55, rain);
             vec3 sunColor = mix(vec3(1.45, 0.58, 0.24), vec3(1.20, 1.12, 0.98), warmC);
             float phaseC = 0.55 + 0.45 * pow(mu, 4.0);
             float silver = pow(mu, 16.0);

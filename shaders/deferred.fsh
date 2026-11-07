@@ -145,10 +145,19 @@ void main() {
                          * LIGHT_SUN_INTENSITY;
         vec3 skyAmbient = mix(vec3(0.020, 0.030, 0.055), mix(skyWarm, skyNoon, warm), dayAmount)
                         * LIGHT_SKY_INTENSITY;
+        // Overcast: direct sun collapses, ambient skylight turns cool and dim.
+        sunRadiance *= mix(1.0, 0.35, rain);
+        skyAmbient *= mix(1.0, 0.75, rain);
+        skyAmbient = mix(skyAmbient, skyAmbient * vec3(0.72, 0.80, 1.00), rain * 0.70);
         vec3 blockRadiance = vec3(1.00, 0.58, 0.26) * pow(blockLight, 2.0) * 1.8;
 
-        float a = max(roughness * roughness, 0.002);
-        vec3 f0 = vec3(0.04);
+        // Wet surfaces: tighter GGX lobe and a higher F0 give the slick,
+        // reflective look of rain-soaked pavement and leaves.
+        float isWater = (matId > 0.5 && matId < 1.5) ? 1.0 : 0.0;
+        float wet = rain * (1.0 - isWater);
+        float wetRoughness = mix(roughness, roughness * 0.35, wet);
+        float a = max(wetRoughness * wetRoughness, 0.002);
+        vec3 f0 = mix(vec3(0.04), vec3(0.075), wet);
         vec3 specular = zephyr_D_GGX(NoH, a) * zephyr_G_Smith(NoV, NoL, a)
                       * zephyr_F_Schlick(f0, VoH) / max(4.0 * NoV * NoL, 1e-4);
         vec3 diffuse = albedo * (1.0 - f0) / ZEPHYR_PI;
@@ -165,13 +174,16 @@ void main() {
         if (matId > 0.5 && matId < 1.5) {
             vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
             float t = frameTimeCounter;
+            // Rain roughens the surface with small ripples and lifts reflection.
+            float waveAmp = WAVE_AMPLITUDE * (1.0 + rain * 0.90);
             float wx = sin(worldPos.x * 0.85 + t * 1.25) * cos(worldPos.z * 0.62 - t * 0.85);
             float wz = sin(worldPos.z * 1.05 - t * 1.45) * cos(worldPos.x * 0.55 + t * 0.75);
-            vec3 waveN = normalize(mat3(gbufferModelView) * vec3(wx * WAVE_AMPLITUDE, 1.0, wz * WAVE_AMPLITUDE));
+            vec3 waveN = normalize(mat3(gbufferModelView) * vec3(wx * waveAmp, 1.0, wz * waveAmp));
             float fresnel = WATER_F0 + (1.0 - WATER_F0)
                           * pow(clamp(1.0 - max(dot(V, waveN), 0.0), 0.0, 1.0), 5.0);
+            fresnel = clamp(fresnel + rain * 0.12, 0.0, 1.0);
             vec3 worldRay = normalize(mat3(gbufferModelViewInverse) * (-V));
-            vec3 reflectDir = reflect(worldRay, normalize(vec3(wx, 1.0, wz) * WAVE_AMPLITUDE + vec3(0.0, 1.0, 0.0)));
+            vec3 reflectDir = reflect(worldRay, normalize(vec3(wx, 1.0, wz) * waveAmp + vec3(0.0, 1.0, 0.0)));
             vec3 reflection = zephyr_atmosphere(reflectDir, sunDirWorld, dayAmount, rain);
             vec3 underwater = albedo * vec3(0.06, 0.26, 0.32) * (skyAmbient + blockRadiance)
                             * WATER_ABSORPTION * 4.0;

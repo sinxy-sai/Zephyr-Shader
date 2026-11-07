@@ -65,7 +65,8 @@ void main() {
 
     vec3 shaftColor = mix(vec3(1.00, 0.52, 0.22), vec3(1.00, 0.88, 0.68),
                           zephyr_warmMix(sunDirWorld.y));
-    color += shaftColor * shafts * VL_INTENSITY * phase * dayAmount;
+    color += shaftColor * shafts * VL_INTENSITY * phase * dayAmount
+           * (1.0 - clamp(rainStrength, 0.0, 1.0) * 0.85);
 #endif
 
     outColor = vec4(clamp(color, 0.0, 65504.0), 1.0);

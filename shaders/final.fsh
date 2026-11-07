@@ -52,6 +52,10 @@ void main() {
 
     float averageLuma = max(zephyr_luma(textureLod(colortex3, vec2(0.5), 12.0).rgb), 1e-4);
     float autoEv = clamp(log2(EXPOSURE_TARGET / averageLuma), -2.0, 2.0);
+    // Eye adaptation must not cancel the storm darkening: during rain auto-EV
+    // may only reduce exposure, never lift the overcast sky back to daylight.
+    float storm = clamp(rainStrength, 0.0, 1.0);
+    autoEv = mix(autoEv, min(autoEv, 0.0), storm * 0.70);
     float ev = EXPOSURE_EV + autoEv * EXPOSURE_ADAPT_SPEED;
 
     vec3 graded = hdr * exp2(ev) * TONEMAP_EXPOSURE_BIAS;
