@@ -38,14 +38,14 @@ vec3 zephyr_worldRay(vec2 uv) {
 // Manual 2x2 bilinear PCF. A raw step() per tap only yields a handful of
 // discrete grey levels, which reads as thick concentric bands in a close-up.
 // Four comparisons plus bilinear weights give a continuous penumbra.
-float zephyr_shadowBilinear(vec2 uv, float compareDepth, float texel) {
+float zephyr_shadowBilinear(sampler2D shadowMap, vec2 uv, float compareDepth, float texel) {
     vec2 pos = uv / texel - 0.5;
     vec2 f = fract(pos);
     vec2 base = (floor(pos) + 0.5) * texel;
-    float s0 = step(compareDepth, texture(shadowtex0, base).r);
-    float s1 = step(compareDepth, texture(shadowtex0, base + vec2(0.0, texel)).r);
-    float s2 = step(compareDepth, texture(shadowtex0, base + vec2(texel, 0.0)).r);
-    float s3 = step(compareDepth, texture(shadowtex0, base + vec2(texel, texel)).r);
+    float s0 = step(compareDepth, texture(shadowMap, base).r);
+    float s1 = step(compareDepth, texture(shadowMap, base + vec2(0.0, texel)).r);
+    float s2 = step(compareDepth, texture(shadowMap, base + vec2(texel, 0.0)).r);
+    float s3 = step(compareDepth, texture(shadowMap, base + vec2(texel, texel)).r);
     return mix(mix(s0, s1, f.y), mix(s2, s3, f.y), f.x);
 }
 
@@ -76,15 +76,28 @@ float zephyr_shadowVisibility(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) 
     // Vogel disk with a per-frame rotation; the existing TAA resolves the
     // remaining sample noise into a smooth penumbra.
     float dither = zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.71);
-    float sum = 0.0;
+    // Both maps must use the exact same taps: subtracting a single-tap sample
+    // from a 6-tap PCF result would make every penumbra edge look like a
+    // translucent caster and silently soften all shadows.
+    float sumAll = 0.0;
+    float sumOpaque = 0.0;
     for (int i = 0; i < SHADOW_PCF_SAMPLES; ++i) {
         float fi = float(i);
         float ang = fi * 2.3999632 + dither * 6.2831853;
         float r = sqrt((fi + 0.5) / float(SHADOW_PCF_SAMPLES));
-        vec2 offset = vec2(cos(ang), sin(ang)) * r * radius;
-        sum += zephyr_shadowBilinear(shadowCoord.xy + offset, compareDepth, texel);
+        vec2 sampleUv = shadowCoord.xy + vec2(cos(ang), sin(ang)) * r * radius;
+        sumAll    += zephyr_shadowBilinear(shadowtex0, sampleUv, compareDepth, texel);
+        sumOpaque += zephyr_shadowBilinear(shadowtex1, sampleUv, compareDepth, texel);
     }
-    float visibility = sum / float(SHADOW_PCF_SAMPLES);
+    float visibility = sumAll / float(SHADOW_PCF_SAMPLES);
+    float opaqueVis = sumOpaque / float(SHADOW_PCF_SAMPLES);
+
+    // shadowtex0 holds every caster, shadowtex1 only opaque ones. The gap is
+    // therefore the shadow cast by glass / water / other translucent geometry.
+    // Lift that shadow instead of letting it read as a hard opaque cut.
+    float translucentOnly = clamp(opaqueVis - visibility, 0.0, 1.0);
+    visibility = clamp(visibility
+                     + translucentOnly * TRANSLUCENT_SHADOW_LIFT, 0.0, 1.0);
 
     // Fade at the shadow-map border instead of a hard lit/unlit seam.
     vec2 edge = abs(shadowCoord.xy * 2.0 - 1.0);
@@ -188,6 +201,28 @@ void main() {
         vec3 debugViewPos = zephyr_viewPos(texCoord, depth);
         float vis = zephyr_shadowVisibility(debugViewPos, viewNormal, lightDirView);
         outColor = vec4(vec3(vis), 1.0);
+    } else {
+        outColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    return;
+#endif
+#if DEBUG_VIEW == 8
+    // Raw depth difference between the two shadow maps. Any lit pixel means a
+    // caster exists in shadowtex0 but not in shadowtex1 (translucent caster).
+    if (depth < 0.9999) {
+        vec3 dbgViewPos = zephyr_viewPos(texCoord, depth);
+        vec3 dbgWorld = (gbufferModelViewInverse * vec4(dbgViewPos, 1.0)).xyz;
+        vec4 dbgClip = shadowProjection * shadowModelView * vec4(dbgWorld, 1.0);
+        vec3 dbgCoord = dbgClip.xyz / dbgClip.w * 0.5 + 0.5;
+        if (dbgCoord.x < 0.0 || dbgCoord.x > 1.0 ||
+            dbgCoord.y < 0.0 || dbgCoord.y > 1.0 ||
+            dbgCoord.z < 0.0 || dbgCoord.z > 1.0) {
+            outColor = vec4(0.0, 0.0, 0.0, 1.0);
+        } else {
+            float d0 = texture(shadowtex0, dbgCoord.xy).r;
+            float d1 = texture(shadowtex1, dbgCoord.xy).r;
+            outColor = vec4(vec3(clamp(abs(d1 - d0) * 60.0, 0.0, 1.0)), 1.0);
+        }
     } else {
         outColor = vec4(0.0, 0.0, 0.0, 1.0);
     }

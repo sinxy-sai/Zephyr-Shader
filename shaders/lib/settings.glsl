@@ -19,6 +19,9 @@
 #define SHADOW_BIAS               0.00035
 #define SHADOW_NORMAL_OFFSET      0.035
 #define SHADOW_EDGE_FADE          0.88
+// shadowtex0 = all casters, shadowtex1 = opaque only. Their difference
+// isolates translucent-only occluders (glass, water, foliage).
+#define TRANSLUCENT_SHADOW_LIFT   0.60
 
 #define FOLIAGE_TRANSLUCENCY      0.45
 #define AO_ENABLED                1
@@ -46,7 +49,6 @@
 #define VL_DECAY                  0.94
 #define VL_SHADOW_SOFTNESS        0.0010
 
-#define WAVE_AMPLITUDE            0.055
 #define WATER_ABSORPTION          0.36
 #define WATER_F0                  0.02
 #define SSR_ENABLED               1
@@ -163,6 +165,25 @@ vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
 #define NIGHT_AO_RELAX             0.50
 #define NIGHT_AMBIENT_FLOOR        0.050
 #define NIGHT_BLACK_LIFT           0.018
+
+// M11 vertex waving for plants / leaves (category IDs come from block.properties)
+#define WAVE_ENABLED               1
+#define WAVE_SPEED                 1.30
+#define WAVE_AMPLITUDE             0.055
+// 1 = lift every ID-matched vertex by one block, to verify the ID map end to
+// end without relying on the (small) wind amplitude. Keep 0 for normal play.
+#define WAVE_DEBUG_LIFT            0
+
+// M11 lightweight albedo-driven parallax (no height map required)
+#define POM_ENABLED                1
+// Atlas-UV space displacement, disabled by default. On Iris 1.8.8 the tile
+// window derived from mc_midTexCoord is too narrow, so ANY non-zero value
+// re-arranges the block texture instead of adding subtle relief (verified over
+// 0.0008 / 0.0035 / 0.05 in z11_pom_*). The tile-clamped code stays available
+// as an experimental path; the shipped surface relief comes from
+// zephyr_parallaxNormal(), which never moves UVs. See 06-eval.md M11.
+#define POM_DEPTH                  0
+#define POM_BUMP                   1.20
 #define RAIN_DAY_EV                0.30
 #define RAIN_FOG_DIST_POW          0.92
 #define RAIN_GRADE_CONTRAST        0.05
