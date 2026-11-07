@@ -14,6 +14,7 @@ attribute vec4 mc_midTexCoord;
 
 out vec2 texCoord;
 out vec4 vertexColor;
+flat out float zShadowBlock;
 
 void main() {
     vec3 zPosition = gl_Vertex.xyz;
@@ -40,4 +41,5 @@ void main() {
     gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(zPosition, 1.0);
     texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
     vertexColor = gl_Color;
+    zShadowBlock = mc_Entity.x;
 }

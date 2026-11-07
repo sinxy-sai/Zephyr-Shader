@@ -21,6 +21,7 @@ out vec2 vLightCoord;
 out vec4 vColor;
 out vec3 vNormal;
 out vec4 vTexCoordAM;
+flat out float zBlockId;
 
 void main() {
     vec3 zPosition = gl_Vertex.xyz;
@@ -52,6 +53,7 @@ void main() {
     vec2 zMid    = (gl_TextureMatrix[0] * mc_midTexCoord).xy;
     vec2 zDelta  = vTexCoord - zMid;
     vTexCoordAM  = vec4(min(vTexCoord, zMid - zDelta), abs(zDelta) * 2.0);
+    zBlockId     = mc_Entity.x;
     vLightCoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
     vColor       = gl_Color;
     vNormal      = normalize(gl_NormalMatrix * gl_Normal);

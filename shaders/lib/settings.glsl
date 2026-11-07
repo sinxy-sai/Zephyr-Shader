@@ -22,6 +22,9 @@
 // shadowtex0 = all casters, shadowtex1 = opaque only. Their difference
 // isolates translucent-only occluders (glass, water, foliage).
 #define TRANSLUCENT_SHADOW_LIFT   0.60
+// M12 coloured shadows. 0 = the flat M11 lift above with no colour,
+// 1 = fully coloured by the caster's shadowcolor0 albedo.
+#define SHADOW_COLOR_STRENGTH     0.90
 
 #define FOLIAGE_TRANSLUCENCY      0.45
 #define AO_ENABLED                1

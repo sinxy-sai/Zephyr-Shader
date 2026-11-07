@@ -16,6 +16,7 @@ uniform sampler2D colortex6;   // M7 history, only bound when the path is enable
 uniform sampler2D depthtex0;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
+uniform sampler2D shadowcolor0;   // M12: transmitted colour of translucent casters
 
 // M7: change to "3,6" and re-add layout(location=1) out vec4 outHistory when
 // the temporal path is enabled (see shaders.properties for the full checklist).
@@ -49,7 +50,12 @@ float zephyr_shadowBilinear(sampler2D shadowMap, vec2 uv, float compareDepth, fl
     return mix(mix(s0, s1, f.y), mix(s2, s3, f.y), f.x);
 }
 
-float zephyr_shadowVisibility(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) {
+// M12: vec3 transmittance instead of a scalar visibility.
+//   s0 = shadowtex0 (all casters), s1 = shadowtex1 (opaque only),
+//   c  = shadowcolor0 (transmitted colour of the translucent caster).
+// T = s0 + c * s1 * (1 - s0): 1 unoccluded, 0 behind opaque geometry,
+// c behind glass / water. Complementary / BSL / iterationT use this form.
+vec3 zephyr_shadowTransmittance(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) {
 #if SHADOW_ENABLED
     float NoL = clamp(dot(viewNormal, lightDirView), 0.0, 1.0);
     float slope = 1.0 + 2.0 * (1.0 - NoL);
@@ -66,7 +72,7 @@ float zephyr_shadowVisibility(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) 
     if (shadowCoord.x < 0.0 || shadowCoord.x > 1.0 ||
         shadowCoord.y < 0.0 || shadowCoord.y > 1.0 ||
         shadowCoord.z > 1.0 || shadowCoord.z < 0.0) {
-        return 1.0;
+        return vec3(1.0);
     }
 
     float texel = 1.0 / float(max(textureSize(shadowtex0, 0).x, 1));
@@ -89,22 +95,24 @@ float zephyr_shadowVisibility(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) 
         sumAll    += zephyr_shadowBilinear(shadowtex0, sampleUv, compareDepth, texel);
         sumOpaque += zephyr_shadowBilinear(shadowtex1, sampleUv, compareDepth, texel);
     }
-    float visibility = sumAll / float(SHADOW_PCF_SAMPLES);
-    float opaqueVis = sumOpaque / float(SHADOW_PCF_SAMPLES);
+    float s0 = sumAll / float(SHADOW_PCF_SAMPLES);
+    float s1 = sumOpaque / float(SHADOW_PCF_SAMPLES);
 
-    // shadowtex0 holds every caster, shadowtex1 only opaque ones. The gap is
-    // therefore the shadow cast by glass / water / other translucent geometry.
-    // Lift that shadow instead of letting it read as a hard opaque cut.
-    float translucentOnly = clamp(opaqueVis - visibility, 0.0, 1.0);
-    visibility = clamp(visibility
-                     + translucentOnly * TRANSLUCENT_SHADOW_LIFT, 0.0, 1.0);
+    // shadowcolor0 is written sRGB-encoded by shadow.fsh for 8-bit precision.
+    vec3 transmitted = zephyr_srgbToLinear(
+        clamp(texture(shadowcolor0, shadowCoord.xy).rgb, 0.0, 1.0));
+    // SHADOW_COLOR_STRENGTH = 0 restores M11: a flat grey lift of
+    // TRANSLUCENT_SHADOW_LIFT with no colour. 1 is fully coloured.
+    vec3 tint = mix(vec3(TRANSLUCENT_SHADOW_LIFT), transmitted,
+                    SHADOW_COLOR_STRENGTH);
+    vec3 transmittance = clamp(vec3(s0) + tint * s1 * (1.0 - s0), 0.0, 1.0);
 
     // Fade at the shadow-map border instead of a hard lit/unlit seam.
     vec2 edge = abs(shadowCoord.xy * 2.0 - 1.0);
     float fade = 1.0 - smoothstep(SHADOW_EDGE_FADE, 1.0, max(edge.x, edge.y));
-    return mix(1.0, visibility, fade);
+    return mix(vec3(1.0), transmittance, fade);
 #else
-    return 1.0;
+    return vec3(1.0);
 #endif
 }
 
@@ -199,8 +207,8 @@ void main() {
 #if DEBUG_VIEW == 6
     if (depth < 0.9999) {
         vec3 debugViewPos = zephyr_viewPos(texCoord, depth);
-        float vis = zephyr_shadowVisibility(debugViewPos, viewNormal, lightDirView);
-        outColor = vec4(vec3(vis), 1.0);
+        outColor = vec4(zephyr_shadowTransmittance(debugViewPos, viewNormal,
+                                                   lightDirView), 1.0);
     } else {
         outColor = vec4(0.0, 0.0, 0.0, 1.0);
     }
@@ -256,11 +264,12 @@ void main() {
         float NoH = max(dot(N, H), 0.0);
         float VoH = max(dot(V, H), 0.0);
 
-        float visibility = zephyr_shadowVisibility(viewPos, N, L);
+        vec3 shadowTrans = zephyr_shadowTransmittance(viewPos, N, L);
         // Moonlight casts soft, shallow shadows: a full-strength daylight
         // shadow at night reads as an unnatural black cutout.
         float nightAmount = 1.0 - dayAmount;
-        visibility = mix(1.0, visibility, mix(NIGHT_SHADOW_MIN, 1.0, dayAmount));
+        shadowTrans = mix(vec3(1.0), shadowTrans,
+                          mix(NIGHT_SHADOW_MIN, 1.0, dayAmount));
 
         float warm = zephyr_warmMix(sunDirWorld.y);
         vec3 sunNoon = vec3(1.15, 1.05, 0.92);
@@ -298,7 +307,7 @@ void main() {
         vec3 specular = zephyr_D_GGX(NoH, a) * zephyr_G_Smith(NoV, NoL, a)
                       * zephyr_F_Schlick(f0, VoH) / max(4.0 * NoV * NoL, 1e-4);
         vec3 diffuse = albedo * (1.0 - f0) / ZEPHYR_PI;
-        vec3 direct = (diffuse + specular) * sunRadiance * NoL * visibility;
+        vec3 direct = (diffuse + specular) * sunRadiance * NoL * shadowTrans;
 
         vec3 indirect = albedo * (skyAmbient * (0.30 + 0.70 * skyLight) + blockRadiance);
 
@@ -316,7 +325,7 @@ void main() {
         if (normalData.a > 0.5) {
             float back = max(dot(-N, L), 0.0);
             indirect += albedo * sunRadiance * pow(back, 1.5)
-                      * FOLIAGE_TRANSLUCENCY * visibility;
+                      * FOLIAGE_TRANSLUCENCY * shadowTrans;
         }
 
         if (matId > 0.5 && matId < 1.5) {
