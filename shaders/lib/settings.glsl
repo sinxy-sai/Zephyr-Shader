@@ -71,6 +71,16 @@
 #define AGX_GRADE_SAT              1.10
 #define AGX_GRADE_CONTRAST         1.06
 
+// M7 temporal history: AO accumulation on colortex6 (flip.deferred.colortex6)
+// Skeleton kept, runtime disabled: measured frame-to-frame RMSE showed no
+// denoising gain on Iris 1.8.8 (3.138 vs 2.800; 3.569 vs 3.486 with AO x2.9).
+// Fixed spatial jitter above removes the shimmer at the source instead.
+#define TEMPORAL_AO_ENABLED        0
+#define TEMPORAL_AO_MAX_AGE       10.0
+#define TEMPORAL_AO_DEPTH_REJECT   0.45
+#define TEMPORAL_AO_VELOCITY       0.020
+#define TEMPORAL_AO_CLAMP          0.18
+
 #define EXPOSURE_EV               0.00
 #define EXPOSURE_TARGET           0.22
 #define EXPOSURE_ADAPT_SPEED      0.06

@@ -10,10 +10,15 @@ in vec2 texCoord;
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 uniform sampler2D colortex2;
+#if TEMPORAL_AO_ENABLED
+uniform sampler2D colortex6;   // M7 history, only bound when the path is enabled
+#endif
 uniform sampler2D depthtex0;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 
+// M7: change to "3,6" and re-add layout(location=1) out vec4 outHistory when
+// the temporal path is enabled (see shaders.properties for the full checklist).
 /* RENDERTARGETS: 3 */
 layout(location = 0) out vec4 outColor;
 
@@ -66,7 +71,10 @@ float zephyr_shadowVisibility(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) 
 // Lightweight contact AO: a few hemisphere samples projected back to the depth
 // buffer. Only indirect light is fully occluded; direct light keeps a fraction.
 float zephyr_ssao(vec2 uv, vec3 viewPos, vec3 N) {
-    float noise = zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.37);
+    // Fixed spatial jitter, not a per-frame one: temporal jitter was the only
+    // source of AO shimmer, and the M7 history path did not reduce it reliably
+    // on this Iris build. A stable pattern is cheaper and ghost-free.
+    float noise = zephyr_hash12(gl_FragCoord.xy);
     float occlusion = 0.0;
     for (int i = 0; i < AO_SAMPLES; ++i) {
         float fi = float(i);
@@ -86,6 +94,46 @@ float zephyr_ssao(vec2 uv, vec3 viewPos, vec3 N) {
         occlusion += smoothstep(0.0, AO_RADIUS * 0.8, diff) * step(0.0, diff);
     }
     return clamp(1.0 - occlusion / float(AO_SAMPLES) * AO_STRENGTH, 0.35, 1.0);
+}
+#endif
+
+// M7: reconstruct this pixel's position in the previous frame.
+// gbufferModelViewInverse yields camera-relative "scene space", so the camera's
+// own motion must be compensated with cameraPosition - previousCameraPosition.
+vec2 zephyr_reproject(vec2 uv, float depth) {
+    vec4 view = gbufferProjectionInverse * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    float w = abs(view.w) < 1e-5 ? 1e-5 : view.w;
+    vec3 scenePos = (gbufferModelViewInverse * vec4(view.xyz / w, 1.0)).xyz;
+    vec3 cameraOffset = cameraPosition - previousCameraPosition;
+    vec4 prev = gbufferPreviousProjection * gbufferPreviousModelView
+              * vec4(scenePos + cameraOffset, 1.0);
+    if (prev.w <= 0.0) return vec2(-1.0);
+    return prev.xy / prev.w * 0.5 + 0.5;
+}
+
+#if AO_ENABLED && TEMPORAL_AO_ENABLED
+// M7 skeleton: temporally accumulated AO; returns (ao, age) so both can be
+// stored in the history buffer. Ghosting is controlled by four independent
+// rejections: screen bounds, depth disocclusion, camera velocity, and clamping
+// history into the current frame's AO neighbourhood.
+// Compiled out while TEMPORAL_AO_ENABLED=0 (see 06-eval.md M7 for why).
+vec2 zephyr_temporalAO(vec2 uv, float depth, vec3 viewPos, vec3 N) {
+    float ao = zephyr_ssao(uv, viewPos, N);
+    float linearDepth = zephyr_linearDepth(depth);
+    float age = 0.0;
+    vec2 prevUv = zephyr_reproject(uv, depth);
+    if (prevUv.x > 0.0 && prevUv.x < 1.0 && prevUv.y > 0.0 && prevUv.y < 1.0) {
+        vec4 history = texture(colortex6, prevUv);
+        float depthWeight = exp2(-abs(linearDepth - history.g) * TEMPORAL_AO_DEPTH_REJECT);
+        float velocityPx = length(prevUv - uv) * max(viewWidth, viewHeight);
+        float velocityWeight = exp2(-velocityPx * TEMPORAL_AO_VELOCITY);
+        float histAge = clamp(history.b, 0.0, TEMPORAL_AO_MAX_AGE)
+                      * depthWeight * velocityWeight;
+        float histAO = clamp(history.r, ao - TEMPORAL_AO_CLAMP, ao + TEMPORAL_AO_CLAMP);
+        ao = mix(ao, histAO, histAge / (histAge + 1.0));
+        age = min(histAge + 1.0, TEMPORAL_AO_MAX_AGE);
+    }
+    return vec2(clamp(ao, 0.35, 1.0), age);
 }
 #endif
 
@@ -220,6 +268,8 @@ void main() {
             color += direct * 0.20;
         } else {
 #if AO_ENABLED
+            // Fixed spatial jitter (see zephyr_ssao) already removes temporal
+            // shimmer without a history buffer or ghosting risk.
             float ao = zephyr_ssao(texCoord, viewPos, N);
             color = direct * mix(1.0, ao, 0.35) + indirect * ao;
 #else

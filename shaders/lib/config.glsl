@@ -18,6 +18,9 @@ const int colortex2Format = RGBA16F;
 const int colortex3Format = RGBA16F;
 const int colortex4Format = RGBA16F;
 const int colortex5Format = RGBA16F;
+// M7 history buffer (currently disabled, see shaders.properties): re-enable
+// const int colortex6Format = RGBA16F; and const bool colortex6Clear = false;
+// when the temporal path is turned back on.
 
 const bool colortex3MipmapEnabled = true;
 
