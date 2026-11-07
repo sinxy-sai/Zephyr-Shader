@@ -64,11 +64,16 @@ void main() {
 
     vec3 graded = hdr * exp2(ev) * TONEMAP_EXPOSURE_BIAS;
     float l = zephyr_luma(graded);
-    graded = mix(vec3(l), graded, GRADE_SATURATION);
-    float gradeContrast = GRADE_CONTRAST * (1.0 + storm * RAIN_GRADE_CONTRAST);
-    graded = max((graded - 0.18) * gradeContrast + 0.18, vec3(0.0));
+    float gradeSat = GRADE_SATURATION;
+    float gradeCtr = GRADE_CONTRAST * (1.0 + storm * RAIN_GRADE_CONTRAST);
+#if TONEMAP_MODE == 1
+    gradeSat *= AGX_GRADE_SAT;
+    gradeCtr *= AGX_GRADE_CONTRAST;
+#endif
+    graded = mix(vec3(l), graded, gradeSat);
+    graded = max((graded - 0.18) * gradeCtr + 0.18, vec3(0.0));
 
-    vec3 mapped = zephyr_linearToSrgb(zephyr_aces(graded));
+    vec3 mapped = zephyr_linearToSrgb(zephyr_tonemap(graded));
     float dither = (zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.71) - 0.5) / 255.0;
     outColor = vec4(clamp(mapped + dither, 0.0, 1.0), 1.0);
 }

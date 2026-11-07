@@ -18,15 +18,27 @@ layout(location = 0) out vec4 outColor;
 void main() {
     vec3 color = max(texture(colortex4, texCoord).rgb, vec3(0.0));
 
+    // Soft-knee threshold + decreasing mip weights: bright cores stay tight
+    // while the surrounding haze spreads, instead of a hard cut at threshold.
     vec3 bloom = vec3(0.0);
-    for (int i = 0; i < 4; ++i) {
-        float lod = 3.0 + float(i) * 1.5 * BLOOM_RADIUS;
-        vec3 sampleColor = textureLod(colortex3, texCoord, lod).rgb;
-        bloom += max(sampleColor - vec3(BLOOM_THRESHOLD), vec3(0.0));
+    float weightSum = 0.0;
+    float knee = BLOOM_THRESHOLD * BLOOM_KNEE;
+    for (int i = 0; i < BLOOM_TAPS; ++i) {
+        float fi = float(i);
+        float lod = 2.0 + fi * 1.5 * BLOOM_RADIUS;
+        vec3 c = max(textureLod(colortex3, texCoord, lod).rgb, vec3(0.0));
+        float b = max(zephyr_luma(c), 1e-4);
+        float soft = clamp(b - BLOOM_THRESHOLD + knee, 0.0, 2.0 * knee);
+        soft = soft * soft / (4.0 * knee + 1e-4);
+        float contribution = max(soft, b - BLOOM_THRESHOLD) / b;
+        float w = 1.0 / (1.0 + fi * 0.75);
+        bloom += c * contribution * w;
+        weightSum += w;
     }
+    bloom /= max(weightSum, 1e-4);
     // Rain makes emissive signage and lamps bloom into the wet haze.
-    color += bloom * (BLOOM_STRENGTH * 0.25
-           * (1.0 + clamp(rainStrength, 0.0, 1.0) * RAIN_BLOOM_BOOST));
+    color += bloom * BLOOM_STRENGTH
+           * (1.0 + clamp(rainStrength, 0.0, 1.0) * RAIN_BLOOM_BOOST);
 
 #if VL_ENABLED
     vec3 sunDirWorld = normalize(mat3(gbufferModelViewInverse) * normalize(sunPosition));

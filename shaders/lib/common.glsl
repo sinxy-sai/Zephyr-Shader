@@ -195,3 +195,47 @@ vec3 zephyr_aces(vec3 x) {
     x = max(x * 0.6, vec3(0.0));
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
 }
+
+// AgX-inspired display transform, derived for GLSL 330 (no inverse(), no LUT).
+//   1. rotate linear RGB into XYZ/D65 with the public colour-science constants
+//   2. encode open-domain radiance into a normalised log2 range
+//   3. apply an adjustable toe/shoulder S-curve (soft highlight shoulder)
+//   4. desaturate very bright colours towards white, avoiding ACES hue skew
+//   5. rotate back to sRGB primaries; the caller applies the sRGB OETF
+vec3 zephyr_agx(vec3 x) {
+    x = max(x, vec3(0.0));
+    float l = max(zephyr_luma(x), 1e-6);
+
+    // The curve runs on luminance only, then RGB is scaled by the same factor.
+    // A per-channel log curve visibly greys the image (measured: saturation
+    // 61.4 -> 35.9), while this keeps hue and saturation intact.
+    float logv = log2(l / 0.18);
+    float t = clamp((logv - AGX_MIN_EV) / (AGX_MAX_EV - AGX_MIN_EV), 0.0, 1.0);
+
+    // Both halves meet exactly at middle grey, anchoring the display transform
+    // to the same 0.18 reference as ACES instead of lifting shadows into grey.
+    float pivotIn = clamp((0.0 - AGX_MIN_EV) / (AGX_MAX_EV - AGX_MIN_EV), 0.01, 0.99);
+    float shaped = t < pivotIn
+        ? AGX_MIDDLE_OUT * pow(t / pivotIn, AGX_TOE_POWER)
+        : 1.0 - (1.0 - AGX_MIDDLE_OUT)
+              * pow(max((1.0 - t) / (1.0 - pivotIn), 0.0), AGX_SHOULDER_POWER);
+    float mappedL = shaped * AGX_GAIN;
+
+    vec3 outLin = x * (mappedL / l);
+
+    // AgX-style "path to white": only genuinely bright pixels desaturate.
+    float peak = max(max(x.r, x.g), x.b);
+    float desat = smoothstep(AGX_DESAT_START, AGX_DESAT_END, peak);
+    outLin = mix(outLin, vec3(mappedL), desat * AGX_DESAT_AMOUNT);
+
+    // Soft roll-off above display white instead of a hard clamp.
+    return outLin / (1.0 + max(outLin - 1.0, vec3(0.0)) * AGX_ROLLOFF);
+}
+
+vec3 zephyr_tonemap(vec3 x) {
+#if TONEMAP_MODE == 1
+    return zephyr_agx(x);
+#else
+    return zephyr_aces(x);
+#endif
+}

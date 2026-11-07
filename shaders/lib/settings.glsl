@@ -48,9 +48,28 @@
 #define SSR_THICKNESS             6.00
 #define SSR_STRENGTH              0.75
 
-#define BLOOM_STRENGTH            0.42
+#define BLOOM_STRENGTH            0.20
 #define BLOOM_THRESHOLD           1.05
 #define BLOOM_RADIUS              1.00
+#define BLOOM_TAPS                 5
+#define BLOOM_KNEE                 0.50
+
+// M6 display transform. 0 = ACES (A/B baseline), 1 = AgX-inspired log tonemap.
+#define TONEMAP_MODE               1
+#define AGX_MIN_EV                -6.0
+#define AGX_MAX_EV                 6.0
+#define AGX_MIDDLE_OUT             0.12
+#define AGX_TOE_POWER              3.00
+#define AGX_SHOULDER_POWER         1.50
+#define AGX_GAIN                   0.95
+#define AGX_ROLLOFF                0.60
+#define AGX_DESAT_START            3.00
+#define AGX_DESAT_END             12.00
+#define AGX_DESAT_AMOUNT           0.45
+// AgX has a softer toe/shoulder, so it needs its own grade calibration.
+// ACES (TONEMAP_MODE=0) keeps the original values for a fair A/B.
+#define AGX_GRADE_SAT              1.10
+#define AGX_GRADE_CONTRAST         1.06
 
 #define EXPOSURE_EV               0.00
 #define EXPOSURE_TARGET           0.22
