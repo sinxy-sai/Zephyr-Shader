@@ -79,3 +79,10 @@
 #define RAIN_BLOOM_BOOST           0.90
 #define LIGHTNING_ENABLED          1
 #define LIGHTNING_INTENSITY        1.30
+
+// Storm-night polish: bounce light, bounded exposure lift, fog distance shaping
+#define STORM_NIGHT_BOUNCE         0.075
+#define RAIN_NIGHT_EV              0.45
+#define RAIN_DAY_EV                0.30
+#define RAIN_FOG_DIST_POW          0.92
+#define RAIN_GRADE_CONTRAST        0.05

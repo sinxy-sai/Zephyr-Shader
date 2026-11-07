@@ -194,7 +194,10 @@ void main() {
         float sigma = FOG_DENSITY * exp(-max(worldPos.y - 64.0, 0.0) * FOG_HEIGHT_FALLOFF);
         // Keep rain fog strong but stop it from flattening all local contrast.
         sigma *= 1.0 + rain * 0.95;
-        float T = exp(-clamp(sigma * dist, 0.0, 40.0));
+        // Shaping the fog distance in rain keeps far structures readable
+        // instead of washing the whole frame into one flat grey.
+        float fogDist = mix(dist, pow(max(dist, 1.0), RAIN_FOG_DIST_POW), rain);
+        float T = exp(-clamp(sigma * fogDist, 0.0, 40.0));
 
         vec3 fogRay = normalize(vec3(rd.x, max(rd.y, 0.02), rd.z));
         vec3 fogColor = zephyr_atmosphere(fogRay, sunDirWorld, dayAmount, rain);

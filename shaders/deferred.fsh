@@ -160,7 +160,13 @@ void main() {
         sunRadiance *= mix(1.0, 0.45, rain);
         skyAmbient *= mix(1.0, 0.82, rain);
         skyAmbient = mix(skyAmbient, skyAmbient * vec3(0.72, 0.80, 1.00), rain * 0.70);
-        vec3 blockRadiance = vec3(1.00, 0.58, 0.26) * pow(blockLight, 2.0) * 1.8;
+        // Storm nights: the overcast deck scatters moon/city light back down,
+        // so outdoor surfaces keep their shape instead of crushing to black.
+        float stormNight = rain * (1.0 - dayAmount);
+        skyAmbient += vec3(0.62, 0.72, 1.00) * STORM_NIGHT_BOUNCE
+                    * stormNight * LIGHT_SKY_INTENSITY;
+        vec3 blockRadiance = vec3(1.00, 0.58, 0.26) * pow(blockLight, 2.0) * 1.8
+                           * (1.0 + rain * 0.45);
 
         // Wet surfaces: tighter GGX lobe and a higher F0 give the slick,
         // reflective look of rain-soaked pavement and leaves.

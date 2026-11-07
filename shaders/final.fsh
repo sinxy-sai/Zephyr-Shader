@@ -52,16 +52,21 @@ void main() {
 
     float averageLuma = max(zephyr_luma(textureLod(colortex3, vec2(0.5), 12.0).rgb), 1e-4);
     float autoEv = clamp(log2(EXPOSURE_TARGET / averageLuma), -2.0, 2.0);
-    // Eye adaptation must not cancel the storm darkening: during rain auto-EV
-    // may only reduce exposure, never lift the overcast sky back to daylight.
+    // Eye adaptation must not cancel the storm darkening: during rain the
+    // auto-EV lift is bounded so the overcast never reads as daylight again.
     float storm = clamp(rainStrength, 0.0, 1.0);
     autoEv = mix(autoEv, clamp(autoEv, -2.0, 0.55), storm * 0.45);
-    float ev = EXPOSURE_EV + autoEv * EXPOSURE_ADAPT_SPEED;
+    float sunY = normalize(mat3(gbufferModelViewInverse) * normalize(sunPosition)).y;
+    float nightFactor = 1.0 - zephyr_dayAmount(sunY);
+    float rainEv = mix(RAIN_DAY_EV, RAIN_NIGHT_EV, nightFactor);
+    float ev = EXPOSURE_EV + autoEv * EXPOSURE_ADAPT_SPEED
+             + storm * rainEv;
 
     vec3 graded = hdr * exp2(ev) * TONEMAP_EXPOSURE_BIAS;
     float l = zephyr_luma(graded);
     graded = mix(vec3(l), graded, GRADE_SATURATION);
-    graded = max((graded - 0.18) * GRADE_CONTRAST + 0.18, vec3(0.0));
+    float gradeContrast = GRADE_CONTRAST * (1.0 + storm * RAIN_GRADE_CONTRAST);
+    graded = max((graded - 0.18) * gradeContrast + 0.18, vec3(0.0));
 
     vec3 mapped = zephyr_linearToSrgb(zephyr_aces(graded));
     float dither = (zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.71) - 0.5) / 255.0;

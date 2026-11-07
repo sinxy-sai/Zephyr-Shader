@@ -96,7 +96,11 @@ float zephyr_storm() {
 }
 
 float zephyr_lightning() {
+#if DEBUG_LIGHTNING
+    return 1.0;
+#else
     return clamp(lightningBoltPosition.w, 0.0, 1.0);
+#endif
 }
 
 // A storm lowers and thickens the cloud deck. The density sampler and the
