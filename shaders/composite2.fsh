@@ -54,7 +54,8 @@ void main() {
     vec3 result = current;
     vec3 debugHistory = vec3(0.0);
 
-#if TAA_ENABLED
+// Debug views must not be blended with a history of the normal frame.
+#if TAA_ENABLED && DEBUG_VIEW == 0
     vec2 texel = 1.0 / vec2(viewWidth, viewHeight);
     vec3 aabbMin = current;
     vec3 aabbMax = current;

@@ -35,10 +35,31 @@ vec3 zephyr_worldRay(vec2 uv) {
     return normalize(mat3(gbufferModelViewInverse) * viewDir);
 }
 
+// Manual 2x2 bilinear PCF. A raw step() per tap only yields a handful of
+// discrete grey levels, which reads as thick concentric bands in a close-up.
+// Four comparisons plus bilinear weights give a continuous penumbra.
+float zephyr_shadowBilinear(vec2 uv, float compareDepth, float texel) {
+    vec2 pos = uv / texel - 0.5;
+    vec2 f = fract(pos);
+    vec2 base = (floor(pos) + 0.5) * texel;
+    float s0 = step(compareDepth, texture(shadowtex0, base).r);
+    float s1 = step(compareDepth, texture(shadowtex0, base + vec2(0.0, texel)).r);
+    float s2 = step(compareDepth, texture(shadowtex0, base + vec2(texel, 0.0)).r);
+    float s3 = step(compareDepth, texture(shadowtex0, base + vec2(texel, texel)).r);
+    return mix(mix(s0, s1, f.y), mix(s2, s3, f.y), f.x);
+}
+
 float zephyr_shadowVisibility(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) {
 #if SHADOW_ENABLED
+    float NoL = clamp(dot(viewNormal, lightDirView), 0.0, 1.0);
+    float slope = 1.0 + 2.0 * (1.0 - NoL);
+
     vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz;
-    vec4 shadowClip = shadowProjection * shadowModelView * vec4(worldPos, 1.0);
+    vec3 worldNormal = normalize(mat3(gbufferModelViewInverse) * viewNormal);
+    // Normal offset kills acne without the peter-panning of a pure depth bias.
+    vec3 lookupPos = worldPos + worldNormal * (SHADOW_NORMAL_OFFSET * slope);
+
+    vec4 shadowClip = shadowProjection * shadowModelView * vec4(lookupPos, 1.0);
     float w = abs(shadowClip.w) < 1e-5 ? 1e-5 : shadowClip.w;
     vec3 shadowCoord = shadowClip.xyz / w * 0.5 + 0.5;
 
@@ -48,20 +69,27 @@ float zephyr_shadowVisibility(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) 
         return 1.0;
     }
 
-    float NoL = clamp(dot(viewNormal, lightDirView), 0.0, 1.0);
-    float bias = SHADOW_BIAS * (1.0 + 3.0 * (1.0 - NoL));
-    vec2 texel = 1.0 / vec2(max(textureSize(shadowtex0, 0), ivec2(1)));
-    vec2 radius = texel * SHADOW_SOFTNESS;
+    float texel = 1.0 / float(max(textureSize(shadowtex0, 0).x, 1));
+    float compareDepth = shadowCoord.z - SHADOW_BIAS * slope;
+    float radius = texel * SHADOW_SOFTNESS;
 
+    // Vogel disk with a per-frame rotation; the existing TAA resolves the
+    // remaining sample noise into a smooth penumbra.
+    float dither = zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.71);
     float sum = 0.0;
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
-            vec2 offset = vec2(float(x), float(y)) * radius;
-            float closest = texture(shadowtex0, shadowCoord.xy + offset).r;
-            sum += step(shadowCoord.z - bias, closest);
-        }
+    for (int i = 0; i < SHADOW_PCF_SAMPLES; ++i) {
+        float fi = float(i);
+        float ang = fi * 2.3999632 + dither * 6.2831853;
+        float r = sqrt((fi + 0.5) / float(SHADOW_PCF_SAMPLES));
+        vec2 offset = vec2(cos(ang), sin(ang)) * r * radius;
+        sum += zephyr_shadowBilinear(shadowCoord.xy + offset, compareDepth, texel);
     }
-    return clamp(sum / 9.0, 0.0, 1.0);
+    float visibility = sum / float(SHADOW_PCF_SAMPLES);
+
+    // Fade at the shadow-map border instead of a hard lit/unlit seam.
+    vec2 edge = abs(shadowCoord.xy * 2.0 - 1.0);
+    float fade = 1.0 - smoothstep(SHADOW_EDGE_FADE, 1.0, max(edge.x, edge.y));
+    return mix(1.0, visibility, fade);
 #else
     return 1.0;
 #endif

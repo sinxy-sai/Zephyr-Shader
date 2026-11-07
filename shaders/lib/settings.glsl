@@ -11,8 +11,14 @@
 #define LIGHT_EMISSIVE_SCALE      1.60
 
 #define SHADOW_ENABLED            1
-#define SHADOW_SOFTNESS           1.00
-#define SHADOW_BIAS               0.0008
+// Iris 1.8.8 actually binds shadowtex0 at 1024x1024 / 160 m here (F3), and
+// ignores shadowMapResolution/shadowDistance in shaders.properties. At that
+// texel density 1 texel ~= 0.31 m, so keep the disk well under one texel.
+#define SHADOW_SOFTNESS           0.60
+#define SHADOW_PCF_SAMPLES        6
+#define SHADOW_BIAS               0.00035
+#define SHADOW_NORMAL_OFFSET      0.035
+#define SHADOW_EDGE_FADE          0.88
 
 #define FOLIAGE_TRANSLUCENCY      0.45
 #define AO_ENABLED                1
