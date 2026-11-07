@@ -126,6 +126,17 @@ void main() {
         vec3 viewPos = zephyr_viewPos(texCoord, depth);
         vec3 V = normalize(-viewPos);
         vec3 N = viewNormal;
+        vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
+        vec3 Nw = normalize(mat3(gbufferModelViewInverse) * viewNormal);
+        float isWater = (matId > 0.5 && matId < 1.5) ? 1.0 : 0.0;
+        float puddle = zephyr_puddleMask(worldPos, Nw, skyLight, rain) * (1.0 - isWater);
+
+        // Rain ripples slightly tilt the shading normal inside puddles.
+        float weatherTime = frameTimeCounter;
+        float ripple = sin(worldPos.x * 3.3 + weatherTime * 5.0)
+                     * sin(worldPos.z * 2.9 - weatherTime * 4.1);
+        N = normalize(N + vec3(ripple, 0.0, ripple * 0.7) * PUDDLE_RIPPLE * puddle);
+
         vec3 L = lightDirView;
         vec3 H = normalize(L + V);
 
@@ -146,24 +157,37 @@ void main() {
         vec3 skyAmbient = mix(vec3(0.020, 0.030, 0.055), mix(skyWarm, skyNoon, warm), dayAmount)
                         * LIGHT_SKY_INTENSITY;
         // Overcast: direct sun collapses, ambient skylight turns cool and dim.
-        sunRadiance *= mix(1.0, 0.35, rain);
-        skyAmbient *= mix(1.0, 0.75, rain);
+        sunRadiance *= mix(1.0, 0.45, rain);
+        skyAmbient *= mix(1.0, 0.82, rain);
         skyAmbient = mix(skyAmbient, skyAmbient * vec3(0.72, 0.80, 1.00), rain * 0.70);
         vec3 blockRadiance = vec3(1.00, 0.58, 0.26) * pow(blockLight, 2.0) * 1.8;
 
         // Wet surfaces: tighter GGX lobe and a higher F0 give the slick,
         // reflective look of rain-soaked pavement and leaves.
-        float isWater = (matId > 0.5 && matId < 1.5) ? 1.0 : 0.0;
         float wet = rain * (1.0 - isWater);
         float wetRoughness = mix(roughness, roughness * 0.35, wet);
+        wetRoughness = mix(wetRoughness, PUDDLE_ROUGHNESS, puddle);
         float a = max(wetRoughness * wetRoughness, 0.002);
         vec3 f0 = mix(vec3(0.04), vec3(0.075), wet);
+        f0 = mix(f0, vec3(0.09), puddle);
+        albedo *= 1.0 - 0.30 * puddle;
         vec3 specular = zephyr_D_GGX(NoH, a) * zephyr_G_Smith(NoV, NoL, a)
                       * zephyr_F_Schlick(f0, VoH) / max(4.0 * NoV * NoL, 1e-4);
         vec3 diffuse = albedo * (1.0 - f0) / ZEPHYR_PI;
         vec3 direct = (diffuse + specular) * sunRadiance * NoL * visibility;
 
         vec3 indirect = albedo * (skyAmbient * (0.30 + 0.70 * skyLight) + blockRadiance);
+
+#if LIGHTNING_ENABLED
+        float bolt = zephyr_lightning();
+        if (bolt > 0.001) {
+            vec3 toBolt = worldPos - lightningBoltPosition.xyz;
+            float atten = 1.0 / (1.0 + dot(toBolt, toBolt) * 0.00002);
+            vec3 boltLight = vec3(0.70, 0.80, 1.00) * bolt
+                           * LIGHTNING_INTENSITY * atten;
+            indirect += albedo * boltLight * (0.20 + 0.80 * skyLight);
+        }
+#endif
 
         if (normalData.a > 0.5) {
             float back = max(dot(-N, L), 0.0);
@@ -172,8 +196,7 @@ void main() {
         }
 
         if (matId > 0.5 && matId < 1.5) {
-            vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
-            float t = frameTimeCounter;
+            float t = weatherTime;
             // Rain roughens the surface with small ripples and lifts reflection.
             float waveAmp = WAVE_AMPLITUDE * (1.0 + rain * 0.90);
             float wx = sin(worldPos.x * 0.85 + t * 1.25) * cos(worldPos.z * 0.62 - t * 0.85);

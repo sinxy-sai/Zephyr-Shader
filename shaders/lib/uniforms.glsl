@@ -16,6 +16,10 @@ uniform vec3 skyColor;
 uniform vec3 fogColor;
 uniform vec3 cameraPosition;
 
+// Iris-only: xyz = strike position (world space), w = current flash strength.
+// Zero when no bolt is active, so it is safe in every pass.
+uniform vec4 lightningBoltPosition;
+
 uniform float sunAngle;
 uniform float worldTime;
 uniform float rainStrength;

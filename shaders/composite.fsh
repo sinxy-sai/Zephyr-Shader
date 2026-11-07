@@ -9,6 +9,8 @@ in vec2 texCoord;
 
 uniform sampler2D colortex3;
 uniform sampler2D colortex0;
+uniform sampler2D colortex1;
+uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
 
 /* RENDERTARGETS: 4 */
@@ -20,28 +22,41 @@ vec3 zephyr_worldRay(vec2 uv) {
     return normalize(mat3(gbufferModelViewInverse) * normalize(clip.xyz / w));
 }
 
-// Height-resolved cloud density: a 2D weather map plus a vertical profile that
-// gives the layer a flat base and a rounded, eroding top.
+// Height-resolved cloud density. A storm swaps in a lower, thicker deck with a
+// broader weather map, so the overcast reads as a continuous ceiling rather
+// than the same cumulus field with a lower coverage threshold.
 float zephyr_cloudDensity(vec3 p) {
-    vec2 uv = p.xz * 0.0032
+    float storm = zephyr_storm();
+    float freq = mix(0.0032, STORM_CLOUD_FREQ, storm);
+    vec2 uv = p.xz * freq
             + vec2(frameTimeCounter * 0.0060, frameTimeCounter * 0.0022);
     float base = zephyr_fbm(uv);
-    float h = clamp((p.y - CLOUD_ALTITUDE) / CLOUD_THICKNESS, 0.0, 1.0);
-    float shape = smoothstep(0.0, 0.22, h) * (1.0 - smoothstep(0.58, 1.0, h));
-    // Storms thicken and lower the cloud deck.
-    float storm = clamp(rainStrength, 0.0, 1.0);
-    float cover = smoothstep(CLOUD_COVERAGE - storm * 0.20,
-                             CLOUD_COVERAGE + 0.13 - storm * 0.10, base);
-    return cover * shape * CLOUD_DENSITY;
+
+    float lowFreq = zephyr_valueNoise(uv * 0.42 + vec2(11.3, 5.7));
+    float detail = zephyr_valueNoise(uv * 3.10 + vec2(19.7, 3.1));
+    base = mix(base, max(base * 0.72, lowFreq), storm * 0.55);
+    base = mix(base, base * (0.78 + 0.34 * detail), storm * 0.45);
+
+    float alt = zephyr_cloudBase();
+    float thick = zephyr_cloudThickness();
+    float h = clamp((p.y - alt) / thick, 0.0, 1.0);
+    float shape = smoothstep(0.0, mix(0.22, 0.10, storm), h)
+                * (1.0 - smoothstep(mix(0.58, 0.78, storm), 1.0, h));
+
+    float coverage = mix(CLOUD_COVERAGE, STORM_CLOUD_COVERAGE, storm);
+    float band = mix(0.13, 0.22, storm);
+    float cover = smoothstep(coverage, coverage + band, base);
+    return cover * shape * mix(CLOUD_DENSITY, STORM_CLOUD_DENSITY, storm);
 }
 
 // Beer-Lambert transmittance towards the sun; this is the cloud self-shadow.
 float zephyr_cloudSunTransmittance(vec3 p, vec3 L) {
     float optical = 0.0;
+    float stepL = zephyr_cloudThickness() * 0.45;
     for (int i = 1; i <= CLOUD_SUN_STEPS; ++i) {
-        optical += zephyr_cloudDensity(p + L * (float(i) * CLOUD_THICKNESS * 0.45));
+        optical += zephyr_cloudDensity(p + L * (float(i) * stepL));
     }
-    return exp(-optical * 1.50);
+    return exp(-optical * mix(1.50, STORM_CLOUD_SUN_ABSORB, zephyr_storm()));
 }
 
 void main() {
@@ -56,60 +71,87 @@ void main() {
     float mu = max(dot(rd, sunDirWorld), 0.0);
 
 #if SSR_ENABLED
-    // Screen-space reflections for water. This runs here (not in deferred)
-    // because deferred writes colortex3 and cannot sample it back (A3 contract).
+    // Screen-space reflections for water AND rain puddles. This runs here (not
+    // in deferred) because deferred writes colortex3 and cannot sample it back.
     float matId = texture(colortex0, texCoord).a;
-    if (matId > 0.5 && matId < 1.5 && depth < 0.9999) {
+    if (depth < 0.9999) {
         vec4 vClip = gbufferProjectionInverse * vec4(texCoord * 2.0 - 1.0,
                                                      depth * 2.0 - 1.0, 1.0);
         float vw = abs(vClip.w) < 1e-5 ? 1e-5 : vClip.w;
         vec3 viewPos = vClip.xyz / vw;
         vec3 V = normalize(-viewPos);
-
         vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
-        float tw = frameTimeCounter;
-        float wx = sin(worldPos.x * 0.85 + tw * 1.25) * cos(worldPos.z * 0.62 - tw * 0.85);
-        float wz = sin(worldPos.z * 1.05 - tw * 1.45) * cos(worldPos.x * 0.55 + tw * 0.75);
-        vec3 N = normalize(mat3(gbufferModelView)
-                         * normalize(vec3(wx * WAVE_AMPLITUDE, 1.0, wz * WAVE_AMPLITUDE)));
-        vec3 R = normalize(reflect(-V, N));
 
-        float march = SSR_STEP_LENGTH;
-        vec3 p = viewPos + N * 0.06;
-        vec2 hitUv = vec2(-1.0);
-        for (int i = 0; i < SSR_STEPS; ++i) {
-            p += R * march;
-            march *= 1.10;
-            vec4 cp = gbufferProjection * vec4(p, 1.0);
-            if (abs(cp.w) < 1e-5) break;
-            vec2 uv = cp.xy / cp.w * 0.5 + 0.5;
-            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
-            float d = texture(depthtex0, uv).r;
-            if (d >= 0.9999) continue;
-            float diff = (-p.z) - zephyr_linearDepth(d);
-            if (diff > 0.0 && diff < SSR_THICKNESS) {
-                hitUv = uv;
-                break;
-            }
+        bool isWater = (matId > 0.5 && matId < 1.5);
+        vec3 N;
+        float puddle = 0.0;
+        vec2 rippleUv = vec2(0.0);
+
+        if (isWater) {
+            float waveAmp = WAVE_AMPLITUDE * (1.0 + rain * 0.90);
+            float wx = sin(worldPos.x * 0.85 + frameTimeCounter * 1.25)
+                     * cos(worldPos.z * 0.62 - frameTimeCounter * 0.85);
+            float wz = sin(worldPos.z * 1.05 - frameTimeCounter * 1.45)
+                     * cos(worldPos.x * 0.55 + frameTimeCounter * 0.75);
+            N = normalize(mat3(gbufferModelView)
+                         * normalize(vec3(wx * waveAmp, 1.0, wz * waveAmp)));
+        } else {
+            vec3 Nv = zephyr_decodeNormal(texture(colortex2, texCoord).rgb);
+            vec3 Nw = normalize(mat3(gbufferModelViewInverse) * Nv);
+            puddle = zephyr_puddleMask(worldPos, Nw,
+                                       texture(colortex1, texCoord).g, rain);
+            float ripple = sin(worldPos.x * 3.3 + frameTimeCounter * 5.0)
+                         * sin(worldPos.z * 2.9 - frameTimeCounter * 4.1);
+            N = normalize(Nv + vec3(ripple, 0.0, ripple * 0.7)
+                              * PUDDLE_RIPPLE * puddle);
+            rippleUv = vec2(ripple, ripple * 0.7) * 0.004 * puddle;
         }
-        if (hitUv.x >= 0.0) {
-            float fres = WATER_F0 + (1.0 - WATER_F0)
-                       * pow(clamp(1.0 - max(dot(V, N), 0.0), 0.0, 1.0), 5.0);
-            float edge = smoothstep(0.0, 0.06, hitUv.x)
-                       * (1.0 - smoothstep(0.94, 1.0, hitUv.x))
-                       * smoothstep(0.0, 0.06, hitUv.y)
-                       * (1.0 - smoothstep(0.94, 1.0, hitUv.y));
-            vec3 refl = max(texture(colortex3, hitUv).rgb, vec3(0.0));
-            color = mix(color, refl, clamp(fres * 2.0 + 0.45, 0.0, 0.90)
-                                    * SSR_STRENGTH * edge * (1.0 + rain * 0.30));
+
+        if (isWater || puddle > 0.02) {
+            vec3 R = normalize(reflect(-V, N));
+            float march = SSR_STEP_LENGTH;
+            vec3 p = viewPos + N * 0.06;
+            vec2 hitUv = vec2(-1.0);
+            for (int i = 0; i < SSR_STEPS; ++i) {
+                p += R * march;
+                march *= 1.10;
+                vec4 cp = gbufferProjection * vec4(p, 1.0);
+                if (abs(cp.w) < 1e-5) break;
+                vec2 uv = cp.xy / cp.w * 0.5 + 0.5;
+                if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
+                float d = texture(depthtex0, uv).r;
+                if (d >= 0.9999) continue;
+                float diff = (-p.z) - zephyr_linearDepth(d);
+                if (diff > 0.0 && diff < SSR_THICKNESS) {
+                    hitUv = uv;
+                    break;
+                }
+            }
+            if (hitUv.x >= 0.0) {
+                float edge = smoothstep(0.0, 0.06, hitUv.x)
+                           * (1.0 - smoothstep(0.94, 1.0, hitUv.x))
+                           * smoothstep(0.0, 0.06, hitUv.y)
+                           * (1.0 - smoothstep(0.94, 1.0, hitUv.y));
+                vec3 refl = max(texture(colortex3, hitUv + rippleUv).rgb, vec3(0.0));
+                float weight = isWater
+                    ? clamp((WATER_F0 + (1.0 - WATER_F0)
+                             * pow(clamp(1.0 - max(dot(V, N), 0.0), 0.0, 1.0), 5.0))
+                            * 2.0 + 0.45, 0.0, 0.90) * SSR_STRENGTH
+                    : PUDDLE_STRENGTH * puddle;
+                color = mix(color, refl, weight * edge * (1.0 + rain * 0.30));
+            }
         }
     }
 #endif
 
 #if CLOUD_ENABLED
+    float cloudBaseY = zephyr_cloudBase();
+    float cloudThick = zephyr_cloudThickness();
+    float extinction = zephyr_cloudExtinction();
+    float bolt = zephyr_lightning();
     if (rd.y > 0.01) {
-        float t0 = max((CLOUD_ALTITUDE - cameraPosition.y) / rd.y, 0.0);
-        float t1 = min((CLOUD_ALTITUDE + CLOUD_THICKNESS - cameraPosition.y) / rd.y,
+        float t0 = max((cloudBaseY - cameraPosition.y) / rd.y, 0.0);
+        float t1 = min((cloudBaseY + cloudThick - cameraPosition.y) / rd.y,
                        min(dist, 9000.0));
         if (t1 > t0) {
             float stepLen = (t1 - t0) / float(CLOUD_STEPS);
@@ -127,12 +169,16 @@ void main() {
                 vec3 p = cameraPosition + rd * (t0 + (float(i) + 0.5) * stepLen);
                 float d = zephyr_cloudDensity(p);
                 if (d < 0.002) continue;
-                float h = clamp((p.y - CLOUD_ALTITUDE) / CLOUD_THICKNESS, 0.0, 1.0);
+                float h = clamp((p.y - cloudBaseY) / cloudThick, 0.0, 1.0);
                 float sunT = zephyr_cloudSunTransmittance(p, L);
                 vec3 lit = cloudAmbient * (0.28 + 0.72 * h)
                          + sunColor * sunT * phaseC * dayAmount * 1.15
                          + sunColor * silver * sunT * dayAmount * 0.55;
-                float a = 1.0 - exp(-d * stepLen * CLOUD_EXTINCTION);
+#if LIGHTNING_ENABLED
+                lit += vec3(0.55, 0.65, 0.95) * bolt * rain
+                     * LIGHTNING_INTENSITY * 0.85 * (0.35 + 0.65 * sunT);
+#endif
+                float a = 1.0 - exp(-d * stepLen * extinction);
                 scattered += T * a * lit;
                 T *= 1.0 - a;
                 if (T < 0.02) break;
@@ -146,7 +192,8 @@ void main() {
     if (depth < 0.9999) {
         vec3 worldPos = cameraPosition + rd * dist;
         float sigma = FOG_DENSITY * exp(-max(worldPos.y - 64.0, 0.0) * FOG_HEIGHT_FALLOFF);
-        sigma *= 1.0 + rain * 1.4;
+        // Keep rain fog strong but stop it from flattening all local contrast.
+        sigma *= 1.0 + rain * 0.95;
         float T = exp(-clamp(sigma * dist, 0.0, 40.0));
 
         vec3 fogRay = normalize(vec3(rd.x, max(rd.y, 0.02), rd.z));

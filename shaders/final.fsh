@@ -55,7 +55,7 @@ void main() {
     // Eye adaptation must not cancel the storm darkening: during rain auto-EV
     // may only reduce exposure, never lift the overcast sky back to daylight.
     float storm = clamp(rainStrength, 0.0, 1.0);
-    autoEv = mix(autoEv, min(autoEv, 0.0), storm * 0.70);
+    autoEv = mix(autoEv, clamp(autoEv, -2.0, 0.55), storm * 0.45);
     float ev = EXPOSURE_EV + autoEv * EXPOSURE_ADAPT_SPEED;
 
     vec3 graded = hdr * exp2(ev) * TONEMAP_EXPOSURE_BIAS;

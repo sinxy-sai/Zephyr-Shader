@@ -24,7 +24,9 @@ void main() {
         vec3 sampleColor = textureLod(colortex3, texCoord, lod).rgb;
         bloom += max(sampleColor - vec3(BLOOM_THRESHOLD), vec3(0.0));
     }
-    color += bloom * (BLOOM_STRENGTH * 0.25);
+    // Rain makes emissive signage and lamps bloom into the wet haze.
+    color += bloom * (BLOOM_STRENGTH * 0.25
+           * (1.0 + clamp(rainStrength, 0.0, 1.0) * RAIN_BLOOM_BOOST));
 
 #if VL_ENABLED
     vec3 sunDirWorld = normalize(mat3(gbufferModelViewInverse) * normalize(sunPosition));

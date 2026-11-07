@@ -56,5 +56,26 @@
 #define EXPOSURE_TARGET           0.22
 #define EXPOSURE_ADAPT_SPEED      0.06
 #define TONEMAP_EXPOSURE_BIAS     1.00
-#define GRADE_SATURATION          1.14
+#define GRADE_SATURATION          1.22
 #define GRADE_CONTRAST            1.04
+
+// F12 weather layer: storm cloud deck, puddles, rain bloom, lightning
+#define STORM_CLOUD_ALTITUDE      118.0
+#define STORM_CLOUD_THICKNESS      76.0
+#define STORM_CLOUD_FREQ           0.0021
+#define STORM_CLOUD_COVERAGE       0.34
+#define STORM_CLOUD_DENSITY        1.30
+#define STORM_CLOUD_EXTINCTION     0.026
+#define STORM_CLOUD_SUN_ABSORB     2.40
+
+#define PUDDLE_ENABLED             1
+#define PUDDLE_COVERAGE            0.56
+#define PUDDLE_FREQ_FINE           0.42
+#define PUDDLE_FREQ_COARSE         0.11
+#define PUDDLE_ROUGHNESS           0.045
+#define PUDDLE_STRENGTH            0.60
+#define PUDDLE_RIPPLE              0.025
+
+#define RAIN_BLOOM_BOOST           0.90
+#define LIGHTNING_ENABLED          1
+#define LIGHTNING_INTENSITY        1.30

@@ -90,6 +90,44 @@ float zephyr_warmMix(float sunY) {
     return smoothstep(0.0, 0.45, sunY);
 }
 
+// F12 weather helpers -----------------------------------------------------
+float zephyr_storm() {
+    return clamp(rainStrength, 0.0, 1.0);
+}
+
+float zephyr_lightning() {
+    return clamp(lightningBoltPosition.w, 0.0, 1.0);
+}
+
+// A storm lowers and thickens the cloud deck. The density sampler and the
+// integration bounds must read the same values or the layer will tear.
+float zephyr_cloudBase() {
+    return mix(CLOUD_ALTITUDE, STORM_CLOUD_ALTITUDE, zephyr_storm());
+}
+
+float zephyr_cloudThickness() {
+    return mix(CLOUD_THICKNESS, STORM_CLOUD_THICKNESS, zephyr_storm());
+}
+
+float zephyr_cloudExtinction() {
+    return mix(CLOUD_EXTINCTION, STORM_CLOUD_EXTINCTION, zephyr_storm());
+}
+
+// Shared by deferred (shading) and composite (reflection) so that a puddle's
+// specular highlight and its reflected image land on exactly the same pixels.
+float zephyr_puddleMask(vec3 worldPos, vec3 Nw, float skyLight, float rain) {
+#if PUDDLE_ENABLED
+    float n = zephyr_valueNoise(worldPos.xz * PUDDLE_FREQ_FINE) * 0.35
+            + zephyr_valueNoise(worldPos.xz * PUDDLE_FREQ_COARSE + vec2(17.3, 9.1)) * 0.65;
+    return smoothstep(PUDDLE_COVERAGE - 0.09, PUDDLE_COVERAGE + 0.06, n)
+         * rain * pow(max(Nw.y, 0.0), 2.0)
+         * smoothstep(0.55, 0.95, skyLight);
+#else
+    return 0.0;
+#endif
+}
+// -------------------------------------------------------------------------
+
 // Analytic single-scattering sky. Every pass that needs sky/fog/cloud colour
 // calls this function so the atmosphere stays a single source of truth (F4).
 vec3 zephyr_atmosphere(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
@@ -137,10 +175,15 @@ vec3 zephyr_atmosphere(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
 
     // Overcast: desaturate towards a cold slate grey AND cut the radiance.
     // Desaturation on its own made storm skies brighter than clear ones.
-    vec3 stormSky = vec3(zephyr_luma(sky)) * vec3(0.78, 0.84, 0.98);
-    sky = mix(sky, stormSky, storm * 0.88);
+    vec3 stormSky = vec3(zephyr_luma(sky)) * vec3(0.80, 0.85, 0.98);
+    // Keep a little of the twilight warmth instead of flattening it to grey.
+    sky = mix(sky, stormSky, storm * mix(0.88, 0.70, twilight));
     // Keep some night detail: a storm night is dim, not pitch black.
-    sky *= mix(1.0, mix(0.62, 0.42, dayAmount), storm);
+    sky *= mix(1.0, mix(0.82, 0.55, dayAmount), storm);
+#if LIGHTNING_ENABLED
+    sky += vec3(0.55, 0.66, 0.95) * zephyr_lightning() * storm
+         * LIGHTNING_INTENSITY * 0.55;
+#endif
     return max(sky, vec3(0.0));
 }
 
