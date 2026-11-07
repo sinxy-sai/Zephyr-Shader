@@ -75,7 +75,20 @@ vec3 zephyr_F_Schlick(vec3 f0, float VoH) {
 
 // Day/night is derived from the world-space sun direction (sunPosition is in
 // view space, so passes rotate it with gbufferModelViewInverse). The worldTime
-// uniform was probed and does not track /time set on this Iris build.
+// uniform was probed and does not track /time set on this Iris build; sunPosition.y
+// does (measured +1.0 / +0.082 / -1.0 at 6000 / 12500 / 18000).
+float zephyr_dayAmount(float sunY) {
+    return smoothstep(-0.22, 0.30, sunY);
+}
+
+// Twilight strength peaks just above the horizon and is zero at noon/night.
+float zephyr_twilight(float sunY) {
+    return clamp(1.0 - abs(sunY) / 0.42, 0.0, 1.0) * smoothstep(-0.20, 0.05, sunY);
+}
+
+float zephyr_warmMix(float sunY) {
+    return smoothstep(0.0, 0.45, sunY);
+}
 
 // Analytic single-scattering sky. Every pass that needs sky/fog/cloud colour
 // calls this function so the atmosphere stays a single source of truth (F4).
@@ -89,29 +102,36 @@ vec3 zephyr_atmosphere(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
     float denom = max(1.0 + g * g - 2.0 * g * mu, 1e-3);
     float miePhase = (1.0 - g * g) / (4.0 * ZEPHYR_PI * pow(denom, 1.5));
 
+    // A multiplicative tint is not enough at sunset: blue must be *replaced*,
+    // otherwise the 0.82 blue zenith always dominates the 0.10 red channel.
+    float twilight = zephyr_twilight(sunDir.y);
+    float warm = zephyr_warmMix(sunDir.y);
+
     vec3 zenithDay = vec3(0.10, 0.31, 0.82);
     vec3 horizonDay = vec3(0.42, 0.65, 0.94);
     vec3 zenithNight = vec3(0.008, 0.016, 0.042);
     vec3 horizonNight = vec3(0.035, 0.050, 0.090);
     vec3 zen = mix(zenithNight, zenithDay, dayAmount);
     vec3 hor = mix(horizonNight, horizonDay, dayAmount);
+    zen = mix(zen, vec3(0.30, 0.13, 0.22), twilight * 0.70);
+    hor = mix(hor, vec3(1.25, 0.44, 0.12), twilight * 0.92);
 
     vec3 sky = mix(zen, hor, horizon);
-    sky *= mix(0.40, 1.0, dayAmount);
-    sky += vec3(0.12, 0.18, 0.28) * rayleighPhase * dayAmount * 0.30 * ATMOSPHERE_DENSITY;
+    sky *= mix(0.40, 1.0, max(dayAmount, twilight * 0.85));
+    vec3 scatterTint = mix(vec3(0.12, 0.18, 0.28), vec3(0.30, 0.10, 0.05), twilight);
+    sky += scatterTint * rayleighPhase * dayAmount * 0.30 * ATMOSPHERE_DENSITY;
 
     float glow = pow(max(mu, 0.0), 8.0) * 0.45 + miePhase * 0.35;
-    vec3 sunTint = mix(vec3(1.00, 0.44, 0.18), vec3(1.00, 0.96, 0.86),
-                       smoothstep(0.0, 0.35, sunDir.y));
-    sky += sunTint * glow * dayAmount * 1.35 * ATMOSPHERE_SUN_INTENSITY;
+    vec3 sunTint = mix(vec3(1.00, 0.36, 0.12), vec3(1.00, 0.96, 0.86), warm);
+    sky += sunTint * glow * dayAmount * (1.35 + twilight * 1.10)
+         * ATMOSPHERE_SUN_INTENSITY;
 
-    float sunset = clamp(1.0 - abs(sunDir.y) * 1.6, 0.0, 1.0) * dayAmount;
-    sky *= mix(vec3(1.0), vec3(1.28, 0.80, 0.55), sunset * 0.60);
-    sky += vec3(0.45, 0.16, 0.04) * sunset * (0.35 + 0.65 * horizon)
+    sky += vec3(0.55, 0.16, 0.03) * twilight * (0.30 + 0.70 * horizon)
          * (0.25 + 0.75 * max(mu, 0.0));
 
     float disk = smoothstep(0.9993, 0.99980, mu);
-    sky += vec3(12.0, 10.0, 8.0) * disk * dayAmount;
+    vec3 diskColor = mix(vec3(14.0, 5.0, 1.6), vec3(12.0, 10.0, 8.0), warm);
+    sky += diskColor * disk * dayAmount;
 
     sky = mix(sky, vec3(zephyr_luma(sky)), clamp(rain, 0.0, 1.0) * 0.60);
     return max(sky, vec3(0.0));

@@ -62,6 +62,33 @@ float zephyr_shadowVisibility(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) 
 #endif
 }
 
+#if AO_ENABLED
+// Lightweight contact AO: a few hemisphere samples projected back to the depth
+// buffer. Only indirect light is fully occluded; direct light keeps a fraction.
+float zephyr_ssao(vec2 uv, vec3 viewPos, vec3 N) {
+    float noise = zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.37);
+    float occlusion = 0.0;
+    for (int i = 0; i < AO_SAMPLES; ++i) {
+        float fi = float(i);
+        float ang = fi * 2.3999632 + noise * 6.2831853;
+        float rad = AO_RADIUS * (0.25 + 0.75 * sqrt((fi + 0.5) / float(AO_SAMPLES)));
+        vec3 offset = vec3(cos(ang) * rad, sin(ang) * rad,
+                           (noise - 0.5) * AO_RADIUS * 0.5);
+        if (dot(offset, N) < 0.0) offset = -offset;
+        vec3 s = viewPos + offset + N * 0.03;
+        vec4 clip = gbufferProjection * vec4(s, 1.0);
+        if (abs(clip.w) < 1e-5) continue;
+        vec2 suv = clip.xy / clip.w * 0.5 + 0.5;
+        if (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) continue;
+        float sd = texture(depthtex0, suv).r;
+        if (sd >= 0.9999) continue;
+        float diff = (-s.z) - zephyr_linearDepth(sd);
+        occlusion += smoothstep(0.0, AO_RADIUS * 0.8, diff) * step(0.0, diff);
+    }
+    return clamp(1.0 - occlusion / float(AO_SAMPLES) * AO_STRENGTH, 0.35, 1.0);
+}
+#endif
+
 void main() {
     vec4 albedoData = texture(colortex0, texCoord);
     vec4 lightData = texture(colortex1, texCoord);
@@ -77,7 +104,7 @@ void main() {
 
     vec3 sunDirWorld = normalize(mat3(gbufferModelViewInverse) * normalize(sunPosition));
     vec3 lightDirView = normalize(shadowLightPosition);
-    float dayAmount = smoothstep(-0.16, 0.14, sunDirWorld.y);
+    float dayAmount = zephyr_dayAmount(sunDirWorld.y);
     float rain = clamp(rainStrength, 0.0, 1.0);
 
 #if DEBUG_VIEW == 6
@@ -109,9 +136,14 @@ void main() {
 
         float visibility = zephyr_shadowVisibility(viewPos, N, L);
 
-        vec3 sunRadiance = mix(vec3(0.09, 0.12, 0.22), vec3(1.15, 1.05, 0.92), dayAmount)
+        float warm = zephyr_warmMix(sunDirWorld.y);
+        vec3 sunNoon = vec3(1.15, 1.05, 0.92);
+        vec3 sunWarm = vec3(1.45, 0.68, 0.30);
+        vec3 skyNoon = vec3(0.44, 0.58, 0.82);
+        vec3 skyWarm = vec3(0.52, 0.34, 0.28);
+        vec3 sunRadiance = mix(vec3(0.09, 0.12, 0.22), mix(sunWarm, sunNoon, warm), dayAmount)
                          * LIGHT_SUN_INTENSITY;
-        vec3 skyAmbient = mix(vec3(0.020, 0.030, 0.055), vec3(0.44, 0.58, 0.82), dayAmount)
+        vec3 skyAmbient = mix(vec3(0.020, 0.030, 0.055), mix(skyWarm, skyNoon, warm), dayAmount)
                         * LIGHT_SKY_INTENSITY;
         vec3 blockRadiance = vec3(1.00, 0.58, 0.26) * pow(blockLight, 2.0) * 1.8;
 
@@ -146,7 +178,12 @@ void main() {
             color = mix(underwater, reflection, clamp(fresnel, 0.0, 1.0));
             color += direct * 0.20;
         } else {
+#if AO_ENABLED
+            float ao = zephyr_ssao(texCoord, viewPos, N);
+            color = direct * mix(1.0, ao, 0.35) + indirect * ao;
+#else
             color = direct + indirect;
+#endif
         }
 
         if (matId > 3.5) {

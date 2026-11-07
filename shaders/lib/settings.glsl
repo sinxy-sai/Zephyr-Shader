@@ -15,26 +15,38 @@
 #define SHADOW_BIAS               0.0008
 
 #define FOLIAGE_TRANSLUCENCY      0.45
+#define AO_ENABLED                1
 #define AO_STRENGTH               0.35
+#define AO_SAMPLES                6
+#define AO_RADIUS                 1.6
 
 #define CLOUD_ENABLED             1
-#define CLOUD_COVERAGE            0.58
+#define CLOUD_COVERAGE            0.55
 #define CLOUD_STEPS               8
 #define CLOUD_ALTITUDE          168.0
+#define CLOUD_THICKNESS          48.0
 #define CLOUD_DENSITY             1.00
+#define CLOUD_EXTINCTION          0.020
+#define CLOUD_SUN_STEPS           3
 
 #define FOG_DENSITY               0.0042
 #define FOG_HEIGHT_FALLOFF        0.026
 #define FOG_INSCATTER_BOOST       1.25
 
 #define VL_ENABLED                1
-#define VL_STEPS                 12
-#define VL_INTENSITY              0.55
+#define VL_STEPS                 16
+#define VL_MAX_DISTANCE          96.0
+#define VL_INTENSITY              1.10
 #define VL_DECAY                  0.94
 
 #define WAVE_AMPLITUDE            0.055
 #define WATER_ABSORPTION          0.36
 #define WATER_F0                  0.02
+#define SSR_ENABLED               1
+#define SSR_STEPS                16
+#define SSR_STEP_LENGTH           1.50
+#define SSR_THICKNESS             6.00
+#define SSR_STRENGTH              0.75
 
 #define BLOOM_STRENGTH            0.42
 #define BLOOM_THRESHOLD           1.05

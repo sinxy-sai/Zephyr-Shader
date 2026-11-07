@@ -36,6 +36,13 @@ void main() {
 #elif DEBUG_VIEW == 5
     outColor = vec4(zephyr_linearToSrgb(clamp(texture(colortex1, texCoord).rgb, 0.0, 1.0)), 1.0);
     return;
+#elif DEBUG_VIEW == 7
+    // Probe R = sunAngle, G = world-space sunPosition.y, B = shadowLightPosition.y.
+    vec3 dbgSun = normalize(mat3(gbufferModelViewInverse) * normalize(sunPosition));
+    vec3 dbgLight = normalize(mat3(gbufferModelViewInverse) * normalize(shadowLightPosition));
+    outColor = vec4(clamp(vec3(sunAngle, 0.5 + 0.5 * dbgSun.y,
+                               0.5 + 0.5 * dbgLight.y), 0.0, 1.0), 1.0);
+    return;
 #endif
 
 #if DEBUG_FINAL
