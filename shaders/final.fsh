@@ -7,7 +7,7 @@
 
 in vec2 texCoord;
 
-uniform sampler2D colortex5;
+uniform sampler2D colortex7;
 uniform sampler2D colortex3;
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
@@ -18,7 +18,7 @@ uniform sampler2D depthtex0;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec3 hdr = max(texture(colortex5, texCoord).rgb, vec3(0.0));
+    vec3 hdr = max(texture(colortex7, texCoord).rgb, vec3(0.0));
 
 #if DEBUG_VIEW == 1
     outColor = vec4(zephyr_linearToSrgb(clamp(texture(colortex0, texCoord).rgb, 0.0, 1.0)), 1.0);

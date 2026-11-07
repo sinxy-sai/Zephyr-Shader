@@ -81,6 +81,43 @@
 #define TEMPORAL_AO_VELOCITY       0.020
 #define TEMPORAL_AO_CLAMP          0.18
 
+// TAA (composite2, linear HDR before tonemap).
+#define TAA_ENABLED                1
+#define TAA_BLEND                  0.82
+#define TAA_VELOCITY_REJECT        0.010
+#define TAA_DEPTH_REJECT           0.60
+#define TAA_NEIGHBOUR_CLAMP        1
+#define TAA_MIN_BLEND              0.05
+#define TAA_DEBUG_HISTORY          0
+#define TAA_JITTER_ENABLED         1
+#define TAA_JITTER_PHASES         16
+
+// Halton(2,3) sub-pixel jitter. Uniforms are passed in explicitly so this
+// header stays independent of uniform declaration order (config -> settings
+// -> uniforms -> common in every pass).
+float zephyr_halton(int index, int base) {
+    float result = 0.0;
+    float f = 1.0 / float(base);
+    int i = index;
+    while (i > 0) {
+        int digit = i - (i / base) * base;   // GLSL has no integer % operator
+        result += f * float(digit);
+        i = i / base;
+        f /= float(base);
+    }
+    return result;
+}
+
+vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
+#if TAA_JITTER_ENABLED
+    int phase = frame - (frame / TAA_JITTER_PHASES) * TAA_JITTER_PHASES + 1;
+    vec2 h = vec2(zephyr_halton(phase, 2), zephyr_halton(phase, 3)) - 0.5;
+    return h * (2.0 / vec2(width, height));
+#else
+    return vec2(0.0);
+#endif
+}
+
 #define EXPOSURE_EV               0.00
 #define EXPOSURE_TARGET           0.22
 #define EXPOSURE_ADAPT_SPEED      0.06

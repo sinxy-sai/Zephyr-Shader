@@ -18,9 +18,12 @@ const int colortex2Format = RGBA16F;
 const int colortex3Format = RGBA16F;
 const int colortex4Format = RGBA16F;
 const int colortex5Format = RGBA16F;
-// M7 history buffer (currently disabled, see shaders.properties): re-enable
-// const int colortex6Format = RGBA16F; and const bool colortex6Clear = false;
-// when the temporal path is turned back on.
+// TAA: colortex6 is read AND written by composite2 in the same pass. Iris
+// gives such a feedback attachment an implicit ping-pong pair, so it must
+// never be cleared and must NOT have a flip. entry in shaders.properties.
+const int colortex6Format = RGBA16F;
+const int colortex7Format = RGBA16F;
+const bool colortex6Clear = false;
 
 const bool colortex3MipmapEnabled = true;
 
