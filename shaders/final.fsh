@@ -1,10 +1,58 @@
-#version 120
+#version 330 compatibility
+
+#include "/lib/config.glsl"
+#include "/lib/settings.glsl"
+#include "/lib/uniforms.glsl"
+#include "/lib/common.glsl"
+
+in vec2 texCoord;
+
+uniform sampler2D colortex5;
+uniform sampler2D colortex3;
 uniform sampler2D colortex0;
-varying vec2 zephyrTexCoord;
-/* DRAWBUFFERS:0 */
+uniform sampler2D colortex1;
+uniform sampler2D colortex2;
+uniform sampler2D depthtex0;
+
+/* RENDERTARGETS: 0 */
+layout(location = 0) out vec4 outColor;
+
 void main() {
-    vec3 color = texture2D(colortex0, zephyrTexCoord).rgb;
-    // S0 receives the default framebuffer color path. Keep this pass neutral
-    // until the HDR exposure contract is established in the deferred stage.
-    gl_FragData[0] = vec4(clamp(color, 0.0, 1.0), 1.0);
+    vec3 hdr = max(texture(colortex5, texCoord).rgb, vec3(0.0));
+
+#if DEBUG_VIEW == 1
+    outColor = vec4(zephyr_linearToSrgb(clamp(texture(colortex0, texCoord).rgb, 0.0, 1.0)), 1.0);
+    return;
+#elif DEBUG_VIEW == 2
+    outColor = vec4(texture(colortex2, texCoord).rgb, 1.0);
+    return;
+#elif DEBUG_VIEW == 3
+    float d = texture(depthtex0, texCoord).r;
+    outColor = vec4(vec3(clamp(zephyr_linearDepth(d) / 256.0, 0.0, 1.0)), 1.0);
+    return;
+#elif DEBUG_VIEW == 4
+    outColor = vec4(vec3(texture(colortex0, texCoord).a * 0.25), 1.0);
+    return;
+#elif DEBUG_VIEW == 5
+    outColor = vec4(zephyr_linearToSrgb(clamp(texture(colortex1, texCoord).rgb, 0.0, 1.0)), 1.0);
+    return;
+#endif
+
+#if DEBUG_FINAL
+    outColor = vec4(clamp(hdr, 0.0, 1.0), 1.0);
+    return;
+#endif
+
+    float averageLuma = max(zephyr_luma(textureLod(colortex3, vec2(0.5), 12.0).rgb), 1e-4);
+    float autoEv = clamp(log2(EXPOSURE_TARGET / averageLuma), -2.0, 2.0);
+    float ev = EXPOSURE_EV + autoEv * EXPOSURE_ADAPT_SPEED;
+
+    vec3 graded = hdr * exp2(ev) * TONEMAP_EXPOSURE_BIAS;
+    float l = zephyr_luma(graded);
+    graded = mix(vec3(l), graded, GRADE_SATURATION);
+    graded = max((graded - 0.18) * GRADE_CONTRAST + 0.18, vec3(0.0));
+
+    vec3 mapped = zephyr_linearToSrgb(zephyr_aces(graded));
+    float dither = (zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.71) - 0.5) / 255.0;
+    outColor = vec4(clamp(mapped + dither, 0.0, 1.0), 1.0);
 }

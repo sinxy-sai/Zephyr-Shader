@@ -1,4 +1,4 @@
-// Zephyr S0 shader settings
-const int ZEPHYR_QUALITY = 0;
-const float ZEPHYR_EXPOSURE = 0.0;
-const float ZEPHYR_SUN_STRENGTH = 1.0;
+// Zephyr Z1 debug switches.
+// zdev.py set/dbg rewrites the values of the #define lines below.
+#define DEBUG_VIEW 0
+#define DEBUG_FINAL 0

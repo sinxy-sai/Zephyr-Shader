@@ -1,48 +1,71 @@
-#version 120
-uniform sampler2D colortex0;
-uniform sampler2D colortex1;
+#version 330 compatibility
+
+#include "/lib/config.glsl"
+#include "/lib/settings.glsl"
+#include "/lib/uniforms.glsl"
+#include "/lib/common.glsl"
+
+in vec2 texCoord;
+
+uniform sampler2D colortex3;
 uniform sampler2D depthtex0;
-uniform vec3 sunPosition;
-varying vec2 zephyrTexCoord;
-/* DRAWBUFFERS:0 */
 
-vec3 zephyr_grade(vec3 color) {
-    float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
-    color = mix(vec3(luminance), color, 0.94);
-    color = (color - 0.5) * 1.04 + 0.5;
-    color = color / (1.0 + max(color - 0.78, 0.0) * 0.45);
-    color += vec3(0.004, 0.006, 0.008);
-    return clamp(color, 0.0, 1.0);
-}
+/* RENDERTARGETS: 4 */
+layout(location = 0) out vec4 outColor;
 
-vec3 zephyr_sky(vec3 color, vec2 uv) {
-    float horizon = smoothstep(0.25, 0.72, uv.y);
-    vec3 horizonColor = vec3(0.60, 0.68, 0.74);
-    vec3 zenithColor = vec3(0.25, 0.39, 0.58);
-    vec3 gradient = mix(horizonColor, zenithColor, horizon);
-    float haze = 1.0 - smoothstep(0.72, 1.0, uv.y);
-    gradient += vec3(0.035, 0.028, 0.018) * haze;
-    return mix(color, gradient, 0.78);
-}
-
-vec3 zephyr_direct_light(vec3 color, vec3 encodedNormal) {
-    vec3 normal = normalize(encodedNormal * 2.0 - 1.0);
-    float sunLength = dot(sunPosition, sunPosition);
-    vec3 fallbackSun = normalize(vec3(-0.25, 0.82, 0.35));
-    vec3 lightDirection = sunLength > 0.001 ? normalize(sunPosition) : fallbackSun;
-    float ndotl = max(dot(normal, lightDirection), 0.0);
-    float light = 0.68 + ndotl * 0.42;
-    return color * light;
+vec3 zephyr_worldRay(vec2 uv) {
+    vec4 clip = gbufferProjectionInverse * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+    float w = abs(clip.w) < 1e-5 ? 1e-5 : clip.w;
+    return normalize(mat3(gbufferModelViewInverse) * normalize(clip.xyz / w));
 }
 
 void main() {
-    vec4 scene = texture2D(colortex0, zephyrTexCoord);
-    float depth = texture2D(depthtex0, zephyrTexCoord).r;
-    vec3 color = zephyr_grade(scene.rgb);
-    if (depth > 0.9995) {
-        color = zephyr_sky(color, zephyrTexCoord);
-    } else {
-        color = zephyr_direct_light(color, texture2D(colortex1, zephyrTexCoord).rgb);
+    float depth = texture(depthtex0, texCoord).r;
+    float dist = depth < 0.9999 ? zephyr_linearDepth(depth) : 1.0e6;
+    vec3 color = max(texture(colortex3, texCoord).rgb, vec3(0.0));
+
+    vec3 rd = zephyr_worldRay(texCoord);
+    vec3 sunDirWorld = normalize(mat3(gbufferModelViewInverse) * normalize(sunPosition));
+    float dayAmount = smoothstep(-0.16, 0.14, sunDirWorld.y);
+    float rain = clamp(rainStrength, 0.0, 1.0);
+    float mu = max(dot(rd, sunDirWorld), 0.0);
+
+#if CLOUD_ENABLED
+    if (rd.y > 0.01) {
+        float t = (CLOUD_ALTITUDE - cameraPosition.y) / rd.y;
+        if (t > 0.0 && t < 6000.0) {
+            vec2 p = (cameraPosition.xz + rd.xz * t) * 0.0032
+                   + vec2(frameTimeCounter * 0.0060, frameTimeCounter * 0.0022);
+            float n = zephyr_fbm(p);
+            float density = smoothstep(CLOUD_COVERAGE, CLOUD_COVERAGE + 0.13, n)
+                          * CLOUD_DENSITY;
+            float nSun = zephyr_fbm(p + normalize(sunDirWorld.xz + vec2(0.001)) * 0.010);
+            float lit = clamp(0.60 + (n - nSun) * 3.5, 0.25, 1.0);
+
+            vec3 cloudBase = mix(vec3(0.16, 0.20, 0.28), vec3(0.88, 0.92, 0.98), dayAmount);
+            vec3 cloudColor = cloudBase * (0.35 + 0.95 * lit);
+            cloudColor += vec3(1.00, 0.66, 0.30) * pow(mu, 8.0) * dayAmount * 0.85;
+
+            float alpha = clamp(density, 0.0, 1.0) * smoothstep(0.0, 0.14, rd.y);
+            if (t < dist) {
+                color = mix(color, cloudColor, alpha);
+            }
+        }
     }
-    gl_FragData[0] = vec4(color, scene.a);
+#endif
+
+    if (depth < 0.9999) {
+        vec3 worldPos = cameraPosition + rd * dist;
+        float sigma = FOG_DENSITY * exp(-max(worldPos.y - 64.0, 0.0) * FOG_HEIGHT_FALLOFF);
+        sigma *= 1.0 + rain * 1.4;
+        float T = exp(-clamp(sigma * dist, 0.0, 40.0));
+
+        vec3 fogRay = normalize(vec3(rd.x, max(rd.y, 0.02), rd.z));
+        vec3 fogColor = zephyr_atmosphere(fogRay, sunDirWorld, dayAmount, rain);
+        fogColor *= 0.80 + FOG_INSCATTER_BOOST * pow(mu, 4.0) * dayAmount;
+
+        color = color * T + fogColor * (1.0 - T);
+    }
+
+    outColor = vec4(clamp(color, 0.0, 65504.0), 1.0);
 }

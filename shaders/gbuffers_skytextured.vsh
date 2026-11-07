@@ -1,13 +1,14 @@
-#version 120
-varying vec2 zephyrTexCoord;
-varying vec4 zephyrVertexColor;
-varying vec3 zephyrNormal;
+#version 330 compatibility
+
+out vec2 vTexCoord;
+out vec2 vLightCoord;
+out vec4 vColor;
+out vec3 vNormal;
 
 void main() {
-    zephyrTexCoord = gl_MultiTexCoord0.st;
-    zephyrVertexColor = gl_Color;
-    zephyrNormal = normalize(gl_NormalMatrix * gl_Normal);
-    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+    gl_Position  = ftransform();
+    vTexCoord    = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+    vLightCoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
+    vColor       = gl_Color;
+    vNormal      = normalize(gl_NormalMatrix * gl_Normal);
 }
-
-

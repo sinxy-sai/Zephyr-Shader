@@ -1,6 +1,8 @@
-#version 120
-varying vec2 zephyrTexCoord;
+#version 330 compatibility
+
+out vec2 texCoord;
+
 void main() {
-    zephyrTexCoord = gl_MultiTexCoord0.st;
     gl_Position = ftransform();
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 }

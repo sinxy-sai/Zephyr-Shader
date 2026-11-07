@@ -1,0 +1,158 @@
+#version 330 compatibility
+
+#include "/lib/config.glsl"
+#include "/lib/settings.glsl"
+#include "/lib/uniforms.glsl"
+#include "/lib/common.glsl"
+
+in vec2 texCoord;
+
+uniform sampler2D colortex0;
+uniform sampler2D colortex1;
+uniform sampler2D colortex2;
+uniform sampler2D depthtex0;
+uniform sampler2D shadowtex0;
+uniform sampler2D shadowtex1;
+
+/* RENDERTARGETS: 3 */
+layout(location = 0) out vec4 outColor;
+
+vec3 zephyr_viewPos(vec2 uv, float depth) {
+    vec4 clip = gbufferProjectionInverse * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    float w = abs(clip.w) < 1e-5 ? 1e-5 : clip.w;
+    return clip.xyz / w;
+}
+
+vec3 zephyr_worldRay(vec2 uv) {
+    vec4 clip = gbufferProjectionInverse * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+    float w = abs(clip.w) < 1e-5 ? 1e-5 : clip.w;
+    vec3 viewDir = normalize(clip.xyz / w);
+    return normalize(mat3(gbufferModelViewInverse) * viewDir);
+}
+
+float zephyr_shadowVisibility(vec3 viewPos, vec3 viewNormal, vec3 lightDirView) {
+#if SHADOW_ENABLED
+    vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz;
+    vec4 shadowClip = shadowProjection * shadowModelView * vec4(worldPos, 1.0);
+    float w = abs(shadowClip.w) < 1e-5 ? 1e-5 : shadowClip.w;
+    vec3 shadowCoord = shadowClip.xyz / w * 0.5 + 0.5;
+
+    if (shadowCoord.x < 0.0 || shadowCoord.x > 1.0 ||
+        shadowCoord.y < 0.0 || shadowCoord.y > 1.0 ||
+        shadowCoord.z > 1.0 || shadowCoord.z < 0.0) {
+        return 1.0;
+    }
+
+    float NoL = clamp(dot(viewNormal, lightDirView), 0.0, 1.0);
+    float bias = SHADOW_BIAS * (1.0 + 3.0 * (1.0 - NoL));
+    vec2 texel = 1.0 / vec2(max(textureSize(shadowtex0, 0), ivec2(1)));
+    vec2 radius = texel * SHADOW_SOFTNESS;
+
+    float sum = 0.0;
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            vec2 offset = vec2(float(x), float(y)) * radius;
+            float closest = texture(shadowtex0, shadowCoord.xy + offset).r;
+            sum += step(shadowCoord.z - bias, closest);
+        }
+    }
+    return clamp(sum / 9.0, 0.0, 1.0);
+#else
+    return 1.0;
+#endif
+}
+
+void main() {
+    vec4 albedoData = texture(colortex0, texCoord);
+    vec4 lightData = texture(colortex1, texCoord);
+    vec4 normalData = texture(colortex2, texCoord);
+    float depth = texture(depthtex0, texCoord).r;
+
+    vec3 albedo = max(albedoData.rgb, vec3(0.0));
+    float matId = albedoData.a;
+    vec3 viewNormal = zephyr_decodeNormal(normalData.rgb);
+    float roughness = clamp(lightData.b, 0.03, 1.0);
+    float blockLight = clamp(lightData.r, 0.0, 1.0);
+    float skyLight = clamp(lightData.g, 0.0, 1.0);
+
+    vec3 sunDirWorld = normalize(mat3(gbufferModelViewInverse) * normalize(sunPosition));
+    vec3 lightDirView = normalize(shadowLightPosition);
+    float dayAmount = smoothstep(-0.16, 0.14, sunDirWorld.y);
+    float rain = clamp(rainStrength, 0.0, 1.0);
+
+#if DEBUG_VIEW == 6
+    if (depth < 0.9999) {
+        vec3 debugViewPos = zephyr_viewPos(texCoord, depth);
+        float vis = zephyr_shadowVisibility(debugViewPos, viewNormal, lightDirView);
+        outColor = vec4(vec3(vis), 1.0);
+    } else {
+        outColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    return;
+#endif
+
+    vec3 color;
+
+    if (depth >= 0.9999) {
+        color = zephyr_atmosphere(zephyr_worldRay(texCoord), sunDirWorld, dayAmount, rain);
+    } else {
+        vec3 viewPos = zephyr_viewPos(texCoord, depth);
+        vec3 V = normalize(-viewPos);
+        vec3 N = viewNormal;
+        vec3 L = lightDirView;
+        vec3 H = normalize(L + V);
+
+        float NoL = max(dot(N, L), 0.0);
+        float NoV = max(dot(N, V), 1e-4);
+        float NoH = max(dot(N, H), 0.0);
+        float VoH = max(dot(V, H), 0.0);
+
+        float visibility = zephyr_shadowVisibility(viewPos, N, L);
+
+        vec3 sunRadiance = mix(vec3(0.09, 0.12, 0.22), vec3(1.15, 1.05, 0.92), dayAmount)
+                         * LIGHT_SUN_INTENSITY;
+        vec3 skyAmbient = mix(vec3(0.020, 0.030, 0.055), vec3(0.44, 0.58, 0.82), dayAmount)
+                        * LIGHT_SKY_INTENSITY;
+        vec3 blockRadiance = vec3(1.00, 0.58, 0.26) * pow(blockLight, 2.0) * 1.8;
+
+        float a = max(roughness * roughness, 0.002);
+        vec3 f0 = vec3(0.04);
+        vec3 specular = zephyr_D_GGX(NoH, a) * zephyr_G_Smith(NoV, NoL, a)
+                      * zephyr_F_Schlick(f0, VoH) / max(4.0 * NoV * NoL, 1e-4);
+        vec3 diffuse = albedo * (1.0 - f0) / ZEPHYR_PI;
+        vec3 direct = (diffuse + specular) * sunRadiance * NoL * visibility;
+
+        vec3 indirect = albedo * (skyAmbient * (0.30 + 0.70 * skyLight) + blockRadiance);
+
+        if (normalData.a > 0.5) {
+            float back = max(dot(-N, L), 0.0);
+            indirect += albedo * sunRadiance * pow(back, 1.5)
+                      * FOLIAGE_TRANSLUCENCY * visibility;
+        }
+
+        if (matId > 0.5 && matId < 1.5) {
+            vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
+            float t = frameTimeCounter;
+            float wx = sin(worldPos.x * 0.85 + t * 1.25) * cos(worldPos.z * 0.62 - t * 0.85);
+            float wz = sin(worldPos.z * 1.05 - t * 1.45) * cos(worldPos.x * 0.55 + t * 0.75);
+            vec3 waveN = normalize(mat3(gbufferModelView) * vec3(wx * WAVE_AMPLITUDE, 1.0, wz * WAVE_AMPLITUDE));
+            float fresnel = WATER_F0 + (1.0 - WATER_F0)
+                          * pow(clamp(1.0 - max(dot(V, waveN), 0.0), 0.0, 1.0), 5.0);
+            vec3 worldRay = normalize(mat3(gbufferModelViewInverse) * (-V));
+            vec3 reflectDir = reflect(worldRay, normalize(vec3(wx, 1.0, wz) * WAVE_AMPLITUDE + vec3(0.0, 1.0, 0.0)));
+            vec3 reflection = zephyr_atmosphere(reflectDir, sunDirWorld, dayAmount, rain);
+            vec3 underwater = albedo * vec3(0.06, 0.26, 0.32) * (skyAmbient + blockRadiance)
+                            * WATER_ABSORPTION * 4.0;
+            color = mix(underwater, reflection, clamp(fresnel, 0.0, 1.0));
+            color += direct * 0.20;
+        } else {
+            color = direct + indirect;
+        }
+
+        if (matId > 3.5) {
+            color = albedo;
+        }
+    }
+
+    outColor = vec4(clamp(color, 0.0, 65504.0), 1.0);
+}

@@ -1,0 +1,123 @@
+// Zephyr Z1 shared math. Linear HDR everywhere; gamma only in final.
+
+vec3 zephyr_srgbToLinear(vec3 c) {
+    return pow(max(c, vec3(0.0)), vec3(2.2));
+}
+
+vec3 zephyr_linearToSrgb(vec3 c) {
+    return pow(max(c, vec3(0.0)), vec3(1.0 / 2.2));
+}
+
+float zephyr_luma(vec3 c) {
+    return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+vec3 zephyr_encodeNormal(vec3 n) {
+    return normalize(n) * 0.5 + 0.5;
+}
+
+vec3 zephyr_decodeNormal(vec3 e) {
+    return normalize(e * 2.0 - 1.0);
+}
+
+float zephyr_linearDepth(float d) {
+    float n = max(near, 0.05);
+    float f = max(far, 100.0);
+    float z = d * 2.0 - 1.0;
+    return (2.0 * n * f) / max(f + n - z * (f - n), 1e-4);
+}
+
+float zephyr_hash12(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float zephyr_valueNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = zephyr_hash12(i);
+    float b = zephyr_hash12(i + vec2(1.0, 0.0));
+    float c = zephyr_hash12(i + vec2(0.0, 1.0));
+    float d = zephyr_hash12(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float zephyr_fbm(vec2 p) {
+    float v = 0.0;
+    float amp = 0.5;
+    mat2 rot = mat2(0.80, 0.60, -0.60, 0.80);
+    for (int i = 0; i < 5; ++i) {
+        v += amp * zephyr_valueNoise(p);
+        p = rot * p * 2.03 + vec2(17.1, 9.7);
+        amp *= 0.5;
+    }
+    return v;
+}
+
+float zephyr_D_GGX(float NoH, float a) {
+    float a2 = a * a;
+    float d = NoH * NoH * (a2 - 1.0) + 1.0;
+    return a2 / max(ZEPHYR_PI * d * d, 1e-5);
+}
+
+float zephyr_G_Smith(float NoV, float NoL, float a) {
+    float k = a * 0.5;
+    float gv = NoV / max(NoV * (1.0 - k) + k, 1e-4);
+    float gl = NoL / max(NoL * (1.0 - k) + k, 1e-4);
+    return gv * gl;
+}
+
+vec3 zephyr_F_Schlick(vec3 f0, float VoH) {
+    return f0 + (1.0 - f0) * pow(clamp(1.0 - VoH, 0.0, 1.0), 5.0);
+}
+
+// Day/night is derived from the world-space sun direction (sunPosition is in
+// view space, so passes rotate it with gbufferModelViewInverse). The worldTime
+// uniform was probed and does not track /time set on this Iris build.
+
+// Analytic single-scattering sky. Every pass that needs sky/fog/cloud colour
+// calls this function so the atmosphere stays a single source of truth (F4).
+vec3 zephyr_atmosphere(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
+    float y = clamp(rd.y, -0.25, 1.0);
+    float horizon = pow(1.0 - max(y, 0.0), 2.5);
+    float mu = clamp(dot(rd, sunDir), -1.0, 1.0);
+
+    float rayleighPhase = 0.75 * (1.0 + mu * mu);
+    float g = ATMOSPHERE_MIE_G;
+    float denom = max(1.0 + g * g - 2.0 * g * mu, 1e-3);
+    float miePhase = (1.0 - g * g) / (4.0 * ZEPHYR_PI * pow(denom, 1.5));
+
+    vec3 zenithDay = vec3(0.10, 0.31, 0.82);
+    vec3 horizonDay = vec3(0.42, 0.65, 0.94);
+    vec3 zenithNight = vec3(0.008, 0.016, 0.042);
+    vec3 horizonNight = vec3(0.035, 0.050, 0.090);
+    vec3 zen = mix(zenithNight, zenithDay, dayAmount);
+    vec3 hor = mix(horizonNight, horizonDay, dayAmount);
+
+    vec3 sky = mix(zen, hor, horizon);
+    sky *= mix(0.40, 1.0, dayAmount);
+    sky += vec3(0.12, 0.18, 0.28) * rayleighPhase * dayAmount * 0.30 * ATMOSPHERE_DENSITY;
+
+    float glow = pow(max(mu, 0.0), 8.0) * 0.45 + miePhase * 0.35;
+    vec3 sunTint = mix(vec3(1.00, 0.44, 0.18), vec3(1.00, 0.96, 0.86),
+                       smoothstep(0.0, 0.35, sunDir.y));
+    sky += sunTint * glow * dayAmount * 1.35 * ATMOSPHERE_SUN_INTENSITY;
+
+    float sunset = clamp(1.0 - abs(sunDir.y) * 1.6, 0.0, 1.0) * dayAmount;
+    sky *= mix(vec3(1.0), vec3(1.28, 0.80, 0.55), sunset * 0.60);
+    sky += vec3(0.45, 0.16, 0.04) * sunset * (0.35 + 0.65 * horizon)
+         * (0.25 + 0.75 * max(mu, 0.0));
+
+    float disk = smoothstep(0.9993, 0.99980, mu);
+    sky += vec3(12.0, 10.0, 8.0) * disk * dayAmount;
+
+    sky = mix(sky, vec3(zephyr_luma(sky)), clamp(rain, 0.0, 1.0) * 0.60);
+    return max(sky, vec3(0.0));
+}
+
+vec3 zephyr_aces(vec3 x) {
+    x = max(x * 0.6, vec3(0.0));
+    return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+}
