@@ -25,19 +25,20 @@
 // M12 coloured shadows. 0 = the flat M11 lift above with no colour,
 // 1 = fully coloured by the caster's shadowcolor0 albedo.
 #define SHADOW_COLOR_STRENGTH     0.90
-// M13: floor under the alpha of stained glass. Vanilla glass textures are
-// mostly alpha=0 in the middle; 0 = fully clear, 1 = fully opaque.
-// M15: glass centre stays almost clear (vanilla glass textures are alpha~0
-// there); only the frame and the rim reflection carry the glass identity.
-#define TRANSLUCENT_MIN_ALPHA      0.12
-// Strength of the subtractive glass filter (M15). Keep it low so the view
-// behind the pane keeps its own colour gradations.
-#define TRANSLUCENT_TINT_STRENGTH  0.50
+// M16: floor under the alpha of stained glass. Vanilla glass textures are
+// alpha~0 in the middle, so this is what keeps the pane visible at all.
+// M15 pushed it to 0.12 and the glass nearly vanished; M16 keeps the
+// subtractive filter but restores a visible density.
+#define TRANSLUCENT_MIN_ALPHA      0.35
+// Strength of the subtractive glass filter. High values are SAFE here:
+// transmittance can only ATTENUATE channels, so a strong tint still preserves
+// the background's own colour gradations (unlike M14's hue multiplier).
+#define TRANSLUCENT_TINT_STRENGTH  0.95
 // Glass absorption saturation (0 = clear, 1 = fully coloured filter).
 // Must stay <= 1 so transmittance can only attenuate light, never amplify it.
-#define GLASS_ABSORPTION           0.70
+#define GLASS_ABSORPTION           0.95
 // Cool sky reflection on glass borders / grazing angles.
-#define GLASS_RIM_STRENGTH         0.55
+#define GLASS_RIM_STRENGTH         0.40
 
 #define FOLIAGE_TRANSLUCENCY      0.45
 #define AO_ENABLED                1
