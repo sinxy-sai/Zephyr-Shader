@@ -73,7 +73,7 @@ void main() {
 #if SSR_ENABLED
     // Screen-space reflections for water AND rain puddles. This runs here (not
     // in deferred) because deferred writes colortex3 and cannot sample it back.
-    float matId = texture(colortex0, texCoord).a;
+    float matId = texture(colortex1, texCoord).a;
     if (depth < 0.9999) {
         vec4 vClip = gbufferProjectionInverse * vec4(texCoord * 2.0 - 1.0,
                                                      depth * 2.0 - 1.0, 1.0);

@@ -27,6 +27,8 @@ const bool colortex6Clear = false;
 
 const bool colortex3MipmapEnabled = true;
 
+// M13: these ids live in colortex1.a (spare slot of outData). colortex0.a is
+// reserved for the real alpha so Iris can blend translucent geometry.
 #define MAT_SOLID       0.0
 #define MAT_WATER       1.0
 #define MAT_TRANSLUCENT 2.0

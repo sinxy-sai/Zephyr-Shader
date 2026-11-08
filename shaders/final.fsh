@@ -31,7 +31,7 @@ void main() {
     outColor = vec4(vec3(clamp(zephyr_linearDepth(d) / 256.0, 0.0, 1.0)), 1.0);
     return;
 #elif DEBUG_VIEW == 4
-    outColor = vec4(vec3(texture(colortex0, texCoord).a * 0.25), 1.0);
+    outColor = vec4(vec3(texture(colortex1, texCoord).a * 0.25), 1.0);
     return;
 #elif DEBUG_VIEW == 5
     outColor = vec4(zephyr_linearToSrgb(clamp(texture(colortex1, texCoord).rgb, 0.0, 1.0)), 1.0);

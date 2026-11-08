@@ -47,23 +47,43 @@ vec3 zephyr_parallaxNormal(sampler2D tex, vec2 uv, vec3 n) {
 #endif
 }
 
+// G-buffer channel contract (M13):
+//   colortex0.rgb = linear albedo, colortex0.a = REAL alpha
+//   colortex1.rg  = lightmap, colortex1.b = roughness, colortex1.a = MAT_* id
+//   colortex2.rgb = encoded view normal, colortex2.a = thin-surface flag
+// colortex0.a must carry the true alpha: Iris blends gbuffers_water with
+// SRC_ALPHA / ONE_MINUS_SRC_ALPHA, so storing matId (2.0) there pinned the
+// blend factor at 1 and made stained glass either vanish (the centre of a
+// glass texture is alpha~0 and was alpha-tested away) or cover the background.
+// matId therefore lives in colortex1.a's previously unused slot.
 void writeSolid(vec4 c, vec2 lm, float matId, float roughness, vec3 n) {
     if (c.a < 0.10) discard;
-    outAlbedo = vec4(zephyr_srgbToLinear(c.rgb), matId);
-    outData   = vec4(clamp(lm, 0.0, 1.0), clamp(roughness, 0.03, 1.0), 0.0);
+    outAlbedo = vec4(zephyr_srgbToLinear(c.rgb), 1.0);
+    outData   = vec4(clamp(lm, 0.0, 1.0), clamp(roughness, 0.03, 1.0), matId);
     outNormal = vec4(zephyr_encodeNormal(n), 0.0);
 }
 
 void writeTranslucent(vec4 c, vec2 lm, float matId, float roughness, vec3 n) {
-    if (c.a < 0.02) discard;
-    outAlbedo = vec4(zephyr_srgbToLinear(c.rgb), matId);
-    outData   = vec4(clamp(lm, 0.0, 1.0), clamp(roughness, 0.03, 1.0), 0.0);
+    // No alpha test: glass / weather textures have large low-alpha regions.
+    // Discarding them was the reason coloured glass rendered as "invisible".
+    outAlbedo = vec4(zephyr_srgbToLinear(c.rgb), clamp(c.a, 0.0, 1.0));
+    outData   = vec4(clamp(lm, 0.0, 1.0), clamp(roughness, 0.03, 1.0), matId);
+    outNormal = vec4(zephyr_encodeNormal(n), 0.0);
+}
+
+// gbuffers_water only: keep a floor under the alpha so stained glass keeps a
+// visible tint even where the vanilla texture is completely transparent.
+void writeBlended(vec4 c, vec2 lm, float matId, float roughness, vec3 n,
+                  float minAlpha) {
+    outAlbedo = vec4(zephyr_srgbToLinear(c.rgb),
+                     clamp(max(c.a, minAlpha), 0.0, 1.0));
+    outData   = vec4(clamp(lm, 0.0, 1.0), clamp(roughness, 0.03, 1.0), matId);
     outNormal = vec4(zephyr_encodeNormal(n), 0.0);
 }
 
 void writeEmissive(vec4 c, float strength) {
     if (c.a < 0.02) discard;
-    outAlbedo = vec4(zephyr_srgbToLinear(c.rgb) * strength, MAT_EMISSIVE);
-    outData   = vec4(1.0, 1.0, 0.5, 0.0);
+    outAlbedo = vec4(zephyr_srgbToLinear(c.rgb) * strength, 1.0);
+    outData   = vec4(1.0, 1.0, 0.5, MAT_EMISSIVE);
     outNormal = vec4(0.5, 0.5, 1.0, 0.0);
 }

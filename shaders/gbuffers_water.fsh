@@ -30,5 +30,8 @@ void main() {
     bool isWater = (zBlockId > 10999.5 && zBlockId < 11000.5);
     float matId = isWater ? MAT_WATER : MAT_TRANSLUCENT;
     float rough = isWater ? 0.06 : 0.18;
-    writeTranslucent(c, vLightCoord, matId, rough, vNormal);
+    // Real alpha goes to colortex0.a and Iris blends it there; glass keeps a
+    // small floor so its tint survives the transparent centre of the texture.
+    writeBlended(c, vLightCoord, matId, rough, vNormal,
+                 isWater ? 0.0 : TRANSLUCENT_MIN_ALPHA);
 }

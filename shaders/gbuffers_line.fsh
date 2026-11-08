@@ -16,7 +16,7 @@ in vec4 vColor;
 in vec3 vNormal;
 
 void main() {
-    outAlbedo = vec4(zephyr_srgbToLinear(vColor.rgb), MAT_SOLID);
-    outData   = vec4(1.0, 1.0, 1.0, 0.6);
+    outAlbedo = vec4(zephyr_srgbToLinear(vColor.rgb), 1.0);
+    outData   = vec4(1.0, 1.0, 1.0, MAT_SOLID);
     outNormal = vec4(zephyr_encodeNormal(vNormal), 1.0);
 }

@@ -193,7 +193,7 @@ void main() {
     float depth = texture(depthtex0, texCoord).r;
 
     vec3 albedo = max(albedoData.rgb, vec3(0.0));
-    float matId = albedoData.a;
+    float matId = lightData.a;
     vec3 viewNormal = zephyr_decodeNormal(normalData.rgb);
     float roughness = clamp(lightData.b, 0.03, 1.0);
     float blockLight = clamp(lightData.r, 0.0, 1.0);
@@ -362,6 +362,16 @@ void main() {
         if (matId > 3.5) {
             color = albedo;
         }
+    }
+
+    // M13: Iris alpha-blends the translucent layer into colortex0.rgb, but
+    // lighting, fog and the display transform wash the glass hue out (measured
+    // 84% red-dominant in the albedo buffer vs ~6% in the HDR output). Restore
+    // the hue without changing luminance, so stained glass reads as glass
+    // instead of a faint grey patch. matId lives in colortex1.a now.
+    if (matId > 0.5 && matId < 2.95) {
+        vec3 tint = albedo / max(zephyr_luma(albedo), 1e-4);
+        color *= mix(vec3(1.0), clamp(tint, 0.0, 4.0), TRANSLUCENT_TINT_STRENGTH);
     }
 
     outColor = vec4(clamp(color, 0.0, 65504.0), 1.0);
