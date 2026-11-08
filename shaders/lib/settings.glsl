@@ -27,10 +27,17 @@
 #define SHADOW_COLOR_STRENGTH     0.90
 // M13: floor under the alpha of stained glass. Vanilla glass textures are
 // mostly alpha=0 in the middle; 0 = fully clear, 1 = fully opaque.
-#define TRANSLUCENT_MIN_ALPHA      0.25
-// M13: strength of the hue restoration for translucent pixels. 0 = neutral,
-// 1 = fully saturated glass tint (luminance is preserved either way).
-#define TRANSLUCENT_TINT_STRENGTH  0.75
+// M15: glass centre stays almost clear (vanilla glass textures are alpha~0
+// there); only the frame and the rim reflection carry the glass identity.
+#define TRANSLUCENT_MIN_ALPHA      0.12
+// Strength of the subtractive glass filter (M15). Keep it low so the view
+// behind the pane keeps its own colour gradations.
+#define TRANSLUCENT_TINT_STRENGTH  0.50
+// Glass absorption saturation (0 = clear, 1 = fully coloured filter).
+// Must stay <= 1 so transmittance can only attenuate light, never amplify it.
+#define GLASS_ABSORPTION           0.70
+// Cool sky reflection on glass borders / grazing angles.
+#define GLASS_RIM_STRENGTH         0.55
 
 #define FOLIAGE_TRANSLUCENCY      0.45
 #define AO_ENABLED                1

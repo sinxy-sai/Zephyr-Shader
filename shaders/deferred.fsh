@@ -364,15 +364,10 @@ void main() {
         }
     }
 
-    // M13: Iris alpha-blends the translucent layer into colortex0.rgb, but
-    // lighting, fog and the display transform wash the glass hue out (measured
-    // 84% red-dominant in the albedo buffer vs ~6% in the HDR output). Restore
-    // the hue without changing luminance, so stained glass reads as glass
-    // instead of a faint grey patch. matId lives in colortex1.a now.
-    if (matId > 0.5 && matId < 2.95) {
-        vec3 tint = albedo / max(zephyr_luma(albedo), 1e-4);
-        color *= mix(vec3(1.0), clamp(tint, 0.0, 4.0), TRANSLUCENT_TINT_STRENGTH);
-    }
+    // M15: glass tinting is done ONCE, in final.fsh before tonemapping, using
+    // the colortex0.a glass mask. The old matId-based hue multiply here was
+    // unreliable (colortex1.a is not trustworthy on translucent pixels) and
+    // double-processed the colour, so it was removed.
 
     outColor = vec4(clamp(color, 0.0, 65504.0), 1.0);
 }
