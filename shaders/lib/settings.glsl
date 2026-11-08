@@ -217,7 +217,7 @@ vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
 // M11 vertex waving for plants / leaves (category IDs come from block.properties)
 #define WAVE_ENABLED               1
 #define WAVE_SPEED                 1.30
-#define WAVE_AMPLITUDE             0.0375
+#define WAVE_AMPLITUDE             0.08
 // M20: rain multiplies the clear-sky amplitude by (1 + WAVE_RAIN_BOOST).
 // M21: a full storm sways at (1 + 1.25) = 2.25x the clear-sky amplitude.
 // Clear weather is untouched (rainStrength=0).
