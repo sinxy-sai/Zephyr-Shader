@@ -119,14 +119,23 @@
 #define TAA_FAR_BLEND              0.97
 #define TAA_DEPTH_REJECT           0.60
 #define TAA_NEIGHBOUR_CLAMP        1
-#define TAA_MIN_BLEND              0.05
+// M19: a 0.05 floor meant a single bad depth rejection threw away 95% of the
+// history - exactly on distant high-contrast edges. Complementary's
+// blendMinimum is 0.35; keep at least that much history at all times.
+#define TAA_MIN_BLEND              0.35
+// M19: cutout foliage is animated, so a long history stacks several instants
+// of the leaves and shows up as coloured speckle. Complementary uses a
+// "Reduced Edge TAA" material for exactly this; we shorten the history on
+// pixels whose colortex2.a says "thin surface" instead.
+#define TAA_FOLIAGE_WEIGHT         1.0
 #define TAA_DEBUG_HISTORY          0
 #define TAA_JITTER_ENABLED         1
 #define TAA_JITTER_PHASES         16
-// M18: full +/-1px jitter makes distant high-contrast edges jump a whole
-// pixel between frames. 0.6px keeps most of the supersampling while cutting
-// the per-frame excursion; reprojection uses the same helper so stays in sync.
-#define TAA_JITTER_SCALE           0.60
+// M19: 0.60px jitter amplitude. Reprojection no longer injects jitter into
+// prevUv, so the remaining per-frame excursion is resolved by history
+// accumulation instead of becoming a moving sample offset. Keeping it below
+// one pixel still limits distant high-contrast edge crawling.
+#define TAA_JITTER_SCALE           0.20
 
 // Halton(2,3) sub-pixel jitter. Uniforms are passed in explicitly so this
 // header stays independent of uniform declaration order (config -> settings
@@ -196,11 +205,20 @@ vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
 // M11 vertex waving for plants / leaves (category IDs come from block.properties)
 #define WAVE_ENABLED               1
 #define WAVE_SPEED                 1.30
-#define WAVE_AMPLITUDE             0.055
-// M18: fade waving out with camera distance. Beyond WAVE_FADE_END the leaves
-// are sub-pixel under TAA jitter, so moving them only creates shimmer.
-#define WAVE_FADE_START            4.0
-#define WAVE_FADE_END              22.0
+#define WAVE_AMPLITUDE             0.025
+// M19: distant leaves are sub-pixel; slow their TIME frequency instead of
+// fading the wave out, so TAA can accumulate while sway stays visible.
+#define WAVE_SLOW_START            32.0
+#define WAVE_SLOW_END              112.0
+#define WAVE_FAR_TIME_SCALE        0.20
+// M19: waving is active at EVERY distance again. M18's 4->22 block fade was
+// a workaround for distant shimmer whose real cause was a broken TAA
+// reprojection (prevUv drifted with the jitter phase); it silently removed
+// foliage motion from the whole scene. Complementary / EuphoriaPatches / BSL
+// all wave at full range with a small amplitude and rely on a converged TAA.
+// Kept as a tunable knob, defaulted outside the visible world.
+#define WAVE_FADE_START            40.0
+#define WAVE_FADE_END              96.0
 // 1 = lift every ID-matched vertex by one block, to verify the ID map end to
 // end without relying on the (small) wind amplitude. Keep 0 for normal play.
 #define WAVE_DEBUG_LIFT            0

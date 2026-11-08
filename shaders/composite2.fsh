@@ -9,6 +9,7 @@ in vec2 texCoord;
 
 uniform sampler2D colortex5;   // current frame linear HDR (composite1 output)
 uniform sampler2D colortex6;   // TAA history; same pass reads AND writes it
+uniform sampler2D colortex2;   // M19: thin-surface flag in .a (cutout foliage)
 uniform sampler2D depthtex0;
 
 // Iris gives a feedback attachment an implicit ping-pong pair, so reading and
@@ -21,12 +22,18 @@ layout(location = 1) out vec4 outHistory;  // -> colortex6, history for next fra
 // Camera-relative scene space: (gbufferModelViewInverse * viewPos).xyz is
 // relative to the camera, so compensate camera motion between the two frames.
 vec2 zephyr_reprojectTAA(vec2 uv, float depth) {
-    // The current frame was rendered with a sub-pixel jitter. Remove it before
-    // the inverse projection so the reconstructed world position is unbiased.
-    vec2 uvUnjittered = uv
-        - zephyr_taaJitterNDC(frameCounter, viewWidth, viewHeight) * 0.5;
+    // M19: do NOT inject the projection jitter here. gbuffers add jitter to
+    // gl_Position in shader space, but gbufferPreviousProjection is Iris'
+    // UN-jittered matrix. Removing jitter on the way in without adding the
+    // previous frame's jitter back made prevUv = uv - jitter(frame) for a
+    // static camera: the history was resampled at a different sub-pixel
+    // offset every frame and could never converge -> persistent distant
+    // shimmer. Complementary / EuphoriaPatches / BSL reproject straight from
+    // texCoord (their TAAJitter(-0.5) is only for view-space reconstruction
+    // in the gbuffer FS, never in the TAA resolve). With a static camera the
+    // inverse/forward projection round trip is exact and prevUv == texCoord.
     vec4 view = gbufferProjectionInverse
-              * vec4(uvUnjittered * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+              * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     float w = abs(view.w) < 1e-5 ? 1e-5 : view.w;
     vec3 scenePos = (gbufferModelViewInverse * vec4(view.xyz / w, 1.0)).xyz;
     vec3 cameraOffset = cameraPosition - previousCameraPosition;
@@ -36,8 +43,22 @@ vec2 zephyr_reprojectTAA(vec2 uv, float depth) {
     return prev.xy / prev.w * 0.5 + 0.5;
 }
 
-// Clip the history sample into the 3x3 neighbourhood AABB (variance clipping
-// without any extra history buffers). Prevents ghosts at disocclusions.
+// M19: YCoCg keeps luminance and chroma separate while clipping the history.
+// In plain RGB a waving cutout leaf gets clamped channel-by-channel and leaves
+// rainbow speckle around every silhouette; BSL / photon / iterationT all do
+// their neighbourhood clamp in YCoCg (often with variance clipping).
+vec3 zephyr_rgb2ycocg(vec3 c) {
+    return vec3( 0.25 * c.r + 0.5 * c.g + 0.25 * c.b,
+                 0.5  * c.r             - 0.5  * c.b,
+                -0.25 * c.r + 0.5 * c.g - 0.25 * c.b);
+}
+vec3 zephyr_ycocg2rgb(vec3 c) {
+    float t = c.x - c.z;
+    return max(vec3(t + c.y, c.x + c.z, t - c.y), vec3(0.0));
+}
+
+// Clip the history sample into the 3x3 neighbourhood AABB. Prevents ghosts at
+// disocclusions. Called in YCoCg space (see zephyr_rgb2ycocg).
 vec3 zephyr_clipAABB(vec3 q, vec3 aabbMin, vec3 aabbMax) {
     vec3 centre = 0.5 * (aabbMax + aabbMin);
     vec3 extent = 0.5 * (aabbMax - aabbMin) + 1e-5;
@@ -57,8 +78,8 @@ void main() {
 // Debug views must not be blended with a history of the normal frame.
 #if TAA_ENABLED && DEBUG_VIEW == 0
     vec2 texel = 1.0 / vec2(viewWidth, viewHeight);
-    vec3 aabbMin = current;
-    vec3 aabbMax = current;
+    vec3 aabbMin = zephyr_rgb2ycocg(current);
+    vec3 aabbMax = aabbMin;
     float closestDepth = depth;
 
     for (int y = -TAA_NEIGHBOUR_CLAMP; y <= TAA_NEIGHBOUR_CLAMP; ++y) {
@@ -66,7 +87,8 @@ void main() {
             if (x == 0 && y == 0) continue;
             vec2 nuv = clamp(texCoord + vec2(float(x), float(y)) * texel,
                              vec2(0.0), vec2(1.0));
-            vec3 c = max(texture(colortex5, nuv).rgb, vec3(0.0));
+            vec3 c = zephyr_rgb2ycocg(
+                max(texture(colortex5, nuv).rgb, vec3(0.0)));
             aabbMin = min(aabbMin, c);
             aabbMax = max(aabbMax, c);
             // Non-linear depth: smaller = nearer. Use the nearest neighbour's
@@ -75,27 +97,38 @@ void main() {
         }
     }
 
-    // Reprojection must use the UN-jittered projection; we have no jitter yet,
-    // so the plain inverse is correct.
+    // M19: plain inverse is correct - jitter is a shader-side gl_Position
+    // offset and Iris' gbufferPreviousProjection never carries it (see above).
     vec2 prevUv = zephyr_reprojectTAA(texCoord, closestDepth);
     if (prevUv.x > 0.0 && prevUv.x < 1.0 && prevUv.y > 0.0 && prevUv.y < 1.0) {
         vec4 history = texture(colortex6, prevUv);
         debugHistory = history.rgb;
         vec3 historyColor = max(history.rgb, vec3(0.0));
 #if TAA_NEIGHBOUR_CLAMP
-        historyColor = zephyr_clipAABB(historyColor, aabbMin, aabbMax);
+        historyColor = zephyr_ycocg2rgb(zephyr_clipAABB(
+            zephyr_rgb2ycocg(historyColor), aabbMin, aabbMax));
 #endif
         float velocityPx = length(prevUv - texCoord) * max(viewWidth, viewHeight);
         float velocityWeight = exp2(-velocityPx * TAA_VELOCITY_REJECT);
-        float depthWeight = exp2(-abs(linearDepth - history.a) * TAA_DEPTH_REJECT);
+        // history.a is the depth at the previous frame's stored pixel. On a
+        // disocclusion (leaf edge against sky) it can be far away; an
+        // unclamped exp2 would drive blend to TAA_MIN_BLEND on exactly the
+        // high-contrast edges that need history most. Give it a floor.
+        float depthWeight = max(0.35,
+            exp2(-abs(linearDepth - history.a) * TAA_DEPTH_REJECT));
         // M18: distant high-contrast edges are exactly where sub-pixel jitter
         // shimmers. They also have very little screen-space parallax, so a
         // much stronger history weight is safe there (no visible ghosting),
         // while near geometry keeps the original, more responsive blend.
         float farBoost = smoothstep(TAA_FAR_START, TAA_FAR_END, linearDepth);
         float staticBlend = mix(TAA_BLEND, TAA_FAR_BLEND, farBoost);
-        float blend = clamp(staticBlend * velocityWeight * depthWeight,
-                            TAA_MIN_BLEND, staticBlend);
+        // M19: waving cutout foliage changes silhouette every frame; a long
+        // history stacks several leaf positions into coloured speckle. Shorten
+        // it on thin-surface pixels (Complementary's "Reduced Edge TAA").
+        float foliageWeight = mix(1.0, TAA_FOLIAGE_WEIGHT,
+                                  step(0.5, texture(colortex2, texCoord).a));
+        float blend = clamp(staticBlend * velocityWeight * depthWeight
+                            * foliageWeight, TAA_MIN_BLEND, staticBlend);
         result = mix(current, historyColor, blend);
     }
 #endif

@@ -33,16 +33,21 @@ void main() {
 #else
         vec3 wPos = (ZEPHYR_VIEW_INVERSE * gl_ModelViewMatrix
                     * vec4(zPosition, 1.0)).xyz + cameraPosition;
-        float t = frameTimeCounter * WAVE_SPEED;
+        // Both passes compute the same WORLD position so the phase stays in sync.
+        float camDist = length(wPos - cameraPosition);
+        // M19: distant foliage is sub-pixel, so a full-speed wave reads as
+        // per-frame flicker rather than motion. Slow the TIME frequency with
+        // distance instead of removing the wave: neighbouring frames then
+        // move less than a pixel and TAA can accumulate, while leaves still
+        // visibly sway. All five reference packs wave at every distance;
+        // unlike M18 we never fade the amplitude to zero.
+        float t = frameTimeCounter * WAVE_SPEED
+                * mix(1.0, WAVE_FAR_TIME_SCALE,
+                      smoothstep(WAVE_SLOW_START, WAVE_SLOW_END, camDist));
         float s1 = sin(wPos.x * 0.75 + wPos.z * 0.42 + t * 1.30);
         float s2 = sin(wPos.z * 1.10 - wPos.x * 0.28 + t * 0.85);
         float gust = 0.55 + 0.45 * sin(t * 0.31 + wPos.x * 0.07 + wPos.z * 0.05);
-        // Far foliage cannot show sub-pixel waving anyway, but its per-vertex
-        // motion makes distant tree crowns shimmer under TAA's sub-pixel
-        // jitter (measured: disabling waving cut far frame RMSE 4.94 -> 2.96).
-        // Fade the amplitude with camera distance; both passes compute the
-        // same WORLD position, so gbuffers and shadow stay in sync.
-        float camDist = length(wPos - cameraPosition);
+        // Optional amplitude fade, defaulted far outside the visible world.
         float distFade = 1.0 - smoothstep(WAVE_FADE_START, WAVE_FADE_END, camDist);
         float amp = WAVE_AMPLITUDE * (1.0 + 0.7 * rainStrength) * gust * distFade;
         float topMask = max(step(gl_MultiTexCoord0.t, mc_midTexCoord.t),

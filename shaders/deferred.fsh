@@ -79,9 +79,12 @@ vec3 zephyr_shadowTransmittance(vec3 viewPos, vec3 viewNormal, vec3 lightDirView
     float compareDepth = shadowCoord.z - SHADOW_BIAS * slope;
     float radius = texel * SHADOW_SOFTNESS;
 
-    // Vogel disk with a per-frame rotation; the existing TAA resolves the
-    // remaining sample noise into a smooth penumbra.
-    float dither = zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.71);
+    // Spatially fixed Vogel rotation. A frameCounter term re-rolls all six
+    // shadow taps every frame - a per-frame noise source TAA never fully
+    // converges on. AO and volumetric light already use fixed spatial jitter
+    // for exactly this reason; TAA's own sub-pixel projection jitter supplies
+    // the temporal sampling for the remaining penumbra noise.
+    float dither = zephyr_hash12(gl_FragCoord.xy);
     // Both maps must use the exact same taps: subtracting a single-tap sample
     // from a 6-tap PCF result would make every penumbra edge look like a
     // translucent caster and silently soften all shadows.
