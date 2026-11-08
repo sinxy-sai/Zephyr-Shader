@@ -39,12 +39,22 @@
 // M20: white / black stained glass and tinted glass are low-saturation
 // cases; without explicit density they read as clear air. Absorption is
 // applied per material ID in gbuffers_water before colour reaches colortex8.
-#define GLASS_MIN_ABSORB           0.10
-#define GLASS_WHITE_ABSORB         0.28
-#define GLASS_BLACK_ABSORB         0.45
-#define GLASS_TINTED_ABSORB        0.55
-// Neutral sky reflection for low-chroma panes (Complementary / Solas).
-#define GLASS_NEUTRAL_REFLECT      0.22
+// M23: the old values were too weak - the additive neutral reflection below
+// cancelled most of the subtractive tint, so white panes were still invisible.
+#define GLASS_MIN_ABSORB           0.16
+#define GLASS_WHITE_ABSORB         0.50
+#define GLASS_BLACK_ABSORB         0.55
+#define GLASS_TINTED_ABSORB        0.65
+// M23: keep only a small all-over reflection (it would otherwise erase the
+// tint again) and move the visible surface cue to the PANE EDGES, sampled
+// from colortex8 in buffer space so it stays TAA-stable (no dFdx).
+#define GLASS_NEUTRAL_REFLECT      0.06
+#define GLASS_EDGE_STRENGTH        1.80
+#define GLASS_EDGE_GAIN            6.0
+// M23: neutral frosted veil for colourless panes. An additive glow only made
+// them brighter (= still invisible); desaturating + gently darkening the
+// scene behind gives a readable surface without hiding the fog/silhouette.
+#define GLASS_NEUTRAL_VEIL         0.60
 
 // M22: dynamic held-item light (torch / lantern / glowstone ...). Iris reports
 // the held block-light level; treat it as a warm point light just above the
@@ -54,10 +64,15 @@
 #define HAND_LIGHT_RADIUS          9.00
 #define HAND_LIGHT_HEIGHT          0.60
 #define HAND_LIGHT_COLOR           vec3(1.00, 0.58, 0.26)
-// Held light sources also glow themselves (modest additive emission).
-#define HAND_EMISSIVE_GAIN         0.55
+// M23: a held torch must cross BLOOM_THRESHOLD to cast a halo, not merely
+// look a bit brighter. This is an HDR radiance gain, not an LDR colour tweak.
+#define HAND_EMISSIVE_GAIN         2.20
 // Coverage floor for a held translucent item in the colortex8 glass layer.
-#define HAND_GLASS_MIN_ALPHA       0.45
+// M23: 0.45 left tintWeight too low for white panes (0.675); 0.60 -> 0.90.
+#define HAND_GLASS_MIN_ALPHA       0.60
+// M23: HDR gain for world light sources tagged block.12000. Their linear
+// albedo is ~0.3..0.7, so this is what lifts them above BLOOM_THRESHOLD.
+#define EMISSIVE_BLOCK_GAIN        2.60
 
 #define FOLIAGE_TRANSLUCENCY      0.45
 #define AO_ENABLED                1
@@ -93,8 +108,19 @@
 #define SSR_THICKNESS             6.00
 #define SSR_STRENGTH              0.75
 
-#define BLOOM_STRENGTH            0.20
-#define BLOOM_THRESHOLD           1.05
+// M23: 1.05 excluded almost every in-world lamp (their lit albedo stays well
+// below 1 in linear HDR). Lower the knee so ALL light sources bloom; the sky
+// is masked separately in composite1.fsh so this does NOT wash out the frame.
+// Tagged emitters get an extra HDR lift from EMISSIVE_BLOCK_GAIN.
+#define BLOOM_STRENGTH            0.95
+#define BLOOM_THRESHOLD           0.70
+#define BLOOM_SKY_ATTENUATION     0.12
+// M23: generic light-source lift that does NOT depend on a block ID list. A
+// block's own lightmap block-light channel is ~1 only on the emitter and its
+// immediate neighbours, so a high power isolates emitters without lighting
+// every nearby wall. This lifts small lamps above the bloom mip threshold.
+#define EMISSIVE_LIGHTMAP_GAIN     2.20
+#define EMISSIVE_LIGHTMAP_POW      8.0
 #define BLOOM_RADIUS              1.00
 #define BLOOM_TAPS                 5
 #define BLOOM_KNEE                 0.50

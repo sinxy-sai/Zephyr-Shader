@@ -34,6 +34,13 @@ void main() {
     // glass is transparent.
     float glassA = clamp(max(c.a, HAND_GLASS_MIN_ALPHA), 0.0, 0.95);
     writeTranslucent(c, vLightCoord, MAT_TRANSLUCENT, 0.18, vNormal);
-    outGlass = vec4(zephyr_srgbToLinear(c.rgb) * (1.0 - GLASS_MIN_ABSORB),
+    // M23: held items have NO mc_Entity block ID, so the ID-based absorption
+    // of placed white / black / tinted glass cannot be used here. Infer the
+    // low-chroma case from the texture colour instead - otherwise a held
+    // white pane keeps GLASS_MIN_ABSORB and reads as clear air.
+    float chroma = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+    float lowChroma = 1.0 - smoothstep(0.04, 0.25, chroma);
+    float absorb = mix(GLASS_MIN_ABSORB, GLASS_WHITE_ABSORB, lowChroma);
+    outGlass = vec4(zephyr_srgbToLinear(c.rgb) * (1.0 - absorb),
                     glassA);
 }

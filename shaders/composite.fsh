@@ -221,9 +221,33 @@ void main() {
         float chroma = max(glassCol.r, max(glassCol.g, glassCol.b))
                      - min(glassCol.r, min(glassCol.g, glassCol.b));
         float neutral = 1.0 - smoothstep(0.04, 0.25, chroma);
+        // M23: buffer-space edge of the coverage mask. M17 removed a dFdx
+        // rim because screen derivatives re-roll with TAA jitter; sampling the
+        // G-buffer at fixed texel offsets is deterministic, so the highlight
+        // converges. A white pane has almost no chroma and nearly unit
+        // transmittance - the EDGE is what tells the eye a pane is there.
+        // M23: colortex8.a IS the pane coverage mask - >0 inside the held /
+        // placed pane, 0 outside. Its gradient traces the pane OUTLINE even
+        // when the glass texture itself is almost perfectly transparent
+        // (white stained glass). colortex0.a cannot do this: the blended alpha
+        // of a clear pane is ~0 both inside and outside the silhouette.
+        vec2 gtexel = 1.0 / vec2(viewWidth, viewHeight);
+        float eL = texture(colortex8, texCoord - vec2(gtexel.x, 0.0)).a;
+        float eR = texture(colortex8, texCoord + vec2(gtexel.x, 0.0)).a;
+        float eD = texture(colortex8, texCoord - vec2(0.0, gtexel.y)).a;
+        float eU = texture(colortex8, texCoord + vec2(0.0, gtexel.y)).a;
+        float edge = clamp((abs(eR - eL) + abs(eU - eD)) * GLASS_EDGE_GAIN,
+                           0.0, 1.0);
+        // M23: an all-over ADDITIVE reflection just made colourless panes
+        // brighter, which is still "invisible". A neutral frosted veil gives
+        // them a readable surface: desaturate + gently darken what is behind,
+        // then keep the cool specular only at the rim / pane edges.
+        float veil = neutral * glassA * GLASS_NEUTRAL_VEIL;
+        color = mix(color, vec3(zephyr_luma(color)) * 0.62, veil);
         color += vec3(0.62, 0.75, 0.95) * zephyr_luma(color)
                * glassA * (fresnel * GLASS_RIM_STRENGTH
-                           + neutral * GLASS_NEUTRAL_REFLECT);
+                           + neutral * (GLASS_NEUTRAL_REFLECT
+                                        + edge * GLASS_EDGE_STRENGTH));
     }
 
     if (depth < 0.9999) {

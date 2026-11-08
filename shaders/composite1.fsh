@@ -25,7 +25,10 @@ void main() {
     float knee = BLOOM_THRESHOLD * BLOOM_KNEE;
     for (int i = 0; i < BLOOM_TAPS; ++i) {
         float fi = float(i);
-        float lod = 2.0 + fi * 1.5 * BLOOM_RADIUS;
+        // M23: start at lod 0. Previously the first tap was lod 2 (a 4x4
+        // average), which diluted small lamps / torches below the threshold
+        // before they could ever bloom. Higher taps still supply the wide haze.
+        float lod = fi * 1.5 * BLOOM_RADIUS;
         vec3 c = max(textureLod(colortex3, texCoord, lod).rgb, vec3(0.0));
         float b = max(zephyr_luma(c), 1e-4);
         float soft = clamp(b - BLOOM_THRESHOLD + knee, 0.0, 2.0 * knee);
@@ -36,8 +39,15 @@ void main() {
         weightSum += w;
     }
     bloom /= max(weightSum, 1e-4);
+    // M23: "every light source should bloom" means a LOW threshold, but the
+    // sky is also bright in linear HDR - without a mask it turns the whole
+    // frame into a white sheet (measured hi>200 3.5% -> 10.2%). Suppress the
+    // additive bloom on sky pixels only; mip samples still spread a little
+    // light around silhouettes, which is exactly the wanted halo.
+    float depthRaw = texture(depthtex0, texCoord).r;
+    float skyMask = smoothstep(0.9990, 0.99995, depthRaw);
     // Rain makes emissive signage and lamps bloom into the wet haze.
-    color += bloom * BLOOM_STRENGTH
+    color += bloom * BLOOM_STRENGTH * mix(1.0, BLOOM_SKY_ATTENUATION, skyMask)
            * (1.0 + clamp(rainStrength, 0.0, 1.0) * RAIN_BLOOM_BOOST);
 
 #if VL_ENABLED

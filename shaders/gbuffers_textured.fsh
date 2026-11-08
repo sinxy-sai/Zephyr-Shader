@@ -23,10 +23,16 @@ in vec2 vTexCoord;
 in vec2 vLightCoord;
 in vec4 vColor;
 in vec3 vNormal;
+flat in float zBlockId;
 
 void main() {
     outVelocity = vec4(vWaveVelocity, 0.0, 1.0);
     vec2 zUv = zephyr_parallaxUV(gtexture, vTexCoord, vNormal, vTexCoordAM);
     vec4 c = texture(gtexture, zUv) * vColor;
-    writeSolid(c, vLightCoord, MAT_SOLID, 0.55, zephyr_parallaxNormal(gtexture, zUv, vNormal));
+    // M23: light emitters get HDR radiance so the bloom pass can pick them up.
+    if (zBlockId > 11999.5 && zBlockId < 12000.5) {
+        writeEmissive(c, EMISSIVE_BLOCK_GAIN);
+    } else {
+        writeSolid(c, vLightCoord, MAT_SOLID, 0.55, zephyr_parallaxNormal(gtexture, zUv, vNormal));
+    }
 }

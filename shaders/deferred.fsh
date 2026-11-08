@@ -412,5 +412,15 @@ void main() {
     // unreliable (colortex1.a is not trustworthy on translucent pixels) and
     // double-processed the colour, so it was removed.
 
+    // M23: promote every light source into HDR so the bloom pass can halo it,
+    // without depending on a per-block ID table. A block's own lightmap
+    // block-light channel is ~1 only on the emitter (and its immediate
+    // neighbours); a high power keeps that tight instead of lighting walls.
+    // Sky pixels are excluded - they have no meaningful block light.
+    if (depth < 0.9999) {
+        color += albedo * pow(blockLight, EMISSIVE_LIGHTMAP_POW)
+               * EMISSIVE_LIGHTMAP_GAIN;
+    }
+
     outColor = vec4(clamp(color, 0.0, 65504.0), 1.0);
 }
