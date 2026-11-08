@@ -11,6 +11,7 @@ uniform sampler2D colortex3;
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 uniform sampler2D colortex2;
+uniform sampler2D colortex8;   // M17: dedicated stained-glass layer
 uniform sampler2D depthtex0;
 
 /* RENDERTARGETS: 4 */
@@ -188,6 +189,33 @@ void main() {
         }
     }
 #endif
+
+    // M17: stained glass is composited HERE - after clouds/SSR but BEFORE fog
+    // and BEFORE composite2's TAA. Doing it in final.fsh skipped the
+    // atmosphere (glass looked sharp/haze-free next to the hazy city) and
+    // skipped the temporal filter (far glass edges shimmered). colortex8 is a
+    // dedicated layer only gbuffers_water writes, so rain cannot erase it.
+    vec4 glassLayer = texture(colortex8, texCoord);
+    float glassA = glassLayer.a;
+    if (glassA > 0.01 && glassA < 0.999) {
+        vec3 glassCol = max(glassLayer.rgb, vec3(0.0));
+        float peak = max(glassCol.r, max(glassCol.g, glassCol.b));
+        vec3 transmittance = mix(vec3(1.0),
+                                 clamp(glassCol / max(peak, 1e-4), 0.0, 1.0),
+                                 GLASS_ABSORPTION);
+        // Fog now runs AFTER this stage and washes part of the tint away, so
+        // allow the strength to exceed 1 and clamp the mix weight. Only the
+        // weight is clamped: transmittance itself is <= 1 per channel, so the
+        // filter still only ATTENUATES light and can never clip highlights.
+        float tintWeight = clamp(glassA * TRANSLUCENT_TINT_STRENGTH, 0.0, 1.0);
+        color *= mix(vec3(1.0), transmittance, tintWeight);
+
+        // Fresnel rim, no screen-space derivatives (TAA-safe).
+        vec3 glassN = zephyr_decodeNormal(texture(colortex2, texCoord).rgb);
+        float fresnel = pow(1.0 - clamp(abs(glassN.z), 0.0, 1.0), 3.0);
+        color += vec3(0.62, 0.75, 0.95) * zephyr_luma(color)
+               * fresnel * glassA * GLASS_RIM_STRENGTH;
+    }
 
     if (depth < 0.9999) {
         vec3 worldPos = cameraPosition + rd * dist;

@@ -23,6 +23,10 @@ const int colortex5Format = RGBA16F;
 // never be cleared and must NOT have a flip. entry in shaders.properties.
 const int colortex6Format = RGBA16F;
 const int colortex7Format = RGBA16F;
+// M17: dedicated stained-glass layer (linear glass colour in .rgb, coverage
+// mask in .a). Only gbuffers_water writes it, so rain / weather can never
+// overwrite the mask - that was why glass vanished during thunderstorms.
+const int colortex8Format = RGBA16F;
 const bool colortex6Clear = false;
 
 const bool colortex3MipmapEnabled = true;

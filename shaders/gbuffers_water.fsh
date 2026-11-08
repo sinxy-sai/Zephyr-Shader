@@ -5,10 +5,11 @@
 #include "/lib/uniforms.glsl"
 #include "/lib/common.glsl"
 
-/* RENDERTARGETS: 0,1,2 */
+/* RENDERTARGETS: 0,1,2,8 */
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outData;
 layout(location = 2) out vec4 outNormal;
+layout(location = 3) out vec4 outGlass;
 
 #include "/lib/gbuffer_body.glsl"
 
@@ -30,8 +31,11 @@ void main() {
     bool isWater = (zBlockId > 10999.5 && zBlockId < 11000.5);
     float matId = isWater ? MAT_WATER : MAT_TRANSLUCENT;
     float rough = isWater ? 0.06 : 0.18;
-    // Real alpha goes to colortex0.a and Iris blends it there; glass keeps a
-    // small floor so its tint survives the transparent centre of the texture.
+    float glassA = isWater ? 0.0
+                 : clamp(max(c.a, TRANSLUCENT_MIN_ALPHA), 0.0, 0.95);
+    // Real alpha goes to colortex0.a and Iris blends it there; the dedicated
+    // glass layer keeps the PURE glass colour plus a rain-proof coverage mask.
     writeBlended(c, vLightCoord, matId, rough, vNormal,
                  isWater ? 0.0 : TRANSLUCENT_MIN_ALPHA);
+    outGlass = vec4(zephyr_srgbToLinear(c.rgb), glassA);
 }

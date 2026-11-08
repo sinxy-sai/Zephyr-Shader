@@ -59,37 +59,10 @@ void main() {
     return;
 #endif
 
-    // M15: stained glass is a SUBTRACTIVE filter, not a hue multiplier.
-    // colortex0.a is the glass mask (0 = sky clear, 1 = opaque, in between =
-    // glass); colortex0.rgb is the alpha-blended glass + background albedo.
-    // M14 divided it by luma and let the tint reach 6.0, which amplified one
-    // channel, clipped highlights and repainted the whole background with a
-    // flat colour - the pane read as a sheet of coloured paper glued on top.
-    // Normalising by the PEAK channel keeps every component <= 1, so the
-    // glass only absorbs light: the background keeps its own colour
-    // gradations, luminance drops naturally, and AgX grades it with the rest
-    // of the frame instead of fighting a pre-graded flat hue.
-    float glassA = texture(colortex0, texCoord).a;
-    if (glassA > 0.01 && glassA < 0.999) {
-        vec3 blended = max(texture(colortex0, texCoord).rgb, vec3(0.0));
-        float peak = max(blended.r, max(blended.g, blended.b));
-        vec3 transmittance = mix(vec3(1.0),
-                                 clamp(blended / max(peak, 1e-4), 0.0, 1.0),
-                                 GLASS_ABSORPTION);
-        hdr *= mix(vec3(1.0), transmittance,
-                   glassA * TRANSLUCENT_TINT_STRENGTH);
-
-        // Glass has a SURFACE. Its texture borders and grazing angles pick up
-        // a cool sky reflection; that is what gives the pane presence without
-        // painting a flat colour rectangle over the whole background.
-        float edge = clamp(length(vec2(dFdx(glassA), dFdy(glassA))) * 18.0,
-                           0.0, 1.0);
-        vec3 glassN = zephyr_decodeNormal(texture(colortex2, texCoord).rgb);
-        float fresnel = pow(1.0 - clamp(abs(glassN.z), 0.0, 1.0), 3.0);
-        float rim = clamp(edge * 0.7 + fresnel * 0.5, 0.0, 1.0);
-        hdr += vec3(0.62, 0.75, 0.95) * zephyr_luma(hdr)
-             * rim * GLASS_RIM_STRENGTH;
-    }
+    // M17: stained-glass compositing moved to composite.fsh, BEFORE the fog
+    // and BEFORE composite2's TAA. Doing it here skipped the atmosphere (the
+    // view through the pane had no haze) and skipped temporal filtering (far
+    // glass edges shimmered). See composite.fsh / colortex8.
 
     float averageLuma = max(zephyr_luma(textureLod(colortex3, vec2(0.5), 12.0).rgb), 1e-4);
     float autoEv = clamp(log2(EXPOSURE_TARGET / averageLuma), -2.0, 2.0);
