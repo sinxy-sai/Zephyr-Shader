@@ -58,7 +58,13 @@ void main() {
     // No constant phase floor: away from the sun there must be no wash-out.
     float phase = pow(muVL, 2.0);
 
-    float jitter = zephyr_hash12(gl_FragCoord.xy + float(frameCounter) * 0.71);
+    // Spatially varying but TEMPORALLY FIXED raymarch offset. hash12 with a
+    // frameCounter term (or any per-frame phase) re-rolls every step each
+    // frame, so the shafts never converge and the bright far edges shimmer.
+    // TAA's own sub-pixel projection jitter already supplies temporal
+    // sampling; keeping this offset static lets the history actually
+    // accumulate while the spatial hash hides the raymarch banding.
+    float jitter = zephyr_hash12(gl_FragCoord.xy);
     float stepLen = sceneDist / float(VL_STEPS);
     float weight = 1.0;
     float shafts = 0.0;

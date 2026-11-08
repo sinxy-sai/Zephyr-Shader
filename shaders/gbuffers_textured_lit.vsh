@@ -37,7 +37,14 @@ void main() {
         float s1 = sin(wPos.x * 0.75 + wPos.z * 0.42 + t * 1.30);
         float s2 = sin(wPos.z * 1.10 - wPos.x * 0.28 + t * 0.85);
         float gust = 0.55 + 0.45 * sin(t * 0.31 + wPos.x * 0.07 + wPos.z * 0.05);
-        float amp = WAVE_AMPLITUDE * (1.0 + 0.7 * rainStrength) * gust;
+        // Far foliage cannot show sub-pixel waving anyway, but its per-vertex
+        // motion makes distant tree crowns shimmer under TAA's sub-pixel
+        // jitter (measured: disabling waving cut far frame RMSE 4.94 -> 2.96).
+        // Fade the amplitude with camera distance; both passes compute the
+        // same WORLD position, so gbuffers and shadow stay in sync.
+        float camDist = length(wPos - cameraPosition);
+        float distFade = 1.0 - smoothstep(WAVE_FADE_START, WAVE_FADE_END, camDist);
+        float amp = WAVE_AMPLITUDE * (1.0 + 0.7 * rainStrength) * gust * distFade;
         float topMask = max(step(gl_MultiTexCoord0.t, mc_midTexCoord.t),
                             step(0.26, fract(wPos.y + 0.21)));
         float mask = zBlock >= 10003.0 ? 0.55 : topMask;

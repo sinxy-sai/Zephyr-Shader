@@ -106,14 +106,27 @@
 
 // TAA (composite2, linear HDR before tonemap).
 #define TAA_ENABLED                1
+// Near-field history weight. Velocity/depth rejection drops it when the
+// camera moves so the M8 "fast turn ghosting" stays under control.
+// M18: raising the GLOBAL blend made the weight itself oscillate with the
+// jitter phase; instead composite2 ramps the weight up with linear depth.
 #define TAA_BLEND                  0.82
 #define TAA_VELOCITY_REJECT        0.010
+// Far geometry has almost no screen-space parallax, so it can keep ~97% of
+// history and converge on high-contrast edges without visible ghosting.
+#define TAA_FAR_START              24.0
+#define TAA_FAR_END                96.0
+#define TAA_FAR_BLEND              0.97
 #define TAA_DEPTH_REJECT           0.60
 #define TAA_NEIGHBOUR_CLAMP        1
 #define TAA_MIN_BLEND              0.05
 #define TAA_DEBUG_HISTORY          0
 #define TAA_JITTER_ENABLED         1
 #define TAA_JITTER_PHASES         16
+// M18: full +/-1px jitter makes distant high-contrast edges jump a whole
+// pixel between frames. 0.6px keeps most of the supersampling while cutting
+// the per-frame excursion; reprojection uses the same helper so stays in sync.
+#define TAA_JITTER_SCALE           0.60
 
 // Halton(2,3) sub-pixel jitter. Uniforms are passed in explicitly so this
 // header stays independent of uniform declaration order (config -> settings
@@ -135,7 +148,7 @@ vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
 #if TAA_JITTER_ENABLED
     int phase = frame - (frame / TAA_JITTER_PHASES) * TAA_JITTER_PHASES + 1;
     vec2 h = vec2(zephyr_halton(phase, 2), zephyr_halton(phase, 3)) - 0.5;
-    return h * (2.0 / vec2(width, height));
+    return h * (2.0 / vec2(width, height)) * TAA_JITTER_SCALE;
 #else
     return vec2(0.0);
 #endif
@@ -184,6 +197,10 @@ vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
 #define WAVE_ENABLED               1
 #define WAVE_SPEED                 1.30
 #define WAVE_AMPLITUDE             0.055
+// M18: fade waving out with camera distance. Beyond WAVE_FADE_END the leaves
+// are sub-pixel under TAA jitter, so moving them only creates shimmer.
+#define WAVE_FADE_START            4.0
+#define WAVE_FADE_END              22.0
 // 1 = lift every ID-matched vertex by one block, to verify the ID map end to
 // end without relying on the (small) wind amplitude. Keep 0 for normal play.
 #define WAVE_DEBUG_LIFT            0

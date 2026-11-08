@@ -88,8 +88,14 @@ void main() {
         float velocityPx = length(prevUv - texCoord) * max(viewWidth, viewHeight);
         float velocityWeight = exp2(-velocityPx * TAA_VELOCITY_REJECT);
         float depthWeight = exp2(-abs(linearDepth - history.a) * TAA_DEPTH_REJECT);
-        float blend = clamp(TAA_BLEND * velocityWeight * depthWeight,
-                            TAA_MIN_BLEND, TAA_BLEND);
+        // M18: distant high-contrast edges are exactly where sub-pixel jitter
+        // shimmers. They also have very little screen-space parallax, so a
+        // much stronger history weight is safe there (no visible ghosting),
+        // while near geometry keeps the original, more responsive blend.
+        float farBoost = smoothstep(TAA_FAR_START, TAA_FAR_END, linearDepth);
+        float staticBlend = mix(TAA_BLEND, TAA_FAR_BLEND, farBoost);
+        float blend = clamp(staticBlend * velocityWeight * depthWeight,
+                            TAA_MIN_BLEND, staticBlend);
         result = mix(current, historyColor, blend);
     }
 #endif
