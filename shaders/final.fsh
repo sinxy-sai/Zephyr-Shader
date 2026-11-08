@@ -43,12 +43,36 @@ void main() {
     outColor = vec4(clamp(vec3(sunAngle, 0.5 + 0.5 * dbgSun.y,
                                0.5 + 0.5 * dbgLight.y), 0.0, 1.0), 1.0);
     return;
+#elif DEBUG_VIEW == 9
+    // deferred output (colortex3), before composite / fog / bloom / TAA.
+    outColor = vec4(zephyr_linearToSrgb(clamp(texture(colortex3, texCoord).rgb, 0.0, 1.0)), 1.0);
+    return;
+#elif DEBUG_VIEW == 10
+    // translucent mask from colortex1.a (green = water / glass / ice).
+    float zM = texture(colortex1, texCoord).a;
+    outColor = vec4(0.0, float(zM > 0.5 && zM < 2.95), 0.0, 1.0);
+    return;
 #endif
 
 #if DEBUG_FINAL
     outColor = vec4(clamp(hdr, 0.0, 1.0), 1.0);
     return;
 #endif
+
+    // M14: restore the translucent layer in the final composite.
+    // gbuffers_water alpha-blends glass into colortex0.rgb and keeps its
+    // per-pixel alpha in colortex0.a (opaque = 1.0, sky clear = 0.0).
+    // deferred/composite shade that blended albedo but wash the hue out, so
+    // glass reads as "invisible with a shadow" while still blocking god rays.
+    // Re-tint the HDR with the blended albedo's HUE (luminance preserved, so
+    // the background detail still shows through) before tonemapping.
+    float glassA = texture(colortex0, texCoord).a;
+    if (glassA > 0.01 && glassA < 0.999) {
+        vec3 blended = max(texture(colortex0, texCoord).rgb, vec3(0.0));
+        vec3 tint = blended / max(zephyr_luma(blended), 1e-4);
+        hdr *= mix(vec3(1.0), clamp(tint, 0.0, 6.0),
+                   glassA * TRANSLUCENT_TINT_STRENGTH);
+    }
 
     float averageLuma = max(zephyr_luma(textureLod(colortex3, vec2(0.5), 12.0).rgb), 1e-4);
     float autoEv = clamp(log2(EXPOSURE_TARGET / averageLuma), -2.0, 2.0);

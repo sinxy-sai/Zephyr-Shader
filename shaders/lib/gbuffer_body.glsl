@@ -75,8 +75,10 @@ void writeTranslucent(vec4 c, vec2 lm, float matId, float roughness, vec3 n) {
 // visible tint even where the vanilla texture is completely transparent.
 void writeBlended(vec4 c, vec2 lm, float matId, float roughness, vec3 n,
                   float minAlpha) {
+    // Cap below 1.0: colortex0.a doubles as the glass mask, and 1.0 means
+    // "opaque / no glass" to the final pass.
     outAlbedo = vec4(zephyr_srgbToLinear(c.rgb),
-                     clamp(max(c.a, minAlpha), 0.0, 1.0));
+                     clamp(max(c.a, minAlpha), 0.0, 0.95));
     outData   = vec4(clamp(lm, 0.0, 1.0), clamp(roughness, 0.03, 1.0), matId);
     outNormal = vec4(zephyr_encodeNormal(n), 0.0);
 }
