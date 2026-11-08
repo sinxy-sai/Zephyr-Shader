@@ -219,10 +219,10 @@ vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
 #define WAVE_SPEED                 1.30
 #define WAVE_AMPLITUDE             0.0375
 // M20: rain multiplies the clear-sky amplitude by (1 + WAVE_RAIN_BOOST).
-// M21: 1.00 -> 1.50, so a full storm sways at 2.5x the clear-sky amplitude
-// (1.25x the M20 rain value). Clear weather is untouched (rainStrength=0).
+// M21: a full storm sways at (1 + 1.25) = 2.25x the clear-sky amplitude.
+// Clear weather is untouched (rainStrength=0).
 // Verified in-game with a 20.0 probe: foliage silhouette visibly changes.
-#define WAVE_RAIN_BOOST            1.50
+#define WAVE_RAIN_BOOST            1.25
 // Iris does not reliably expose frameTime to gbuffer programs; when it reads 0
 // the previous-frame wave phase would equal the current one and the velocity
 // would silently be zero. Fall back to a nominal 60 Hz step.
