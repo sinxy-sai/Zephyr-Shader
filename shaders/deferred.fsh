@@ -251,7 +251,13 @@ void main() {
         vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
         vec3 Nw = normalize(mat3(gbufferModelViewInverse) * viewNormal);
         float isWater = (matId > 0.5 && matId < 1.5) ? 1.0 : 0.0;
-        float puddle = zephyr_puddleMask(worldPos, Nw, skyLight, rain) * (1.0 - isWater);
+        // M22: MAT_HAND marks first-person geometry. Iris renders it with its
+        // OWN modelview/projection, so worldPos / Nw reconstructed from the
+        // scene matrices are not meaningful for it. Give it a dedicated path
+        // instead of letting it inherit bogus shadows, puddles and SSAO.
+        float isHand = (matId > 2.5 && matId < 3.5) ? 1.0 : 0.0;
+        float puddle = zephyr_puddleMask(worldPos, Nw, skyLight, rain)
+                     * (1.0 - isWater) * (1.0 - isHand);
 
         // Rain ripples slightly tilt the shading normal inside puddles.
         float weatherTime = frameTimeCounter;
@@ -273,6 +279,10 @@ void main() {
         float nightAmount = 1.0 - dayAmount;
         shadowTrans = mix(vec3(1.0), shadowTrans,
                           mix(NIGHT_SHADOW_MIN, 1.0, dayAmount));
+        // M22: held geometry has no valid shadow-space position; projecting it
+        // into the scene shadowmap produced random dark patches. It is lit by
+        // the sun term plus the dynamic held light instead.
+        shadowTrans = mix(shadowTrans, vec3(1.0), isHand);
 
         float warm = zephyr_warmMix(sunDirWorld.y);
         vec3 sunNoon = vec3(1.15, 1.05, 0.92);
@@ -313,6 +323,33 @@ void main() {
         vec3 direct = (diffuse + specular) * sunRadiance * NoL * shadowTrans;
 
         vec3 indirect = albedo * (skyAmbient * (0.30 + 0.70 * skyLight) + blockRadiance);
+
+#if HAND_LIGHT_ENABLED
+        // M22: dynamic held-item light. Iris exposes the held block-light level
+        // (0..15) for both hands; the max acts as a warm point light just above
+        // the camera (Complementary / BSL use the same uniform). Added here in
+        // deferred so it flows through fog, bloom, TAA and the tonemapper.
+        float heldLight = max(float(heldBlockLightValue),
+                              float(heldBlockLightValue2));
+        if (heldLight > 0.0) {
+            vec3 toLight = cameraPosition
+                         + vec3(0.0, HAND_LIGHT_HEIGHT, 0.0) - worldPos;
+            // Held geometry's world position is unreliable (see isHand), so
+            // give it a fixed near distance and use view-space normals.
+            float d2 = mix(dot(toLight, toLight), 0.25, isHand);
+            float r2 = HAND_LIGHT_RADIUS * HAND_LIGHT_RADIUS;
+            float atten = 1.0 / (1.0 + d2 / r2);
+            atten *= atten;
+            float NoLh = isHand > 0.5
+                       ? max(dot(viewNormal, V), 0.0)
+                       : max(dot(Nw, normalize(toLight + vec3(0.0, 0.001, 0.0))), 0.0);
+            vec3 heldRadiance = HAND_LIGHT_COLOR
+                              * clamp(heldLight / 15.0, 0.0, 1.0)
+                              * HAND_LIGHT_INTENSITY * atten
+                              * (0.40 + 0.60 * NoLh);
+            indirect += albedo * heldRadiance;
+        }
+#endif
 
 #if LIGHTNING_ENABLED
         float bolt = zephyr_lightning();
@@ -356,6 +393,9 @@ void main() {
             // Contact AO still exists at night but must not double-darken
             // geometry that is already only lit by weak ambient light.
             ao = mix(ao, 1.0, nightAmount * NIGHT_AO_RELAX);
+            // M22: SSAO samples a depth neighbourhood that is invalid for the
+            // separately-projected first-person geometry.
+            ao = mix(ao, 1.0, isHand);
             color = direct * mix(1.0, ao, 0.35) + indirect * ao;
 #else
             color = direct + indirect;

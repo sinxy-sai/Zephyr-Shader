@@ -46,8 +46,8 @@ void main() {
         float tPrev = (frameTimeCounter - dt) * WAVE_SPEED * timeScale;
         // Optional amplitude fade, defaulted far outside the visible world.
         float distFade = 1.0 - smoothstep(WAVE_FADE_START, WAVE_FADE_END, camDist);
-        // M20: clear-sky amplitude is 1.5x the M19 value; rain adds a further
-        // WAVE_RAIN_BOOST * rainStrength on top of that.
+        // M22: WAVE_AMPLITUDE is the clear-sky base (user-tuned 0.08 = 3.2x
+        // the M19 value of 0.025); rain scales it by (1 + boost * rainStrength).
         float baseAmp = WAVE_AMPLITUDE * (1.0 + WAVE_RAIN_BOOST * rainStrength)
                       * distFade;
         float topMask = max(step(gl_MultiTexCoord0.t, mc_midTexCoord.t),

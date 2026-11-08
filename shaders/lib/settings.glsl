@@ -46,6 +46,19 @@
 // Neutral sky reflection for low-chroma panes (Complementary / Solas).
 #define GLASS_NEUTRAL_REFLECT      0.22
 
+// M22: dynamic held-item light (torch / lantern / glowstone ...). Iris reports
+// the held block-light level; treat it as a warm point light just above the
+// camera so nearby geometry AND the player's hand are lit by it.
+#define HAND_LIGHT_ENABLED         1
+#define HAND_LIGHT_INTENSITY       2.20
+#define HAND_LIGHT_RADIUS          9.00
+#define HAND_LIGHT_HEIGHT          0.60
+#define HAND_LIGHT_COLOR           vec3(1.00, 0.58, 0.26)
+// Held light sources also glow themselves (modest additive emission).
+#define HAND_EMISSIVE_GAIN         0.55
+// Coverage floor for a held translucent item in the colortex8 glass layer.
+#define HAND_GLASS_MIN_ALPHA       0.45
+
 #define FOLIAGE_TRANSLUCENCY      0.45
 #define AO_ENABLED                1
 #define AO_STRENGTH               0.35

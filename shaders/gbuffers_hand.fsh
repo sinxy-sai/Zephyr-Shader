@@ -26,4 +26,9 @@ void main() {
     outVelocity = vec4(vWaveVelocity, 0.0, 1.0);
     vec4 c = texture(gtexture, vTexCoord) * vColor;
     writeSolid(c, vLightCoord, MAT_HAND, 0.5, vNormal);
+    // M22: a held light source (torch, lantern) glows itself as well as
+    // lighting the scene. Additive and modest so bloom/AgX keep it readable.
+    float held = max(float(heldBlockLightValue), float(heldBlockLightValue2));
+    outAlbedo.rgb += zephyr_srgbToLinear(c.rgb)
+                   * clamp(held / 15.0, 0.0, 1.0) * HAND_EMISSIVE_GAIN;
 }

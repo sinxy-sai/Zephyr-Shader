@@ -42,3 +42,9 @@ uniform float far;
 uniform int frameCounter;
 uniform int isEyeInWater;
 uniform int moonPhase;
+// M22: Iris reports the block-light level (0..15) of the item held in the main
+// and off hand. Zero for non-emitting items. Complementary / BSL rely on these
+// for dynamic held lighting under Iris 1.8.x; also available in fullscreen
+// passes, which is where Zephyr's deferred lighting consumes them.
+uniform int heldBlockLightValue;
+uniform int heldBlockLightValue2;
