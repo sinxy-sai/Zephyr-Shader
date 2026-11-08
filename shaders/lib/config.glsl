@@ -27,6 +27,10 @@ const int colortex7Format = RGBA16F;
 // mask in .a). Only gbuffers_water writes it, so rain / weather can never
 // overwrite the mask - that was why glass vanished during thunderstorms.
 const int colortex8Format = RGBA16F;
+// M20: per-pixel UV-space velocity of the ANIMATED part of geometry (foliage
+// waving). Cleared to 0 for static geometry. Only gbuffers write it;
+// composite2 subtracts it from the reprojected history UV.
+const int colortex9Format = RG16F;
 const bool colortex6Clear = false;
 
 const bool colortex3MipmapEnabled = true;

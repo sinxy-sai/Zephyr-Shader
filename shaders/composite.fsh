@@ -198,11 +198,13 @@ void main() {
     vec4 glassLayer = texture(colortex8, texCoord);
     float glassA = glassLayer.a;
     if (glassA > 0.01 && glassA < 0.999) {
-        vec3 glassCol = max(glassLayer.rgb, vec3(0.0));
-        float peak = max(glassCol.r, max(glassCol.g, glassCol.b));
-        vec3 transmittance = mix(vec3(1.0),
-                                 clamp(glassCol / max(peak, 1e-4), 0.0, 1.0),
-                                 GLASS_ABSORPTION);
+        // M20: use the texture colour AS the transmittance (already
+        // [0,1] after sRGB->linear). M17 divided by the peak channel to
+        // keep only the hue, which erased DENSITY: white / black / tinted
+        // glass all became (1,1,1) and looked like clear air. Every
+        // reference pack uses the colour directly. Still only attenuates.
+        vec3 glassCol = clamp(glassLayer.rgb, 0.0, 1.0);
+        vec3 transmittance = mix(vec3(1.0), glassCol, GLASS_ABSORPTION);
         // Fog now runs AFTER this stage and washes part of the tint away, so
         // allow the strength to exceed 1 and clamp the mix weight. Only the
         // weight is clamped: transmittance itself is <= 1 per channel, so the
@@ -213,8 +215,15 @@ void main() {
         // Fresnel rim, no screen-space derivatives (TAA-safe).
         vec3 glassN = zephyr_decodeNormal(texture(colortex2, texCoord).rgb);
         float fresnel = pow(1.0 - clamp(abs(glassN.z), 0.0, 1.0), 3.0);
+        // M20: colourless / low-chroma panes need a visible SURFACE even
+        // when their transmittance is near 1 (Complementary: min alpha
+        // 0.25 + Fresnel). Add neutral sky-tinted reflection by chroma.
+        float chroma = max(glassCol.r, max(glassCol.g, glassCol.b))
+                     - min(glassCol.r, min(glassCol.g, glassCol.b));
+        float neutral = 1.0 - smoothstep(0.04, 0.25, chroma);
         color += vec3(0.62, 0.75, 0.95) * zephyr_luma(color)
-               * fresnel * glassA * GLASS_RIM_STRENGTH;
+               * glassA * (fresnel * GLASS_RIM_STRENGTH
+                           + neutral * GLASS_NEUTRAL_REFLECT);
     }
 
     if (depth < 0.9999) {

@@ -36,6 +36,15 @@
 #define GLASS_ABSORPTION           0.95
 // Cool Fresnel reflection on grazing glass surfaces (no dFdx: TAA-safe).
 #define GLASS_RIM_STRENGTH         0.30
+// M20: white / black stained glass and tinted glass are low-saturation
+// cases; without explicit density they read as clear air. Absorption is
+// applied per material ID in gbuffers_water before colour reaches colortex8.
+#define GLASS_MIN_ABSORB           0.10
+#define GLASS_WHITE_ABSORB         0.28
+#define GLASS_BLACK_ABSORB         0.45
+#define GLASS_TINTED_ABSORB        0.55
+// Neutral sky reflection for low-chroma panes (Complementary / Solas).
+#define GLASS_NEUTRAL_REFLECT      0.22
 
 #define FOLIAGE_TRANSLUCENCY      0.45
 #define AO_ENABLED                1
@@ -123,6 +132,9 @@
 // history - exactly on distant high-contrast edges. Complementary's
 // blendMinimum is 0.35; keep at least that much history at all times.
 #define TAA_MIN_BLEND              0.35
+// M20: subtract animated-geometry velocity from the reprojected history UV.
+// 0 reverts to pure depth reprojection (A/B switch).
+#define TAA_WAVE_VELOCITY          1
 // M19: cutout foliage is animated, so a long history stacks several instants
 // of the leaves and shows up as coloured speckle. Complementary uses a
 // "Reduced Edge TAA" material for exactly this; we shorten the history on
@@ -205,7 +217,13 @@ vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
 // M11 vertex waving for plants / leaves (category IDs come from block.properties)
 #define WAVE_ENABLED               1
 #define WAVE_SPEED                 1.30
-#define WAVE_AMPLITUDE             0.025
+#define WAVE_AMPLITUDE             0.0375
+// M20: rain multiplies the clear-sky amplitude by (1 + WAVE_RAIN_BOOST).
+#define WAVE_RAIN_BOOST            1.00
+// Iris does not reliably expose frameTime to gbuffer programs; when it reads 0
+// the previous-frame wave phase would equal the current one and the velocity
+// would silently be zero. Fall back to a nominal 60 Hz step.
+#define WAVE_FRAME_DT              0.016667
 // M19: distant leaves are sub-pixel; slow their TIME frequency instead of
 // fading the wave out, so TAA can accumulate while sway stays visible.
 #define WAVE_SLOW_START            32.0

@@ -9,7 +9,7 @@ in vec2 texCoord;
 
 uniform sampler2D colortex5;   // current frame linear HDR (composite1 output)
 uniform sampler2D colortex6;   // TAA history; same pass reads AND writes it
-uniform sampler2D colortex2;   // M19: thin-surface flag in .a (cutout foliage)
+uniform sampler2D colortex9;   // M20: animated-geometry velocity (RG16F)
 uniform sampler2D depthtex0;
 
 // Iris gives a feedback attachment an implicit ping-pong pair, so reading and
@@ -99,7 +99,13 @@ void main() {
 
     // M19: plain inverse is correct - jitter is a shader-side gl_Position
     // offset and Iris' gbufferPreviousProjection never carries it (see above).
+    // M20: depth reprojection only covers CAMERA motion. Animated
+    // geometry (waving foliage) also moved between the two frames;
+    // subtract its velocity so history is fetched where the leaf was.
     vec2 prevUv = zephyr_reprojectTAA(texCoord, closestDepth);
+#if TAA_WAVE_VELOCITY
+    prevUv -= texture(colortex9, texCoord).xy;
+#endif
     if (prevUv.x > 0.0 && prevUv.x < 1.0 && prevUv.y > 0.0 && prevUv.y < 1.0) {
         vec4 history = texture(colortex6, prevUv);
         debugHistory = history.rgb;
@@ -122,13 +128,8 @@ void main() {
         // while near geometry keeps the original, more responsive blend.
         float farBoost = smoothstep(TAA_FAR_START, TAA_FAR_END, linearDepth);
         float staticBlend = mix(TAA_BLEND, TAA_FAR_BLEND, farBoost);
-        // M19: waving cutout foliage changes silhouette every frame; a long
-        // history stacks several leaf positions into coloured speckle. Shorten
-        // it on thin-surface pixels (Complementary's "Reduced Edge TAA").
-        float foliageWeight = mix(1.0, TAA_FOLIAGE_WEIGHT,
-                                  step(0.5, texture(colortex2, texCoord).a));
-        float blend = clamp(staticBlend * velocityWeight * depthWeight
-                            * foliageWeight, TAA_MIN_BLEND, staticBlend);
+        float blend = clamp(staticBlend * velocityWeight * depthWeight,
+                            TAA_MIN_BLEND, staticBlend);
         result = mix(current, historyColor, blend);
     }
 #endif

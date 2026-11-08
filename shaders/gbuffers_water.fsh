@@ -5,11 +5,14 @@
 #include "/lib/uniforms.glsl"
 #include "/lib/common.glsl"
 
-/* RENDERTARGETS: 0,1,2,8 */
+/* RENDERTARGETS: 0,1,2,8,9 */
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outData;
 layout(location = 2) out vec4 outNormal;
 layout(location = 3) out vec4 outGlass;
+layout(location = 4) out vec4 outVelocity;
+
+in vec2 vWaveVelocity;
 
 #include "/lib/gbuffer_body.glsl"
 
@@ -22,6 +25,7 @@ in vec3 vNormal;
 flat in float zBlockId;
 
 void main() {
+    outVelocity = vec4(vWaveVelocity, 0.0, 1.0);
     vec4 c = texture(gtexture, vTexCoord) * vColor;
     // Iris 1.21 sends the WHOLE translucent layer (water, ice, glass, stained
     // glass, honey, slime) through this one program. Only real water (11000)
@@ -37,5 +41,10 @@ void main() {
     // glass layer keeps the PURE glass colour plus a rain-proof coverage mask.
     writeBlended(c, vLightCoord, matId, rough, vNormal,
                  isWater ? 0.0 : TRANSLUCENT_MIN_ALPHA);
-    outGlass = vec4(zephyr_srgbToLinear(c.rgb), glassA);
+    // M20: low-chroma panes need explicit density (see settings.glsl).
+    float absorb = GLASS_MIN_ABSORB;
+    if (zBlockId > 11004.5 && zBlockId < 11005.5) absorb = GLASS_WHITE_ABSORB;
+    else if (zBlockId > 11005.5 && zBlockId < 11006.5) absorb = GLASS_BLACK_ABSORB;
+    else if (zBlockId > 11006.5 && zBlockId < 11007.5) absorb = GLASS_TINTED_ABSORB;
+    outGlass = vec4(zephyr_srgbToLinear(c.rgb) * (1.0 - absorb), glassA);
 }

@@ -12,6 +12,7 @@ uniform sampler2D colortex3;
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 uniform sampler2D colortex2;
+uniform sampler2D colortex9;
 uniform sampler2D depthtex0;
 
 /* RENDERTARGETS: 0 */
@@ -20,7 +21,13 @@ layout(location = 0) out vec4 outColor;
 void main() {
     vec3 hdr = max(texture(colortex7, texCoord).rgb, vec3(0.0));
 
-#if DEBUG_VIEW == 1
+#if DEBUG_VIEW == 11
+    // M20: visualise animated-geometry velocity. A UV-space offset of only
+    // 0.0002 is already a meaningful per-frame leaf motion, hence the gain.
+    vec2 vv = texture(colortex9, texCoord).xy;
+    outColor = vec4(clamp(abs(vv) * 5000.0, 0.0, 1.0), 0.0, 1.0);
+    return;
+#elif DEBUG_VIEW == 1
     outColor = vec4(zephyr_linearToSrgb(clamp(texture(colortex0, texCoord).rgb, 0.0, 1.0)), 1.0);
     return;
 #elif DEBUG_VIEW == 2

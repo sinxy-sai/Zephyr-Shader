@@ -30,6 +30,9 @@ uniform float rainStrength;
 uniform float wetness;
 uniform float eyeAltitude;
 uniform float frameTimeCounter;
+// Iris: duration of the previous frame in seconds. Used to evaluate the
+// foliage wave at t-1 for the TAA velocity buffer (M20).
+uniform float frameTime;
 uniform float viewWidth;
 uniform float viewHeight;
 uniform float aspectRatio;
