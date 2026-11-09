@@ -63,7 +63,19 @@
 #define HAND_LIGHT_INTENSITY       2.20
 #define HAND_LIGHT_RADIUS          9.00
 #define HAND_LIGHT_HEIGHT          0.60
-#define HAND_LIGHT_COLOR           vec3(1.00, 0.58, 0.26)
+// M27: neutral white. The old fixed torch-orange made a held SEA LANTERN look
+// yellow and lit the street orange, while the same block placed on the ground
+// is cyan-white. heldItemId is NOT 44000+index on this Iris build (probed 0),
+// so we cannot key the colour off item ids; neutral keeps every held emitter
+// consistent with its placed counterpart.
+#define HAND_LIGHT_COLOR           vec3(1.00, 0.98, 0.95)
+// M27: held emitters keep their OWN texture colour instead of being tinted by
+// the point light they cast.
+#define HAND_EMITTER_GAIN          1.60
+// M27: cap emissive HDR. writeEmissive already multiplies by 2.6 and the old
+// lightmap boost stacked another 2.2x on top, so a placed sea lantern hit ~7
+// in linear HDR and produced an absurdly large bloom halo.
+#define EMISSIVE_HDR_CAP           1.60
 // M23: a held torch must cross BLOOM_THRESHOLD to cast a halo, not merely
 // look a bit brighter. This is an HDR radiance gain, not an LDR colour tweak.
 #define HAND_EMISSIVE_GAIN         2.20

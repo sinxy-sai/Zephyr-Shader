@@ -402,8 +402,29 @@ void main() {
 #endif
         }
 
+        // M27: cap emissive HDR. writeEmissive already multiplied the albedo
+        // by EMISSIVE_BLOCK_GAIN; without a cap a placed sea lantern reached
+        // ~7 in linear HDR and its bloom halo covered half the street.
         if (matId > 3.5) {
-            color = albedo;
+            color = min(albedo, vec3(EMISSIVE_HDR_CAP));
+        }
+
+        // M27: a held light emitter keeps its OWN texture colour (a held sea
+        // lantern must be cyan-white like a placed one), instead of being
+        // tinted by the point light it casts.
+#if HAND_LIGHT_ENABLED
+        if (isHand > 0.5 && heldLight > 0.0) {
+            color = min(albedo * HAND_EMITTER_GAIN, vec3(EMISSIVE_HDR_CAP));
+        }
+#endif
+
+        // M23/M27: promote light sources NOT covered by the block.12000 ID
+        // table (custom map signage) into HDR. Emissive blocks and held
+        // emitters are already boosted above - applying this to them too was
+        // the double-boost behind the oversized halo.
+        if (matId < 3.5 && isHand < 0.5) {
+            color += albedo * pow(blockLight, EMISSIVE_LIGHTMAP_POW)
+                   * EMISSIVE_LIGHTMAP_GAIN;
         }
     }
 
@@ -411,16 +432,6 @@ void main() {
     // the colortex0.a glass mask. The old matId-based hue multiply here was
     // unreliable (colortex1.a is not trustworthy on translucent pixels) and
     // double-processed the colour, so it was removed.
-
-    // M23: promote every light source into HDR so the bloom pass can halo it,
-    // without depending on a per-block ID table. A block's own lightmap
-    // block-light channel is ~1 only on the emitter (and its immediate
-    // neighbours); a high power keeps that tight instead of lighting walls.
-    // Sky pixels are excluded - they have no meaningful block light.
-    if (depth < 0.9999) {
-        color += albedo * pow(blockLight, EMISSIVE_LIGHTMAP_POW)
-               * EMISSIVE_LIGHTMAP_GAIN;
-    }
 
     outColor = vec4(clamp(color, 0.0, 65504.0), 1.0);
 }

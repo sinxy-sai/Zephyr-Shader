@@ -48,3 +48,7 @@ uniform int moonPhase;
 // passes, which is where Zephyr's deferred lighting consumes them.
 uniform int heldBlockLightValue;
 uniform int heldBlockLightValue2;
+// M27: heldItemId / heldItemId2 are deliberately NOT used. Probing them with
+// DEBUG_VIEW on Iris 1.8.8 + MC 1.21.1 returned 0 for a held sea lantern, so
+// Complementary's "44000 + index" colour table cannot be relied on here.
+// Held-light colour is handled without item ids in deferred.fsh.
