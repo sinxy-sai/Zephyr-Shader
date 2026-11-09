@@ -140,3 +140,21 @@ option.LIGHTNING_INTENSITY=闪电强度
 option.STORM_CLOUD_COVERAGE=雷雨云量
 option.RAIN_FOG_DIST_POW=雨雾衰减
 option.FOG_DENSITY=雾浓度
+
+# ---- 水体体积（M31）----
+screen.water=水体体积
+screen.water.comment=按波长的吸收、水下雾与悬浮微粒。
+option.WATER_VOLUME_ENABLED=水体体积渲染
+option.WATER_VOLUME_ENABLED.comment=Beer-Lambert 波长吸收：红光先被吸收，越深越偏青绿。
+value.WATER_VOLUME_ENABLED.0=关
+value.WATER_VOLUME_ENABLED.1=开
+option.WATER_FOG_DENSITY=水下雾密度
+option.WATER_FOG_DENSITY.comment=每米的水下消光系数；数值越高，水下可见距离越短。
+option.WATER_PARTICLE_ENABLED=水下悬浮粒子
+option.WATER_PARTICLE_ENABLED.comment=世界空间中缓慢漂移的微粒，与水下体积共衰减。
+value.WATER_PARTICLE_ENABLED.0=关
+value.WATER_PARTICLE_ENABLED.1=开
+option.WATER_PARTICLE_DENSITY=粒子密度
+option.WATER_PARTICLE_DENSITY.comment=世界空间网格中生成可见微粒的格子比例。
+option.WATER_PARTICLE_BRIGHTNESS=粒子亮度
+option.WATER_PARTICLE_BRIGHTNESS.comment=粒子与水下雾共用同一套 Beer-Lambert 透射率衰减。

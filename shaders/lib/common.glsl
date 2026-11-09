@@ -266,6 +266,27 @@ vec3 zephyr_nightSky(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
 }
 // -------------------------------------------------------------------------
 
+// M31 ---------------------------------------------------------------------
+// Suspended underwater motes. The grid is anchored in WORLD space and only
+// drifts continuously with time, so TAA jitter changes the sample position
+// smoothly instead of re-rolling the random points every frame (the M17
+// lesson). A soft round footprint lets the history converge.
+float zephyr_waterMote(vec3 p) {
+    vec3 q = p / WATER_PARTICLE_GRID;
+    q.y -= frameTimeCounter * WATER_PARTICLE_SPEED / WATER_PARTICLE_GRID;
+    vec3 id = floor(q);
+    vec3 f = fract(q) - 0.5;
+    float h = zephyr_hash12(id.xy + vec2(id.z * 37.0, id.z * 17.0));
+    if (h < 1.0 - WATER_PARTICLE_DENSITY) return 0.0;
+    float h2 = zephyr_hash12(id.xy + vec2(id.z * 11.0 + 5.3,
+                                          id.z * 3.7));
+    float h3 = zephyr_hash12(id.xy + vec2(id.z * 7.1,
+                                          id.z * 23.0 + 9.1));
+    vec3 offset = (vec3(h, h2, h3) - 0.5) * 0.70;
+    return smoothstep(WATER_PARTICLE_SIZE, 0.0, length(f - offset));
+}
+// -------------------------------------------------------------------------
+
 vec3 zephyr_aces(vec3 x) {
     x = max(x * 0.6, vec3(0.0));
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);

@@ -157,6 +157,27 @@
 
 #define WATER_ABSORPTION          0.36
 #define WATER_F0                  0.02
+
+// M31 - water volume: Beer-Lambert spectral absorption + underwater fog.
+// Red is absorbed fastest, so depth/slant path turns the body cyan-green
+// instead of merely making a flat tint darker.
+#define WATER_VOLUME_ENABLED       1 //[0 1]
+#define WATER_ABSORB_RGB           vec3(0.52, 0.16, 0.10)
+#define WATER_SCATTER_RGB          vec3(0.10, 0.42, 0.48)
+#define WATER_SURFACE_PATH         0.80
+#define WATER_FOG_DENSITY          0.12 //[0 0.03 0.06 0.12 0.2 0.3 0.45]
+#define WATER_INSCATTER            0.55
+// M31 - suspended motes. A fixed WORLD-space grid with continuous drift is
+// TAA-stable: TAA jitter cannot re-roll the points each frame.
+#define WATER_PARTICLE_ENABLED     1 //[0 1]
+#define WATER_PARTICLE_DENSITY     0.14 //[0 0.04 0.08 0.14 0.22 0.32 0.45]
+#define WATER_PARTICLE_GRID        1.35
+#define WATER_PARTICLE_SIZE        0.055
+#define WATER_PARTICLE_STEPS       6
+#define WATER_PARTICLE_RANGE       14.0
+#define WATER_PARTICLE_SPEED       0.045
+#define WATER_PARTICLE_BRIGHTNESS  0.85 //[0 0.2 0.45 0.85 1.3 1.8]
+#define WATER_PARTICLE_COLOR       vec3(0.72, 0.92, 1.00)
 #define SSR_ENABLED               1 //[0 1]
 #define SSR_STEPS                16
 #define SSR_STEP_LENGTH           1.50

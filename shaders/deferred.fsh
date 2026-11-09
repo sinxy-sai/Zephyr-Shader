@@ -432,8 +432,34 @@ void main() {
             vec3 worldRay = normalize(mat3(gbufferModelViewInverse) * (-V));
             vec3 reflectDir = reflect(worldRay, normalize(vec3(wx, 1.0, wz) * waveAmp + vec3(0.0, 1.0, 0.0)));
             vec3 reflection = zephyr_atmosphere(reflectDir, sunDirWorld, dayAmount, rain);
+#if WATER_VOLUME_ENABLED
+            // M31: Beer-Lambert slant-path absorption. A grazing view travels
+            // further through the water, so red is removed first and the body
+            // turns cyan-green; a near-vertical view stays translucent.
+            // Replaces the old flat albedo * vec3(0.06,0.26,0.32) tint.
+            float cosView = clamp(dot(V, waveN), 0.0, 1.0);
+            float opticalPath = WATER_SURFACE_PATH / max(cosView, 0.18);
+            vec3 trans = exp(-WATER_ABSORB_RGB * opticalPath);
+            vec3 ambientWater = skyAmbient + blockRadiance;
+            vec3 body = WATER_SCATTER_RGB * (1.0 - trans) * WATER_INSCATTER
+                      + albedo * trans * 0.55;
+            vec3 underwater = body * ambientWater * WATER_ABSORPTION * 4.0;
+#if WATER_PARTICLE_ENABLED
+            // Motes a short distance below the surface stay visible when the
+            // camera is above water, so the volume reads from the shore too.
+            float surfaceMotes = 0.0;
+            for (int i = 0; i < 3; ++i) {
+                surfaceMotes += zephyr_waterMote(worldPos
+                    + vec3(0.0, -0.30 - float(i) * 0.45, 0.0));
+            }
+            underwater += WATER_PARTICLE_COLOR * trans * surfaceMotes
+                        * WATER_PARTICLE_BRIGHTNESS * 0.16
+                        * (0.30 + 0.70 * dayAmount);
+#endif
+#else
             vec3 underwater = albedo * vec3(0.06, 0.26, 0.32) * (skyAmbient + blockRadiance)
                             * WATER_ABSORPTION * 4.0;
+#endif
             color = mix(underwater, reflection, clamp(fresnel, 0.0, 1.0));
             color += direct * 0.20;
         } else {

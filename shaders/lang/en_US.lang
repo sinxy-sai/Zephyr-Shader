@@ -140,3 +140,21 @@ option.LIGHTNING_INTENSITY=Lightning Intensity
 option.STORM_CLOUD_COVERAGE=Storm Cloud Coverage
 option.RAIN_FOG_DIST_POW=Rain Fog Falloff
 option.FOG_DENSITY=Fog Density
+
+# ---- Water volume (M31) ----
+screen.water=Water Volume
+screen.water.comment=Spectral absorption, underwater fog and suspended motes.
+option.WATER_VOLUME_ENABLED=Water Volume Rendering
+option.WATER_VOLUME_ENABLED.comment=Beer-Lambert wavelength absorption: red fades first, so depth turns cyan-green.
+value.WATER_VOLUME_ENABLED.0=Off
+value.WATER_VOLUME_ENABLED.1=On
+option.WATER_FOG_DENSITY=Water Fog Density
+option.WATER_FOG_DENSITY.comment=Underwater extinction per metre; higher values shorten underwater visibility.
+option.WATER_PARTICLE_ENABLED=Suspended Particles
+option.WATER_PARTICLE_ENABLED.comment=World-space drifting motes, shared with the underwater volume.
+value.WATER_PARTICLE_ENABLED.0=Off
+value.WATER_PARTICLE_ENABLED.1=On
+option.WATER_PARTICLE_DENSITY=Particle Density
+option.WATER_PARTICLE_DENSITY.comment=Fraction of world-space grid cells that hold a visible mote.
+option.WATER_PARTICLE_BRIGHTNESS=Particle Brightness
+option.WATER_PARTICLE_BRIGHTNESS.comment=Motes are attenuated by the same Beer-Lambert transmittance as the fog.

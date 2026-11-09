@@ -250,7 +250,47 @@ void main() {
                                         + edge * GLASS_EDGE_STRENGTH));
     }
 
-    if (depth < 0.9999) {
+#if WATER_VOLUME_ENABLED
+    bool underwaterView = (isEyeInWater == 1);
+#else
+    bool underwaterView = false;
+#endif
+
+#if WATER_VOLUME_ENABLED
+    if (underwaterView) {
+        // M31: Beer-Lambert underwater fog. The eye-to-surface path is the
+        // linear view distance; wavelength-dependent extinction turns distant
+        // geometry cyan-green instead of just dimming it.
+        vec3 sigmaA = WATER_ABSORB_RGB * WATER_FOG_DENSITY;
+        float waterPath = min(dist, 160.0);
+        vec3 Tw = exp(-sigmaA * waterPath);
+        vec3 ambientUnder = mix(vec3(0.05, 0.11, 0.17),
+                                vec3(0.26, 0.52, 0.58), dayAmount);
+        vec3 inScatter = WATER_SCATTER_RGB * ambientUnder
+                       * WATER_INSCATTER * (0.65 + 0.35 * mu);
+        color = color * Tw + inScatter * (1.0 - Tw);
+
+#if WATER_PARTICLE_ENABLED
+        // M31: raymarch suspended motes along the view ray in WORLD space and
+        // attenuate each sample by the SAME transmittance as the water fog.
+        // Sharing the coefficient keeps the particles physically embedded in
+        // the volume rather than floating on top of it.
+        float maxT = min(dist, WATER_PARTICLE_RANGE);
+        float stepLen = maxT / float(WATER_PARTICLE_STEPS);
+        vec3 motes = vec3(0.0);
+        for (int i = 0; i < WATER_PARTICLE_STEPS; ++i) {
+            float t = (float(i) + 0.5) * stepLen;
+            float m = zephyr_waterMote(cameraPosition + rd * t);
+            if (m > 0.0) motes += WATER_PARTICLE_COLOR * m * exp(-sigmaA * t);
+        }
+        color += motes * (WATER_PARTICLE_BRIGHTNESS
+                          / float(WATER_PARTICLE_STEPS))
+               * (0.30 + 0.70 * dayAmount);
+#endif
+    }
+#endif
+
+    if (!underwaterView && depth < 0.9999) {
         vec3 worldPos = cameraPosition + rd * dist;
         float sigma = FOG_DENSITY * exp(-max(worldPos.y - 64.0, 0.0) * FOG_HEIGHT_FALLOFF);
         // Keep rain fog strong but stop it from flattening all local contrast.
