@@ -1,0 +1,134 @@
+# Zephyr Shader Options / English (en_US)
+# Option names are the GLSL macros in shaders/lib/settings.glsl.
+# option.<MACRO>=label   option.<MACRO>.comment=tooltip
+# value.<MACRO>.<n>=value label   screen.<PAGE>=page title
+# screen.<PAGE>.comment=page tooltip   profile.<NAME>=preset label
+
+# ---- Presets ----
+profile.LOW=Low
+profile.MEDIUM=Medium
+profile.HIGH=High (Default)
+profile.ULTRA=Ultra
+profile.comment=Presets change TAA, AO, reflections, volumetric light, shadow resolution and bloom. Every affected option stays individually editable afterwards.
+
+# ---- Pages ----
+screen.quality=Quality & Performance
+screen.quality.comment=Feature toggles, shadow resolution and TAA history weight.
+screen.lighting=Lighting & Shadows
+screen.lighting.comment=Sun/sky balance, coloured shadows and dynamic held-item light.
+screen.sky=Sky & Atmosphere
+screen.sky.comment=Procedural night sky, stars, moon, clouds and atmospheric density.
+screen.post=Bloom & Colour
+screen.post.comment=Bloom strength, halo size, exposure and final colour grading.
+screen.material=Materials & Animation
+screen.material.comment=Glass tinting, foliage waving and surface relief.
+screen.weather=Weather
+screen.weather.comment=Puddles, rain fog, storm clouds and lightning.
+
+# ---- Quality & Performance ----
+option.TAA_ENABLED=Temporal Anti-Aliasing
+option.TAA_ENABLED.comment=Projection jitter plus history blending. Reduces foliage shimmer and jagged edges.
+value.TAA_ENABLED.0=Off
+value.TAA_ENABLED.1=On
+option.AO_ENABLED=Ambient Occlusion
+option.AO_ENABLED.comment=Screen-space contact darkening on corners and crevices.
+value.AO_ENABLED.0=Off
+value.AO_ENABLED.1=On
+option.SSR_ENABLED=Screen-Space Reflections
+option.SSR_ENABLED.comment=Wet-road and water reflections traced in screen space.
+value.SSR_ENABLED.0=Off
+value.SSR_ENABLED.1=On
+option.VL_ENABLED=Volumetric Light
+option.VL_ENABLED.comment=God rays / light shafts from the solar disc.
+value.VL_ENABLED.0=Off
+value.VL_ENABLED.1=On
+option.SHADOW_ENABLED=Shadows
+option.SHADOW_ENABLED.comment=PCF sun shadows, including translucent and coloured casters.
+value.SHADOW_ENABLED.0=Off
+value.SHADOW_ENABLED.1=On
+option.CLOUD_ENABLED=Clouds
+option.CLOUD_ENABLED.comment=Raymarched cloud layer.
+value.CLOUD_ENABLED.0=Off
+value.CLOUD_ENABLED.1=On
+option.PUDDLE_ENABLED=Rain Puddles
+option.PUDDLE_ENABLED.comment=Wet-surface mask and puddle reflections during rain.
+value.PUDDLE_ENABLED.0=Off
+value.PUDDLE_ENABLED.1=On
+option.LIGHTNING_ENABLED=Lightning
+option.LIGHTNING_ENABLED.comment=Global illumination flashes during thunderstorms.
+value.LIGHTNING_ENABLED.0=Off
+value.LIGHTNING_ENABLED.1=On
+option.shadowMapResolution=Shadow Resolution
+option.shadowMapResolution.comment=Note: on this Iris build F3 reports 1024x1024 regardless of this value.
+option.shadowDistance=Shadow Distance
+option.TAA_MIN_BLEND=TAA Minimum Blend
+option.TAA_MIN_BLEND.comment=Lower bound on history rejection; higher values are more stable but softer.
+
+# ---- Lighting & Shadows ----
+option.HAND_LIGHT_ENABLED=Dynamic Held Light
+option.HAND_LIGHT_ENABLED.comment=A point light following the camera when holding torches, lanterns or sea lanterns.
+value.HAND_LIGHT_ENABLED.0=Off
+value.HAND_LIGHT_ENABLED.1=On
+option.HAND_LIGHT_INTENSITY=Held Light Intensity
+option.EMISSIVE_HDR_CAP=Emissive HDR Cap
+option.EMISSIVE_HDR_CAP.comment=Caps light-source radiance so placed lanterns do not produce oversized halos.
+option.LIGHT_SUN_INTENSITY=Sun Intensity
+option.LIGHT_SKY_INTENSITY=Sky Ambient Intensity
+option.SHADOW_COLOR_STRENGTH=Coloured Shadows
+option.SHADOW_COLOR_STRENGTH.comment=How strongly stained glass tints the light passing through it.
+option.SHADOW_SOFTNESS=Shadow Softness
+option.NIGHT_AMBIENT_FLOOR=Night Ambient Floor
+
+# ---- Sky & Atmosphere ----
+option.NIGHT_SKY_ENABLED=Night Sky
+option.NIGHT_SKY_ENABLED.comment=Procedural deep-blue sky gradient, stars and a phased moon.
+value.NIGHT_SKY_ENABLED.0=Off
+value.NIGHT_SKY_ENABLED.1=On
+option.NIGHT_SKY_STRENGTH=Night Sky Brightness
+option.STAR_BRIGHTNESS=Star Brightness
+option.MOON_BRIGHTNESS=Moon Brightness
+option.MOON_HALO_STRENGTH=Moon Halo
+option.CLOUD_COVERAGE=Cloud Coverage
+option.CLOUD_DENSITY=Cloud Density
+option.ATMOSPHERE_DENSITY=Atmosphere Density
+
+# ---- Bloom & Colour ----
+option.BLOOM_STRENGTH=Bloom Strength
+option.BLOOM_STRENGTH.comment=Overall soft-knee bloom applied to linear HDR before tonemapping.
+option.BLOOM_HALO_STRENGTH=Wide Halo Strength
+option.BLOOM_HALO_STRENGTH.comment=Independent high-mip glow ring around every light source.
+option.BLOOM_THRESHOLD=Bloom Threshold
+option.GRADE_SATURATION=Saturation
+option.GRADE_CONTRAST=Contrast
+option.EXPOSURE_EV=Exposure (EV)
+option.TONEMAP_MODE=Tonemapper
+option.TONEMAP_MODE.comment=ACES is the baseline; AgX is the luminance-domain filmic transform.
+value.TONEMAP_MODE.0=ACES
+value.TONEMAP_MODE.1=AgX
+option.TAA_JITTER_SCALE=TAA Jitter Scale
+
+# ---- Materials & Animation ----
+option.GLASS_ABSORPTION=Glass Absorption
+option.TRANSLUCENT_TINT_STRENGTH=Glass Tint Strength
+option.GLASS_NEUTRAL_VEIL=Frosted Glass Veil
+option.GLASS_NEUTRAL_VEIL.comment=Makes white/black/tinted panes readable without hiding the view behind them.
+option.GLASS_EDGE_STRENGTH=Glass Edge Highlight
+option.WAVE_ENABLED=Foliage Waving
+option.WAVE_ENABLED.comment=Animated grass, flowers and leaves, shared with the shadow pass.
+value.WAVE_ENABLED.0=Off
+value.WAVE_ENABLED.1=On
+option.WAVE_AMPLITUDE=Waving Amplitude
+option.WAVE_RAIN_BOOST=Rain Waving Boost
+option.POM_ENABLED=Surface Relief
+option.POM_ENABLED.comment=UV-space bump mapping (full parallax displacement is currently disabled).
+value.POM_ENABLED.0=Off
+value.POM_ENABLED.1=On
+
+# ---- Weather ----
+option.PUDDLE_STRENGTH=Puddle Strength
+option.PUDDLE_RIPPLE=Puddle Ripples
+option.RAIN_BLOOM_BOOST=Rain Bloom Boost
+option.LIGHTNING_INTENSITY=Lightning Intensity
+option.STORM_CLOUD_COVERAGE=Storm Cloud Coverage
+option.RAIN_FOG_DIST_POW=Rain Fog Falloff
+option.FOG_DENSITY=Fog Density

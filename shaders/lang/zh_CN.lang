@@ -1,0 +1,134 @@
+# Zephyr 光影选项 / 简体中文（zh_CN）
+# 选项名对应 shaders/lib/settings.glsl 中的 GLSL 宏。
+# option.<宏>=名称   option.<宏>.comment=悬停说明
+# value.<宏>.<n>=取值标签   screen.<页>=页面标题
+# screen.<页>.comment=页面说明   profile.<档位>=档位名称
+
+# ---- 性能档位 ----
+profile.LOW=低
+profile.MEDIUM=中
+profile.HIGH=高（默认）
+profile.ULTRA=极致
+profile.comment=档位会同时调整 TAA、环境光遮蔽、反射、体积光、阴影分辨率与泛光。应用后每个选项仍可单独调整。
+
+# ---- 页面 ----
+screen.quality=画质与性能
+screen.quality.comment=功能开关、阴影分辨率与 TAA 历史权重。
+screen.lighting=光照与阴影
+screen.lighting.comment=太阳/天空平衡、彩色阴影与动态手持光。
+screen.sky=天空与大气
+screen.sky.comment=程序化夜空、星星、月亮、云层与大气密度。
+screen.post=泛光与色彩
+screen.post.comment=泛光强度、光晕范围、曝光与最终调色。
+screen.material=材质与动画
+screen.material.comment=玻璃染色、植被摇曳与表面起伏。
+screen.weather=天气
+screen.weather.comment=水洼、雨雾、雷雨云与闪电。
+
+# ---- 画质与性能 ----
+option.TAA_ENABLED=时间抗锯齿（TAA）
+option.TAA_ENABLED.comment=投影抖动配合历史帧混合，减少植被闪烁与锯齿。
+value.TAA_ENABLED.0=关
+value.TAA_ENABLED.1=开
+option.AO_ENABLED=环境光遮蔽
+option.AO_ENABLED.comment=屏幕空间的角落与缝隙接触变暗。
+value.AO_ENABLED.0=关
+value.AO_ENABLED.1=开
+option.SSR_ENABLED=屏幕空间反射
+option.SSR_ENABLED.comment=湿滑路面与水面的屏幕空间反射。
+value.SSR_ENABLED.0=关
+value.SSR_ENABLED.1=开
+option.VL_ENABLED=体积光
+option.VL_ENABLED.comment=来自太阳盘的丁达尔光 / 光轴。
+value.VL_ENABLED.0=关
+value.VL_ENABLED.1=开
+option.SHADOW_ENABLED=阴影
+option.SHADOW_ENABLED.comment=PCF 太阳阴影，含半透明与彩色投影体。
+value.SHADOW_ENABLED.0=关
+value.SHADOW_ENABLED.1=开
+option.CLOUD_ENABLED=云层
+option.CLOUD_ENABLED.comment=光线步进的云层。
+value.CLOUD_ENABLED.0=关
+value.CLOUD_ENABLED.1=开
+option.PUDDLE_ENABLED=雨中水洼
+option.PUDDLE_ENABLED.comment=雨天的湿滑表面遮罩与水洼反射。
+value.PUDDLE_ENABLED.0=关
+value.PUDDLE_ENABLED.1=开
+option.LIGHTNING_ENABLED=闪电
+option.LIGHTNING_ENABLED.comment=雷雨时的全局照明闪光。
+value.LIGHTNING_ENABLED.0=关
+value.LIGHTNING_ENABLED.1=开
+option.shadowMapResolution=阴影分辨率
+option.shadowMapResolution.comment=注意：本机 Iris 版本下 F3 实测始终为 1024×1024，此项可能不生效。
+option.shadowDistance=阴影距离
+option.TAA_MIN_BLEND=TAA 最小混合量
+option.TAA_MIN_BLEND.comment=历史拒绝的下限；数值越高越稳，但画面更软。
+
+# ---- 光照与阴影 ----
+option.HAND_LIGHT_ENABLED=动态手持光
+option.HAND_LIGHT_ENABLED.comment=手持火把、灯笼、海晶灯时跟随相机的点光源。
+value.HAND_LIGHT_ENABLED.0=关
+value.HAND_LIGHT_ENABLED.1=开
+option.HAND_LIGHT_INTENSITY=手持光强度
+option.EMISSIVE_HDR_CAP=发光体 HDR 上限
+option.EMISSIVE_HDR_CAP.comment=限制光源亮度，避免放置的海晶灯产生过大的光晕。
+option.LIGHT_SUN_INTENSITY=太阳强度
+option.LIGHT_SKY_INTENSITY=天空环境光强度
+option.SHADOW_COLOR_STRENGTH=彩色阴影
+option.SHADOW_COLOR_STRENGTH.comment=染色玻璃对透过光线的染色程度。
+option.SHADOW_SOFTNESS=阴影柔和度
+option.NIGHT_AMBIENT_FLOOR=夜间环境光下限
+
+# ---- 天空与大气 ----
+option.NIGHT_SKY_ENABLED=夜空
+option.NIGHT_SKY_ENABLED.comment=程序化深蓝渐变天空、星星与带月相的月亮。
+value.NIGHT_SKY_ENABLED.0=关
+value.NIGHT_SKY_ENABLED.1=开
+option.NIGHT_SKY_STRENGTH=夜空亮度
+option.STAR_BRIGHTNESS=星星亮度
+option.MOON_BRIGHTNESS=月亮亮度
+option.MOON_HALO_STRENGTH=月晕
+option.CLOUD_COVERAGE=云量
+option.CLOUD_DENSITY=云层密度
+option.ATMOSPHERE_DENSITY=大气密度
+
+# ---- 泛光与色彩 ----
+option.BLOOM_STRENGTH=泛光强度
+option.BLOOM_STRENGTH.comment=色调映射前作用于线性 HDR 的软膝泛光。
+option.BLOOM_HALO_STRENGTH=宽光晕强度
+option.BLOOM_HALO_STRENGTH.comment=独立于紧致泛光的高 mip 光晕圈，作用于所有光源。
+option.BLOOM_THRESHOLD=泛光阈值
+option.GRADE_SATURATION=饱和度
+option.GRADE_CONTRAST=对比度
+option.EXPOSURE_EV=曝光（EV）
+option.TONEMAP_MODE=色调映射
+option.TONEMAP_MODE.comment=ACES 为基线；AgX 为亮度域的电影感变换。
+value.TONEMAP_MODE.0=ACES
+value.TONEMAP_MODE.1=AgX
+option.TAA_JITTER_SCALE=TAA 抖动幅度
+
+# ---- 材质与动画 ----
+option.GLASS_ABSORPTION=玻璃吸收率
+option.TRANSLUCENT_TINT_STRENGTH=玻璃染色强度
+option.GLASS_NEUTRAL_VEIL=磨砂玻璃面
+option.GLASS_NEUTRAL_VEIL.comment=让白 / 黑 / 遮光玻璃看得出来，同时不遮住背后的景物。
+option.GLASS_EDGE_STRENGTH=玻璃边缘高光
+option.WAVE_ENABLED=植被摇曳
+option.WAVE_ENABLED.comment=草、花与树叶的动画，与阴影 pass 共用同一位移模板。
+value.WAVE_ENABLED.0=关
+value.WAVE_ENABLED.1=开
+option.WAVE_AMPLITUDE=摇曳幅度
+option.WAVE_RAIN_BOOST=雨天摇曳增强
+option.POM_ENABLED=表面起伏
+option.POM_ENABLED.comment=UV 空间凹凸扰动（完整视差位移目前默认关闭）。
+value.POM_ENABLED.0=关
+value.POM_ENABLED.1=开
+
+# ---- 天气 ----
+option.PUDDLE_STRENGTH=水洼强度
+option.PUDDLE_RIPPLE=水洼涟漪
+option.RAIN_BLOOM_BOOST=雨天泛光增强
+option.LIGHTNING_INTENSITY=闪电强度
+option.STORM_CLOUD_COVERAGE=雷雨云量
+option.RAIN_FOG_DIST_POW=雨雾衰减
+option.FOG_DENSITY=雾浓度
