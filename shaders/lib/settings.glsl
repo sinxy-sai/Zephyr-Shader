@@ -138,7 +138,7 @@
 // A high mip spreads each lamp over a large radius; because it is not divided
 // by weightSum, making the ring bigger never dilutes the bright core.
 #define BLOOM_HALO_LOD             7.0
-#define BLOOM_HALO_STRENGTH        0.50
+#define BLOOM_HALO_STRENGTH        0.35
 #define BLOOM_HALO_FLOOR           0.18
 
 // M6 display transform. 0 = ACES (A/B baseline), 1 = AgX-inspired log tonemap.
