@@ -243,7 +243,14 @@ void main() {
     vec3 color;
 
     if (depth >= 0.9999) {
-        color = zephyr_atmosphere(zephyr_worldRay(texCoord), sunDirWorld, dayAmount, rain);
+        vec3 skyRay = zephyr_worldRay(texCoord);
+        color = zephyr_atmosphere(skyRay, sunDirWorld, dayAmount, rain);
+#if NIGHT_SKY_ENABLED
+        // M28: stars / moon / night gradient belong to SKY pixels only.
+        // Adding them inside zephyr_atmosphere would put stars into fog,
+        // clouds and water reflections too.
+        color += zephyr_nightSky(skyRay, sunDirWorld, dayAmount, rain);
+#endif
     } else {
         vec3 viewPos = zephyr_viewPos(texCoord, depth);
         vec3 V = normalize(-viewPos);

@@ -6,6 +6,27 @@
 #define ATMOSPHERE_MIE_G          0.76
 #define ATMOSPHERE_SUN_INTENSITY  1.00
 
+// M28: procedural night sky. gbuffers_sky* discard vanilla sun/moon/stars, so
+// the night sky was pure black. This layer is added ONLY on sky pixels in
+// deferred (fog / water reflections keep using zephyr_atmosphere alone).
+#define NIGHT_SKY_ENABLED          1
+// M28: 1.00 was invisible after AgX; 2.00 reads as a deep blue night sky.
+#define NIGHT_SKY_STRENGTH         2.00
+#define NIGHT_SKY_ZENITH           vec3(0.020, 0.034, 0.078)
+#define NIGHT_SKY_HORIZON          vec3(0.048, 0.062, 0.110)
+#define NIGHT_SKY_GLOW             vec3(0.060, 0.038, 0.022)
+// Stars: quantised world-direction grid, one soft (TAA-stable) point per cell.
+#define STAR_GRID                  220.0
+#define STAR_SPARSE                0.80
+#define STAR_SIZE                  0.32
+#define STAR_BRIGHTNESS            2.40
+// Moon: angular radius in radians, phase from Iris moonPhase (0..7).
+#define MOON_RADIUS                0.035
+#define MOON_BRIGHTNESS            2.20
+#define MOON_COLOR                 vec3(0.92, 0.95, 1.00)
+#define MOON_HALO_STRENGTH         0.35
+#define MOON_HALO_COLOR            vec3(0.55, 0.68, 1.00)
+
 #define LIGHT_SUN_INTENSITY       3.20
 #define LIGHT_SKY_INTENSITY       0.85
 #define LIGHT_EMISSIVE_SCALE      1.60

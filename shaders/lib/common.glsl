@@ -191,6 +191,81 @@ vec3 zephyr_atmosphere(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
     return max(sky, vec3(0.0));
 }
 
+// M28 ---------------------------------------------------------------------
+// Vanilla sun/moon/stars are discarded by gbuffers_sky*, so the analytic
+// atmosphere alone left the night sky pitch black. Everything here is derived
+// from the WORLD ray direction (never screen pixels), so TAA jitter cannot
+// make the stars jump between cells; soft round points let the history
+// converge. Only deferred's sky branch calls this - fog, clouds and water
+// reflections keep using zephyr_atmosphere and therefore never get fake stars.
+vec2 zephyr_starPlane(vec3 rd) {
+    // BSL-style hemisphere projection: no pole pinching, stable under camera
+    // rotation. Denominator never vanishes for rd.y >= 0.
+    return rd.xz / max(rd.y + length(rd.xz), 1e-3);
+}
+
+vec3 zephyr_nightSky(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
+    float twilight = zephyr_twilight(sunDir.y);
+    // M28: rain should soften the night sky, not erase it. The old 0.92
+    // factor left only 8% during a storm, which with the analytic atmosphere
+    // read as pure black. Clouds are drawn by composite.fsh on top anyway, so
+    // they still occlude stars/moon naturally.
+    float vis = (1.0 - dayAmount) * (1.0 - twilight * 0.75)
+              * (1.0 - rain * 0.35);
+    if (vis < 0.001 || rd.y < -0.02) return vec3(0.0);
+
+    float h = clamp(rd.y, 0.0, 1.0);
+    vec3 sky = mix(NIGHT_SKY_HORIZON, NIGHT_SKY_ZENITH, pow(h, 0.55));
+    // Faint warm light pollution near the horizon, so the skyline is not a
+    // flat black cut-out against the buildings.
+    sky += NIGHT_SKY_GLOW * pow(1.0 - h, 6.0);
+
+    // --- stars -----------------------------------------------------------
+    vec2 g = zephyr_starPlane(rd) * STAR_GRID;
+    vec2 id = floor(g);
+    vec2 f = fract(g) - 0.5;
+    float r1 = zephyr_hash12(id);
+    float r2 = zephyr_hash12(id + 17.3);
+    float r3 = zephyr_hash12(id + 91.7);
+    float density = r1 * r2 * r3;
+    if (density > STAR_SPARSE) {
+        vec2 off = (vec2(r2, r3) - 0.5) * 0.60;
+        float d = length(f - off);
+        float bright = (density - STAR_SPARSE) / (1.0 - STAR_SPARSE);
+        float s = smoothstep(STAR_SIZE, 0.0, d) * (0.35 + 0.65 * bright);
+        vec3 tint = mix(vec3(1.00, 0.82, 0.66), vec3(0.72, 0.85, 1.00), r1);
+        sky += tint * s * STAR_BRIGHTNESS * pow(h, 0.25);
+    }
+
+    // --- moon ------------------------------------------------------------
+    // MC's moon sits opposite the sun. Deriving it from sunDir avoids relying
+    // on a moonPosition uniform that some Iris builds leave unbound.
+    vec3 moonDir = -normalize(sunDir);
+    if (moonDir.y > 0.0) {
+        float ang = acos(clamp(dot(rd, moonDir), -1.0, 1.0));
+        float disk = 1.0 - smoothstep(MOON_RADIUS * 0.90, MOON_RADIUS, ang);
+        if (disk > 0.0) {
+            vec3 mRight = normalize(cross(vec3(0.0, 1.0, 0.0), moonDir));
+            vec3 mUp = cross(moonDir, mRight);
+            vec2 muv = vec2(dot(rd, mRight), dot(rd, mUp)) / MOON_RADIUS;
+            // A shadow disc slides across the lit one: phase 0 = full moon,
+            // phase 4 = new moon, in between = crescent/gibbous.
+            float ph = float(moonPhase) / 8.0;
+            float shadowOffset = 2.2 * (1.0 - 2.0 * ph);
+            float shadow = 1.0 - smoothstep(0.98, 1.02,
+                            length(muv - vec2(shadowOffset, 0.0)));
+            float lit = clamp(1.0 - shadow * 0.92, 0.08, 1.0);
+            float craters = 1.0 - 0.28 * zephyr_valueNoise(muv * 3.7 + 4.2);
+            sky += MOON_COLOR * disk * lit * craters * MOON_BRIGHTNESS;
+        }
+        // Soft halo around the moon, kept dim so it does not wash the stars.
+        sky += MOON_HALO_COLOR
+             * pow(max(dot(rd, moonDir), 0.0), 420.0) * MOON_HALO_STRENGTH;
+    }
+    return max(sky, vec3(0.0)) * vis * NIGHT_SKY_STRENGTH;
+}
+// -------------------------------------------------------------------------
+
 vec3 zephyr_aces(vec3 x) {
     x = max(x * 0.6, vec3(0.0));
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
