@@ -165,18 +165,24 @@
 #define WATER_ABSORB_RGB           vec3(0.52, 0.16, 0.10)
 #define WATER_SCATTER_RGB          vec3(0.10, 0.42, 0.48)
 #define WATER_SURFACE_PATH         0.80
-#define WATER_FOG_DENSITY          0.12 //[0 0.03 0.06 0.12 0.2 0.3 0.45]
-#define WATER_INSCATTER            0.55
+#define WATER_FOG_DENSITY          0.10 //[0 0.03 0.06 0.10 0.14 0.2 0.3 0.45]
+#define WATER_INSCATTER            0.85
 // M31 - suspended motes. A fixed WORLD-space grid with continuous drift is
 // TAA-stable: TAA jitter cannot re-roll the points each frame.
+// M32 (real underwater tuning): SIZE is in NORMALISED CELL units, and the
+// raymarch only takes STEPS discrete samples. The hit probability of one 3D
+// sphere is ~(4/3)*PI*SIZE^3, so SIZE=0.035 made motes effectively invisible
+// (all "particle A/B" deltas were just wave animation / TAA noise), while
+// SIZE=0.42 with GRID=1.35 turned them into big blurry blobs. Physical mote
+// radius = SIZE * GRID = 0.24 * 0.55 ~= 0.13 m: small discrete points.
 #define WATER_PARTICLE_ENABLED     1 //[0 1]
-#define WATER_PARTICLE_DENSITY     0.14 //[0 0.04 0.08 0.14 0.22 0.32 0.45]
-#define WATER_PARTICLE_GRID        1.35
-#define WATER_PARTICLE_SIZE        0.055
-#define WATER_PARTICLE_STEPS       6
+#define WATER_PARTICLE_DENSITY     0.16 //[0 0.06 0.10 0.16 0.22 0.30 0.45]
+#define WATER_PARTICLE_GRID        0.55
+#define WATER_PARTICLE_SIZE        0.24
+#define WATER_PARTICLE_STEPS       8
 #define WATER_PARTICLE_RANGE       14.0
 #define WATER_PARTICLE_SPEED       0.045
-#define WATER_PARTICLE_BRIGHTNESS  0.85 //[0 0.2 0.45 0.85 1.3 1.8]
+#define WATER_PARTICLE_BRIGHTNESS  1.60 //[0 0.4 0.85 1.3 1.6 2.0 2.5]
 #define WATER_PARTICLE_COLOR       vec3(0.72, 0.92, 1.00)
 #define SSR_ENABLED               1 //[0 1]
 #define SSR_STEPS                16
