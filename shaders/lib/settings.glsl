@@ -111,6 +111,25 @@
 #define EMISSIVE_BLOCK_GAIN        2.60
 
 #define FOLIAGE_TRANSLUCENCY      0.45
+
+// M30 - thin-leaf subsurface transmission ("lush foliage").
+// Real leaves are thin laminae: light entering the back is scattered forward
+// toward the viewer, and chlorophyll absorbs red/blue so the transmitted light
+// is saturated yellow-green, not white. Reference models: BSL
+// forwardLighting.glsl (pow(VoL,16) forward peak + wrapped NoL) and
+// Complementary leaves.glsl (green-channel-driven leaf highlight).
+#define LEAF_SSS_ENABLED           1 //[0 1]
+#define LEAF_TRANSMISSION          0.95 //[0 0.25 0.5 0.75 0.95 1.25 1.5]
+#define LEAF_VITALITY              0.35 //[0 0.1 0.2 0.35 0.5 0.75 1.0]
+#define LEAF_FORWARD_POWER        12.0
+#define LEAF_FORWARD_GAIN          1.40
+#define LEAF_WRAP                  0.55
+// Chlorophyll transmittance: green passes, red/blue are absorbed.
+#define LEAF_CHLOROPHYLL           vec3(0.46, 1.00, 0.30)
+#define LEAF_SPECTRAL_MIX          0.55
+#define LEAF_SPECULAR              0.30
+#define LEAF_SPEC_POWER            42.0
+#define LEAF_RAIN_DAMPEN           0.35
 #define AO_ENABLED                1 //[0 1]
 #define AO_STRENGTH               0.35 //[0 0.1 0.175 0.25 0.35 0.5 0.525 0.7 0.75 1]
 #define AO_SAMPLES                6

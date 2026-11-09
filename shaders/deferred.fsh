@@ -255,8 +255,13 @@ void main() {
         vec3 viewPos = zephyr_viewPos(texCoord, depth);
         vec3 V = normalize(-viewPos);
         vec3 N = viewNormal;
+        float isThin = (normalData.a > 0.5) ? 1.0 : 0.0;
+        // M30: leaves are thin double-sided laminae. A back-facing texel must
+        // be shaded from the side the viewer actually sees, otherwise the
+        // inside of a canopy collapses to black.
+        if (isThin > 0.5 && dot(N, V) < 0.0) N = -N;
         vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
-        vec3 Nw = normalize(mat3(gbufferModelViewInverse) * viewNormal);
+        vec3 Nw = normalize(mat3(gbufferModelViewInverse) * N);
         float isWater = (matId > 0.5 && matId < 1.5) ? 1.0 : 0.0;
         // M22: MAT_HAND marks first-person geometry. Iris renders it with its
         // OWN modelview/projection, so worldPos / Nw reconstructed from the
@@ -324,10 +329,30 @@ void main() {
         vec3 f0 = mix(vec3(0.04), vec3(0.075), wet);
         f0 = mix(f0, vec3(0.09), puddle);
         albedo *= 1.0 - 0.30 * puddle;
+#if LEAF_SSS_ENABLED
+        // M30: push leaf albedo toward a vivid but luminance-neutral green.
+        // Keeping luma constant avoids an artificial brightness lift.
+        if (isThin > 0.5) {
+            float leafLuma = zephyr_luma(albedo);
+            vec3 vivid = albedo * vec3(1.0 - 0.20 * LEAF_VITALITY,
+                                       1.0 + 0.16 * LEAF_VITALITY,
+                                       1.0 - 0.22 * LEAF_VITALITY);
+            albedo = vivid * (leafLuma / max(zephyr_luma(vivid), 1e-4));
+        }
+#endif
         vec3 specular = zephyr_D_GGX(NoH, a) * zephyr_G_Smith(NoV, NoL, a)
                       * zephyr_F_Schlick(f0, VoH) / max(4.0 * NoV * NoL, 1e-4);
         vec3 diffuse = albedo * (1.0 - f0) / ZEPHYR_PI;
         vec3 direct = (diffuse + specular) * sunRadiance * NoL * shadowTrans;
+#if LEAF_SSS_ENABLED
+        // M30: waxy cuticle highlight - a narrow lobe, not the broad GGX used
+        // for wet pavement. This is what makes sunlit leaves look alive.
+        if (isThin > 0.5) {
+            direct += sunRadiance * shadowTrans
+                    * pow(NoH, LEAF_SPEC_POWER) * LEAF_SPECULAR
+                    * (1.0 - rain * 0.40);
+        }
+#endif
 
         vec3 indirect = albedo * (skyAmbient * (0.30 + 0.70 * skyLight) + blockRadiance);
 
@@ -369,11 +394,30 @@ void main() {
         }
 #endif
 
+#if LEAF_SSS_ENABLED
+        if (isThin > 0.5) {
+            // M30: thin-leaf subsurface transmission.
+            // VoL peaks when the viewer looks toward the light THROUGH the
+            // leaf; wrapped back-lighting keeps the canopy from going black.
+            float VoL = clamp(dot(-V, L) * 0.5 + 0.5, 0.0, 1.0);
+            float forward = pow(VoL, LEAF_FORWARD_POWER);
+            float back = max(dot(-N, L), 0.0);
+            float wrapped = mix(back, 1.0, LEAF_WRAP);
+            vec3 spectral = mix(vec3(1.0), LEAF_CHLOROPHYLL,
+                                LEAF_SPECTRAL_MIX);
+            vec3 transmitted = sunRadiance * spectral * shadowTrans
+                             * (LEAF_TRANSMISSION * wrapped
+                                + LEAF_FORWARD_GAIN * forward)
+                             * (1.0 - rain * LEAF_RAIN_DAMPEN);
+            indirect += albedo * transmitted;
+        }
+#else
         if (normalData.a > 0.5) {
             float back = max(dot(-N, L), 0.0);
             indirect += albedo * sunRadiance * pow(back, 1.5)
                       * FOLIAGE_TRANSLUCENCY * shadowTrans;
         }
+#endif
 
         if (matId > 0.5 && matId < 1.5) {
             float t = weatherTime;
