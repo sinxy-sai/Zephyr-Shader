@@ -26,6 +26,11 @@ in vec3 vNormal;
 void main() {
     outVelocity = vec4(vWaveVelocity, 0.0, 1.0);
     vec4 c = texture(gtexture, vTexCoord) * vColor;
+    // M24: a fully transparent quad texel must NOT enter colortex8. That
+    // buffer is cleared to 0 and stays 0 outside the actual pane; writing a
+    // coverage floor into empty texels is what produced the rectangular
+    // frosted panel around held items.
+    if (c.a < 0.02) discard;
     // M22: held translucent items follow the PLACED-glass path: real-alpha
     // blend in colortex0 + a colortex8 layer, so composite.fsh applies the
     // subtractive tint / Fresnel BEFORE fog and TAA. MAT_TRANSLUCENT (not
