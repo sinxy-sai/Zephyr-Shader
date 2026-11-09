@@ -22,19 +22,30 @@ void main() {
     // while the surrounding haze spreads, instead of a hard cut at threshold.
     vec3 bloom = vec3(0.0);
     float weightSum = 0.0;
-    float knee = BLOOM_THRESHOLD * BLOOM_KNEE;
     for (int i = 0; i < BLOOM_TAPS; ++i) {
         float fi = float(i);
+        float outer = fi / max(float(BLOOM_TAPS - 1), 1.0);
+        // M25: threshold must fall with mip level. A wide mip averages a lamp
+        // down to a dim value; keeping BLOOM_THRESHOLD there makes the outer
+        // taps contribute ~0, so widening the radius only dilutes the core.
+        float threshold = BLOOM_THRESHOLD
+                        * mix(1.0, BLOOM_HALO_THRESHOLD_SCALE, outer);
+        float knee = threshold * BLOOM_KNEE;
         // M23: start at lod 0. Previously the first tap was lod 2 (a 4x4
         // average), which diluted small lamps / torches below the threshold
         // before they could ever bloom. Higher taps still supply the wide haze.
         float lod = fi * 1.5 * BLOOM_RADIUS;
         vec3 c = max(textureLod(colortex3, texCoord, lod).rgb, vec3(0.0));
         float b = max(zephyr_luma(c), 1e-4);
-        float soft = clamp(b - BLOOM_THRESHOLD + knee, 0.0, 2.0 * knee);
+        float soft = clamp(b - threshold + knee, 0.0, 2.0 * knee);
         soft = soft * soft / (4.0 * knee + 1e-4);
-        float contribution = max(soft, b - BLOOM_THRESHOLD) / b;
-        float w = 1.0 / (1.0 + fi * 0.75);
+        float contribution = max(soft, b - threshold) / b;
+        // M25: give the large-mip taps more RELATIVE weight so the halo ring
+        // reaches further. bloom is divided by weightSum below, so this
+        // redistributes energy outward instead of raising overall brightness.
+        float w = (1.0 + BLOOM_HALO_BOOST * fi
+                   / max(float(BLOOM_TAPS - 1), 1.0))
+                / (1.0 + fi * 0.75);
         bloom += c * contribution * w;
         weightSum += w;
     }
@@ -49,6 +60,19 @@ void main() {
     // Rain makes emissive signage and lamps bloom into the wet haze.
     color += bloom * BLOOM_STRENGTH * mix(1.0, BLOOM_SKY_ATTENUATION, skyMask)
            * (1.0 + clamp(rainStrength, 0.0, 1.0) * RAIN_BLOOM_BOOST);
+
+    // M25: dedicated wide halo. Tuning the in-loop mip weights alone only
+    // redistributes a FIXED total (bloom /= weightSum), so a wider ring always
+    // came out dimmer. This layer is a separate high-mip sample added on top;
+    // it enlarges the visible ring without touching the sharp bright core.
+    // The floor keeps dark night geometry dark, and skyMask prevents a white
+    // sheet (same guard as the tight bloom).
+    vec3 halo = max(textureLod(colortex3, texCoord, BLOOM_HALO_LOD).rgb,
+                    vec3(0.0));
+    float hb = max(zephyr_luma(halo), 1e-4);
+    float haloContribution = max(hb - BLOOM_HALO_FLOOR, 0.0) / hb;
+    color += halo * haloContribution * BLOOM_HALO_STRENGTH
+           * mix(1.0, BLOOM_SKY_ATTENUATION, skyMask);
 
 #if VL_ENABLED
     vec3 sunDirWorld = normalize(mat3(gbufferModelViewInverse) * normalize(sunPosition));

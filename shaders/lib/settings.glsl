@@ -121,9 +121,25 @@
 // every nearby wall. This lifts small lamps above the bloom mip threshold.
 #define EMISSIVE_LIGHTMAP_GAIN     2.20
 #define EMISSIVE_LIGHTMAP_POW      8.0
-#define BLOOM_RADIUS              1.00
+// M25: widen the halo. BLOOM_RADIUS scales the mip level of each tap, so a
+// larger value samples a bigger neighbourhood. BLOOM_HALO_BOOST re-weights
+// the outer taps; composite1 normalises by weightSum, so the bright CORE does
+// not get brighter - only the ring around it spreads further out.
+#define BLOOM_RADIUS              1.90
+#define BLOOM_HALO_BOOST          1.60
+// M25: a wide mip averages a bright lamp down to a dim value, so the outer
+// taps need a LOWER threshold than the sharp core. Without this they contribute
+// ~0 and widening the radius only dilutes the core (measured changed>5
+// 6.61% -> 5.36%). 0.45 => outermost tap threshold = 0.45 * BLOOM_THRESHOLD.
+#define BLOOM_HALO_THRESHOLD_SCALE 0.45
 #define BLOOM_TAPS                 5
 #define BLOOM_KNEE                 0.50
+// M25: dedicated WIDE halo, additive and outside the normalised tight bloom.
+// A high mip spreads each lamp over a large radius; because it is not divided
+// by weightSum, making the ring bigger never dilutes the bright core.
+#define BLOOM_HALO_LOD             7.0
+#define BLOOM_HALO_STRENGTH        0.50
+#define BLOOM_HALO_FLOOR           0.18
 
 // M6 display transform. 0 = ACES (A/B baseline), 1 = AgX-inspired log tonemap.
 #define TONEMAP_MODE               1
