@@ -174,3 +174,20 @@ option.WATER_VL_STRENGTH=Light Shaft Strength
 option.WATER_VL_STRENGTH.comment=Brightness of the underwater sunbeams.
 option.WATER_PARTICLE_NIGHT_BOOST=Particle Night Glow
 option.WATER_PARTICLE_NIGHT_BOOST.comment=At night suspended motes gain a faint cyan-green bioluminescent tint.
+
+# ---- Parallax / POM (M34) ----
+option.POM_ENABLED=Surface Parallax
+option.POM_ENABLED.comment=UV-space relief. Full parallax displacement is still disabled by default (POM_DEPTH = 0).
+value.POM_ENABLED.0=Off
+value.POM_ENABLED.1=On
+option.POM_DEPTH=Parallax Depth
+option.POM_DEPTH.comment=Depth of the UV displacement. Zero keeps bump-only relief; raise it carefully to avoid distortion at grazing angles.
+option.POM_BUMP=Surface Bump Strength
+option.POM_BUMP.comment=Strength of the normal perturbation derived from the height texture.
+# ---- Material-aware subsurface scattering (M34) ----
+option.GLASS_SSS_ENABLED=Glass Subsurface Scattering
+option.GLASS_SSS_ENABLED.comment=Backlit glass scatters light in its own transmitted colour; colourless panes only get a faint neutral glow.
+value.GLASS_SSS_ENABLED.0=Off
+value.GLASS_SSS_ENABLED.1=On
+option.GLASS_SSS_STRENGTH=Glass Scattering Strength
+option.GLASS_SSS_STRENGTH.comment=Intensity of the backlit pane glow. Foliage uses its own chlorophyll tint instead.

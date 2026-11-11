@@ -174,3 +174,20 @@ option.WATER_VL_STRENGTH=体积光强度
 option.WATER_VL_STRENGTH.comment=水下阳光光束的亮度。
 option.WATER_PARTICLE_NIGHT_BOOST=粒子夜间荧光
 option.WATER_PARTICLE_NIGHT_BOOST.comment=夜晚悬浮粒子会呈现淡淡的青绿生物荧光。
+
+# ---- 视差 / POM（M34）----
+option.POM_ENABLED=表面视差
+option.POM_ENABLED.comment=UV 空间起伏。完整视差位移仍默认关闭（POM_DEPTH = 0）。
+value.POM_ENABLED.0=关
+value.POM_ENABLED.1=开
+option.POM_DEPTH=视差深度
+option.POM_DEPTH.comment=UV 位移深度。为 0 时仅保留凹凸光照；调高时留意掠射角畸变。
+option.POM_BUMP=表面凹凸强度
+option.POM_BUMP.comment=由高度纹理推导的法线扰动强度。
+# ---- 材质相关次表面散射（M34）----
+option.GLASS_SSS_ENABLED=玻璃次表面散射
+option.GLASS_SSS_ENABLED.comment=逆光的玻璃会按自身透射色散射光线；无色玻璃只保留微弱的中性辉光。
+value.GLASS_SSS_ENABLED.0=关
+value.GLASS_SSS_ENABLED.1=开
+option.GLASS_SSS_STRENGTH=玻璃散射强度
+option.GLASS_SSS_STRENGTH.comment=逆光玻璃辉光强度。树叶使用各自的叶绿素色，不受此项影响。

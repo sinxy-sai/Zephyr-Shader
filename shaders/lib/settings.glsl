@@ -198,6 +198,17 @@
 #define WATER_VL_STRENGTH          0.90 //[0 0.25 0.5 0.75 0.9 1.2 1.8 2.5]
 #define WATER_VL_STEPS             8
 #define WATER_VL_RANGE            22.0
+// M34 - material-aware subsurface scattering for TRANSLUCENT panes.
+// The tint comes from the pane's own transmitted colour (colortex8), so a
+// red pane scatters red and a colourless pane only gets a faint neutral
+// glow - it must never be turned green by the foliage path.
+#define GLASS_SSS_ENABLED          1 //[0 1]
+#define GLASS_SSS_STRENGTH         1.20 //[0 0.3 0.65 1 1.2 1.6 2.2]
+#define GLASS_SSS_POWER            4.0
+#define GLASS_SSS_CHROMA_MIN       0.05
+#define GLASS_SSS_CHROMA_MAX       0.30
+#define GLASS_SSS_NEUTRAL          0.40
+
 #define SSR_ENABLED               1 //[0 1]
 #define SSR_STEPS                16
 #define SSR_STEP_LENGTH           1.50
@@ -403,8 +414,8 @@ vec2 zephyr_taaJitterNDC(int frame, float width, float height) {
 // 0.0008 / 0.0035 / 0.05 in z11_pom_*). The tile-clamped code stays available
 // as an experimental path; the shipped surface relief comes from
 // zephyr_parallaxNormal(), which never moves UVs. See 06-eval.md M11.
-#define POM_DEPTH                  0
-#define POM_BUMP                   1.20
+#define POM_DEPTH                  0 //[0 0.02 0.05 0.1 0.2 0.35 0.5]
+#define POM_BUMP                   1.20 //[0 0.3 0.6 0.9 1.2 1.6 2.2]
 #define RAIN_DAY_EV                0.30
 #define RAIN_FOG_DIST_POW          0.92 //[0 0.1 0.25 0.46 0.5 0.75 0.92 1 1.38 1.84]
 #define RAIN_GRADE_CONTRAST        0.05

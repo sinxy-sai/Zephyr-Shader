@@ -17,6 +17,7 @@ uniform sampler2D depthtex0;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 uniform sampler2D shadowcolor0;   // M12: transmitted colour of translucent casters
+uniform sampler2D colortex8;      // M34: pane transmitted colour for glass SSS
 
 // M7: change to "3,6" and re-add layout(location=1) out vec4 outHistory when
 // the temporal path is enabled (see shaders.properties for the full checklist).
@@ -332,7 +333,7 @@ void main() {
 #if LEAF_SSS_ENABLED
         // M30: push leaf albedo toward a vivid but luminance-neutral green.
         // Keeping luma constant avoids an artificial brightness lift.
-        if (isThin > 0.5) {
+        if (isThin > 0.5 && matId < 0.5) {
             float leafLuma = zephyr_luma(albedo);
             vec3 vivid = albedo * vec3(1.0 - 0.20 * LEAF_VITALITY,
                                        1.0 + 0.16 * LEAF_VITALITY,
@@ -347,7 +348,7 @@ void main() {
 #if LEAF_SSS_ENABLED
         // M30: waxy cuticle highlight - a narrow lobe, not the broad GGX used
         // for wet pavement. This is what makes sunlit leaves look alive.
-        if (isThin > 0.5) {
+        if (isThin > 0.5 && matId < 0.5) {
             direct += sunRadiance * shadowTrans
                     * pow(NoH, LEAF_SPEC_POWER) * LEAF_SPECULAR
                     * (1.0 - rain * 0.40);
@@ -395,7 +396,7 @@ void main() {
 #endif
 
 #if LEAF_SSS_ENABLED
-        if (isThin > 0.5) {
+        if (isThin > 0.5 && matId < 0.5) {
             // M30: thin-leaf subsurface transmission.
             // VoL peaks when the viewer looks toward the light THROUGH the
             // leaf; wrapped back-lighting keeps the canopy from going black.
@@ -416,6 +417,33 @@ void main() {
             float back = max(dot(-N, L), 0.0);
             indirect += albedo * sunRadiance * pow(back, 1.5)
                       * FOLIAGE_TRANSLUCENCY * shadowTrans;
+        }
+#endif
+
+#if GLASS_SSS_ENABLED
+        // M34: backlit glass scatters light in ITS OWN colour. Low-chroma
+        // panes only receive a faint neutral glow; the vivid green boost
+        // above is now restricted to real foliage by matId + isFoliage.
+        if (matId > 1.5 && matId < 2.5) {
+            vec3 paneCol = max(texture(colortex8, texCoord).rgb,
+                               vec3(0.0));
+            float cMax = max(paneCol.r, max(paneCol.g, paneCol.b));
+            float cMin = min(paneCol.r, min(paneCol.g, paneCol.b));
+            float chroma = cMax - cMin;
+            float tinted = smoothstep(GLASS_SSS_CHROMA_MIN,
+                                      GLASS_SSS_CHROMA_MAX, chroma);
+            vec3 tint = mix(vec3(1.0), paneCol / max(cMax, 1e-4),
+                            tinted);
+            float VoL = clamp(dot(-V, L) * 0.5 + 0.5, 0.0, 1.0);
+            // A tight VoL lobe only lights up when looking straight at the
+            // sun through a pane; keep a scatter floor so everyday viewing
+            // angles still show a hint of transmitted colour (M34).
+            float forward = 0.28 + 0.72 * pow(VoL, GLASS_SSS_POWER);
+            float strength = mix(GLASS_SSS_NEUTRAL, 1.0, tinted);
+            indirect += albedo * tint * sunRadiance * forward
+                      * GLASS_SSS_STRENGTH * strength * shadowTrans
+                      * (1.0 - rain * 0.35)
+                      * (0.30 + 0.70 * dayAmount);
         }
 #endif
 

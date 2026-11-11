@@ -35,6 +35,11 @@ void main() {
         writeEmissive(c, EMISSIVE_BLOCK_GAIN);
     } else {
         writeSolid(c, vLightCoord, MAT_SOLID, 0.55, zephyr_parallaxNormal(gtexture, zUv, vNormal));
-        outNormal.a = 1.0;   // thin surface: allow light through
+        // M34: colortex2.a means "foliage thin lamina", NOT "any cutout".
+        // block.10000..10004 are the vegetation IDs (the same range
+        // WAVE_CODE uses). Torches, glass panes, rails, webs and fire must
+        // NOT inherit the chlorophyll tint of F26's leaf SSS.
+        bool isFoliage = (zBlockId > 9999.5 && zBlockId < 10004.5);
+        outNormal.a = isFoliage ? 1.0 : 0.0;
     }
 }
