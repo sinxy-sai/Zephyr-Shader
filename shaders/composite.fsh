@@ -327,6 +327,12 @@ void main() {
         float sigma = FOG_DENSITY * exp(-max(worldPos.y - 64.0, 0.0) * FOG_HEIGHT_FALLOFF);
         // Keep rain fog strong but stop it from flattening all local contrast.
         sigma *= 1.0 + rain * 0.95;
+        // M35: a water surface is a specular mirror, not participating
+        // medium. Full atmospheric fog replaced its reflected sky with the
+        // SAME sky colour, flattening distant water into a grey-blue sheet.
+        float fogWater = (texture(colortex1, texCoord).a > 0.5
+                       && texture(colortex1, texCoord).a < 1.5) ? 1.0 : 0.0;
+        sigma *= mix(1.0, WATER_SURFACE_FOG_MULT, fogWater);
         // Shaping the fog distance in rain keeps far structures readable
         // instead of washing the whole frame into one flat grey.
         float fogDist = mix(dist, pow(max(dist, 1.0), RAIN_FOG_DIST_POW), rain);

@@ -266,6 +266,28 @@ vec3 zephyr_nightSky(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
 }
 // -------------------------------------------------------------------------
 
+// M35 ---------------------------------------------------------------------
+// Analytic multi-octave water slope. Two counter-drifting value-noise layers
+// with finite differences; NO texture lookup, NO dFdx (TAA-safe). This is the
+// Zephyr equivalent of iterationT's GetWavesNormal(): a non-periodic surface
+// so ripple highlights and reflections break up the repeating MC water tile.
+vec2 zephyr_waterWaveSlope(vec3 p, float t) {
+    vec2 uv = p.xz;
+    float e = 0.12;
+    vec2 d0 = vec2(0.62, 0.35) * t * WATER_WAVE_SPEED;
+    vec2 d1 = vec2(-0.28, 0.51) * t * WATER_WAVE_SPEED * 1.37;
+    float s0 = WATER_WAVE_SCALE;
+    float s1 = s0 * 2.3;
+    float h  = zephyr_valueNoise((uv + d0) * s0)
+             + 0.45 * zephyr_valueNoise((uv + d1) * s1);
+    float hx = zephyr_valueNoise((uv + vec2(e, 0.0) + d0) * s0)
+             + 0.45 * zephyr_valueNoise((uv + vec2(e, 0.0) + d1) * s1);
+    float hz = zephyr_valueNoise((uv + vec2(0.0, e) + d0) * s0)
+             + 0.45 * zephyr_valueNoise((uv + vec2(0.0, e) + d1) * s1);
+    return vec2(hx - h, hz - h) / e * WATER_WAVE_STRENGTH;
+}
+// -------------------------------------------------------------------------
+
 // M33 ---------------------------------------------------------------------
 // Suspended motes. The grid is anchored in WORLD space and NEVER moves with
 // time: a drifting grid re-rolled hash cells as the player swam (M33

@@ -191,3 +191,21 @@ value.GLASS_SSS_ENABLED.0=关
 value.GLASS_SSS_ENABLED.1=开
 option.GLASS_SSS_STRENGTH=玻璃散射强度
 option.GLASS_SSS_STRENGTH.comment=逆光玻璃辉光强度。树叶使用各自的叶绿素色，不受此项影响。
+
+# ---- 水面真实感（M35）----
+option.WATER_WAVE_ENABLED=程序化水面波纹
+option.WATER_WAVE_ENABLED.comment=用非周期的多层波浪法线替代规则的正弦网格。
+value.WATER_WAVE_ENABLED.0=关
+value.WATER_WAVE_ENABLED.1=开
+option.WATER_SSS_ENABLED=水体次表面散射
+option.WATER_SSS_ENABLED.comment=阳光在水体内部散射，掠射方向会透出青绿光。
+value.WATER_SSS_ENABLED.0=关
+value.WATER_SSS_ENABLED.1=开
+option.WATER_SSS_STRENGTH=水体散射强度
+option.WATER_SSS_STRENGTH.comment=水体内部次表面辉光的强度。
+option.WATER_GLITTER_ENABLED=波纹太阳闪光
+option.WATER_GLITTER_ENABLED.comment=随波纹法线分布的细碎镜面闪光。
+value.WATER_GLITTER_ENABLED.0=关
+value.WATER_GLITTER_ENABLED.1=开
+option.WATER_GLITTER_STRENGTH=闪光强度
+option.WATER_GLITTER_STRENGTH.comment=波纹闪光的亮度。

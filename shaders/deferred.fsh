@@ -451,15 +451,34 @@ void main() {
             float t = weatherTime;
             // Rain roughens the surface with small ripples and lifts reflection.
             float waveAmp = WAVE_AMPLITUDE * (1.0 + rain * 0.90);
+            // M35: analytic non-periodic ripples replace the old sin*cos.
+            // Slopes are WORLD space; rotate into view space for lighting.
+            vec2 slope = zephyr_waterWaveSlope(worldPos, t) * waveAmp;
+#if WATER_WAVE_ENABLED
+            vec3 waveNw = normalize(vec3(-slope.x, 1.0, -slope.y));
+#else
             float wx = sin(worldPos.x * 0.85 + t * 1.25) * cos(worldPos.z * 0.62 - t * 0.85);
             float wz = sin(worldPos.z * 1.05 - t * 1.45) * cos(worldPos.x * 0.55 + t * 0.75);
-            vec3 waveN = normalize(mat3(gbufferModelView) * vec3(wx * waveAmp, 1.0, wz * waveAmp));
+            vec3 waveNw = normalize(vec3(wx, 1.0, wz));
+            slope = vec2(wx, wz) * 0.0;
+#endif
+            vec3 waveN = normalize(mat3(gbufferModelView) * waveNw);
             float fresnel = WATER_F0 + (1.0 - WATER_F0)
                           * pow(clamp(1.0 - max(dot(V, waveN), 0.0), 0.0, 1.0), 5.0);
             fresnel = clamp(fresnel + rain * 0.12, 0.0, 1.0);
             vec3 worldRay = normalize(mat3(gbufferModelViewInverse) * (-V));
-            vec3 reflectDir = reflect(worldRay, normalize(vec3(wx, 1.0, wz) * waveAmp + vec3(0.0, 1.0, 0.0)));
+            // Old expression collapsed to ~vec3(0,1,0) and produced an almost
+            // flat sky reflection; use the real world-space wave normal.
+            vec3 reflectDir = reflect(worldRay, waveNw);
             vec3 reflection = zephyr_atmosphere(reflectDir, sunDirWorld, dayAmount, rain);
+            // M35: water reflects the same analytic atmosphere as the fog.
+            // A cool tint plus a facet term driven by the wave slope keeps
+            // the surface distinguishable from the sky it reflects.
+            reflection *= WATER_REFLECT_TINT;
+            float facet = clamp(1.0 + (slope.x + slope.y)
+                                * WATER_REFLECT_FACET * 8.0,
+                                0.62, 1.40);
+            reflection *= facet;
 #if WATER_VOLUME_ENABLED
             // M31: Beer-Lambert slant-path absorption. A grazing view travels
             // further through the water, so red is removed first and the body
@@ -469,9 +488,25 @@ void main() {
             float opticalPath = WATER_SURFACE_PATH / max(cosView, 0.18);
             vec3 trans = exp(-WATER_ABSORB_RGB * opticalPath);
             vec3 ambientWater = skyAmbient + blockRadiance;
-            vec3 body = WATER_SCATTER_RGB * (1.0 - trans) * WATER_INSCATTER
-                      + albedo * trans * 0.55;
+            vec3 body = WATER_SCATTER_RGB * (1.0 - trans)
+                      * WATER_INSCATTER * WATER_BODY_SCATTER
+                      + albedo * trans * WATER_BODY_ALBEDO;
             vec3 underwater = body * ambientWater * WATER_ABSORPTION * 4.0;
+#if WATER_SSS_ENABLED
+            // M35: subsurface scattering in the water body. Light that enters
+            // the surface is scattered back out with the water's cyan-green
+            // colour. The slant path makes grazing views glow, and the VoL
+            // lobe adds the bright rim when looking toward the sun.
+            float VoL = clamp(dot(-V, L) * 0.5 + 0.5, 0.0, 1.0);
+            float sssPath = WATER_SSS_DEPTH / max(cosView, 0.18);
+            vec3 sssTrans = exp(-WATER_ABSORB_RGB * sssPath);
+            vec3 sssLight = WATER_SCATTER_RGB * (1.0 - sssTrans)
+                          * (0.35 + 0.65 * pow(VoL, WATER_SSS_PHASE))
+                          * WATER_SSS_STRENGTH * sunRadiance
+                          * (0.35 + 0.65 * dayAmount)
+                          * shadowTrans * (1.0 - rain * 0.40);
+            underwater += sssLight;
+#endif
 #if WATER_PARTICLE_ENABLED
             // Motes a short distance below the surface stay visible when the
             // camera is above water, so the volume reads from the shore too.
@@ -497,6 +532,15 @@ void main() {
 #endif
             color = mix(underwater, reflection, clamp(fresnel, 0.0, 1.0));
             color += direct * 0.20;
+#if WATER_GLITTER_ENABLED
+            // M35: narrow sun glitter. The non-periodic wave normal makes
+            // these sparkles scatter across the surface instead of forming
+            // a regular grid.
+            float glit = pow(max(dot(waveN, H), 0.0),
+                             WATER_GLITTER_POWER);
+            color += sunRadiance * glit * WATER_GLITTER_STRENGTH
+                   * shadowTrans * dayAmount * (1.0 - rain * 0.50);
+#endif
         } else {
 #if AO_ENABLED
             // Fixed spatial jitter (see zephyr_ssao) already removes temporal

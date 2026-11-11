@@ -191,3 +191,21 @@ value.GLASS_SSS_ENABLED.0=Off
 value.GLASS_SSS_ENABLED.1=On
 option.GLASS_SSS_STRENGTH=Glass Scattering Strength
 option.GLASS_SSS_STRENGTH.comment=Intensity of the backlit pane glow. Foliage uses its own chlorophyll tint instead.
+
+# ---- Water surface realism (M35) ----
+option.WATER_WAVE_ENABLED=Analytic Water Ripples
+option.WATER_WAVE_ENABLED.comment=Non-periodic multi-octave wave normals instead of the regular sine grid.
+value.WATER_WAVE_ENABLED.0=Off
+value.WATER_WAVE_ENABLED.1=On
+option.WATER_SSS_ENABLED=Water Subsurface Scattering
+option.WATER_SSS_ENABLED.comment=Sunlight scattered inside the water body; grazing views glow cyan-green.
+value.WATER_SSS_ENABLED.0=Off
+value.WATER_SSS_ENABLED.1=On
+option.WATER_SSS_STRENGTH=Water Scattering Strength
+option.WATER_SSS_STRENGTH.comment=Intensity of the in-water subsurface glow.
+option.WATER_GLITTER_ENABLED=Sun Glitter on Ripples
+option.WATER_GLITTER_ENABLED.comment=Narrow specular sparkles following the wave normals.
+value.WATER_GLITTER_ENABLED.0=Off
+value.WATER_GLITTER_ENABLED.1=On
+option.WATER_GLITTER_STRENGTH=Sun Glitter Strength
+option.WATER_GLITTER_STRENGTH.comment=Brightness of the ripple sparkles.

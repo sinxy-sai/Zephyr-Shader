@@ -196,6 +196,41 @@
 // Beer-Lambert coefficient as the water fog.
 #define WATER_VL_ENABLED           1 //[0 1]
 #define WATER_VL_STRENGTH          0.90 //[0 0.25 0.5 0.75 0.9 1.2 1.8 2.5]
+// M35 - water surface realism (iterationT GetWavesNormal / Complementary
+// water.glsl ideas). The old sin*cos wave was perfectly periodic, which is
+// why an overhead view read as flat grey-blue bathroom tiles.
+#define WATER_WAVE_ENABLED         1 //[0 1]
+#define WATER_WAVE_SCALE           0.55
+#define WATER_WAVE_SPEED           0.35
+#define WATER_WAVE_STRENGTH        1.20
+// M35: the analytic slope is multiplied by waveAmp (~0.08) in deferred, so
+// 0.055 produced ~0.25 degrees of normal perturbation - invisible. 1.20
+// gives a readable ripple field. Water reflects the SAME analytic atmosphere
+// used for the fog, so without a tint + facet modulation the surface and the
+// fog are the same flat grey-blue (the "not real / not pretty" complaint).
+// M35: kept MILD because this could not be photographed on a real water
+// camera this round - the user's current view turned out to be an opaque
+// decorative block (matId ~= 0), not MAT_WATER. Verify on real water before
+// pushing these further.
+#define WATER_REFLECT_TINT          vec3(0.82, 0.89, 1.00)
+#define WATER_REFLECT_FACET         0.25
+#define WATER_SURFACE_FOG_MULT      0.85 //[0 0.2 0.4 0.6 0.8 0.85 1]
+// M35 - subsurface scattering INSIDE the water body. Sunlight entering the
+// surface is scattered back out with the water's own cyan-green colour; the
+// effect grows with slant path (grazing views) and forward alignment.
+#define WATER_SSS_ENABLED          1 //[0 1]
+#define WATER_SSS_STRENGTH         0.90 //[0 0.3 0.6 0.9 1.3 1.8 2.5]
+#define WATER_SSS_DEPTH            1.60
+#define WATER_SSS_PHASE            4.0
+// M35 - narrow sun glitter on the ripples (the surface had NO specular lobe).
+#define WATER_GLITTER_ENABLED      1 //[0 1]
+#define WATER_GLITTER_STRENGTH     1.20 //[0 0.3 0.7 1.2 1.8 2.6 4]
+#define WATER_GLITTER_POWER        180.0
+// Body composition: less raw texture, more volumetric scattering. Keeping
+// some albedo preserves the seabed that gbuffers_water blended into colortex0.
+#define WATER_BODY_ALBEDO          0.42
+#define WATER_BODY_SCATTER         1.15
+
 #define WATER_VL_STEPS             8
 #define WATER_VL_RANGE            22.0
 // M34 - material-aware subsurface scattering for TRANSLUCENT panes.
