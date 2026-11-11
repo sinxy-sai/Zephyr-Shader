@@ -270,22 +270,54 @@ void main() {
                        * WATER_INSCATTER * (0.65 + 0.35 * mu);
         color = color * Tw + inScatter * (1.0 - Tw);
 
+#if WATER_VL_ENABLED
+        // M33: underwater light shafts. FIXED world-space slabs (step length
+        // does NOT depend on per-pixel dist, the M33 swim flicker), a
+        // sun-aligned caustics mask, a Mie-like forward phase and the same
+        // Beer-Lambert attenuation as the fog.
+        float vlStep = WATER_VL_RANGE / float(WATER_VL_STEPS);
+        // A tight sun-aligned lobe almost never faces a downward underwater
+        // view; keep a broad scatter floor so shafts stay visible.
+        float phase = 0.55 + 0.45 * pow(mu, 2.0);
+        vec3 shafts = vec3(0.0);
+        for (int i = 0; i < WATER_VL_STEPS; ++i) {
+            float t = (float(i) + 0.5) * vlStep;
+            if (t > dist) break;
+            vec3 p = cameraPosition + rd * t;
+            // Bound the sun-aligned offset: using raw p.y on tall distant
+            // geometry produced high-frequency stripes in the sky (M33).
+            float c = zephyr_caustics(p + sunDirWorld
+                          * clamp(p.y, 0.0, 12.0) * 0.25,
+                          frameTimeCounter * CAUSTICS_SPEED);
+            shafts += vec3(0.55, 0.85, 1.00) * c
+                    * exp(-WATER_FOG_DENSITY * t);
+        }
+        // Shafts live in the water between the eye and a solid surface; a
+        // sky pixel has no such medium, so do not paint beams onto the sky.
+        float skyGate = depth < 0.9999 ? 1.0 : 0.0;
+        color += shafts * (WATER_VL_STRENGTH / float(WATER_VL_STEPS))
+               * phase * dayAmount * (1.0 - rain * 0.55) * skyGate;
+#endif
+
 #if WATER_PARTICLE_ENABLED
-        // M31: raymarch suspended motes along the view ray in WORLD space and
-        // attenuate each sample by the SAME transmittance as the water fog.
-        // Sharing the coefficient keeps the particles physically embedded in
-        // the volume rather than floating on top of it.
-        float maxT = min(dist, WATER_PARTICLE_RANGE);
-        float stepLen = maxT / float(WATER_PARTICLE_STEPS);
+        // M33: fixed-length slabs, 2D perpendicular footprint, no grid drift.
+        // At night the motes shift to a faint bioluminescent cyan-green and
+        // gain a little intensity so they stay readable underwater.
+        float pStep = WATER_PARTICLE_RANGE / float(WATER_PARTICLE_STEPS);
+        float night = 1.0 - dayAmount;
+        vec3 moteColor = mix(WATER_PARTICLE_COLOR,
+                             WATER_PARTICLE_GLOW_COLOR,
+                             night * WATER_PARTICLE_NIGHT_GLOW);
+        float moteGain = WATER_PARTICLE_BRIGHTNESS
+                       * (1.0 + night * WATER_PARTICLE_NIGHT_BOOST);
         vec3 motes = vec3(0.0);
         for (int i = 0; i < WATER_PARTICLE_STEPS; ++i) {
-            float t = (float(i) + 0.5) * stepLen;
-            float m = zephyr_waterMote(cameraPosition + rd * t);
-            if (m > 0.0) motes += WATER_PARTICLE_COLOR * m * exp(-sigmaA * t);
+            float t = (float(i) + 0.5) * pStep;
+            if (t > dist) break;
+            float m = zephyr_waterMote(cameraPosition + rd * t, rd);
+            if (m > 0.0) motes += moteColor * m * exp(-sigmaA * t);
         }
-        color += motes * (WATER_PARTICLE_BRIGHTNESS
-                          / float(WATER_PARTICLE_STEPS))
-               * (0.30 + 0.70 * dayAmount);
+        color += motes * (moteGain / float(WATER_PARTICLE_STEPS));
 #endif
     }
 #endif

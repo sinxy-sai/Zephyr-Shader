@@ -158,3 +158,19 @@ option.WATER_PARTICLE_DENSITY=Particle Density
 option.WATER_PARTICLE_DENSITY.comment=Fraction of world-space grid cells that hold a visible mote.
 option.WATER_PARTICLE_BRIGHTNESS=Particle Brightness
 option.WATER_PARTICLE_BRIGHTNESS.comment=Motes are attenuated by the same Beer-Lambert transmittance as the fog.
+
+# ---- Caustics, underwater light shafts, night glow (M33) ----
+option.CAUSTICS_ENABLED=Water Caustics
+option.CAUSTICS_ENABLED.comment=Animated bright net projected onto submerged geometry. Needs daylight.
+value.CAUSTICS_ENABLED.0=Off
+value.CAUSTICS_ENABLED.1=On
+option.CAUSTICS_STRENGTH=Caustics Strength
+option.CAUSTICS_STRENGTH.comment=Intensity of the focused light pattern on the underwater floor and objects.
+option.WATER_VL_ENABLED=Underwater Light Shafts
+option.WATER_VL_ENABLED.comment=Sunlight scattered into visible beams by the water volume.
+value.WATER_VL_ENABLED.0=Off
+value.WATER_VL_ENABLED.1=On
+option.WATER_VL_STRENGTH=Light Shaft Strength
+option.WATER_VL_STRENGTH.comment=Brightness of the underwater sunbeams.
+option.WATER_PARTICLE_NIGHT_BOOST=Particle Night Glow
+option.WATER_PARTICLE_NIGHT_BOOST.comment=At night suspended motes gain a faint cyan-green bioluminescent tint.

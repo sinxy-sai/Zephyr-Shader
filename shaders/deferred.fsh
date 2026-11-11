@@ -450,10 +450,17 @@ void main() {
             float surfaceMotes = 0.0;
             for (int i = 0; i < 3; ++i) {
                 surfaceMotes += zephyr_waterMote(worldPos
-                    + vec3(0.0, -0.30 - float(i) * 0.45, 0.0));
+                    + vec3(0.0, -0.30 - float(i) * 0.45, 0.0), worldRay);
             }
-            underwater += WATER_PARTICLE_COLOR * trans * surfaceMotes
+            // M33: at night the surface motes share the same faint
+            // cyan-green bioluminescent tint as the underwater volume.
+            float nightGlow = 1.0 - dayAmount;
+            vec3 moteTint = mix(WATER_PARTICLE_COLOR,
+                                WATER_PARTICLE_GLOW_COLOR,
+                                nightGlow * WATER_PARTICLE_NIGHT_GLOW);
+            underwater += moteTint * trans * surfaceMotes
                         * WATER_PARTICLE_BRIGHTNESS * 0.16
+                        * (1.0 + nightGlow * WATER_PARTICLE_NIGHT_BOOST)
                         * (0.30 + 0.70 * dayAmount);
 #endif
 #else
@@ -478,6 +485,30 @@ void main() {
             color = direct + indirect;
 #endif
         }
+
+#if CAUSTICS_ENABLED
+        // M33: caustics belong on SUBMERGED geometry, not on the water
+        // surface itself. Gate on eye-in-water so the pattern shares the
+        // same volume as the underwater fog.
+        // Physically these are focused rays landing on the SEABED / upward
+        // faces near the viewer - not on vertical walls, distant buildings
+        // or the water surface. Without those gates the whole frame turns
+        // into a bright net (M33 first tuning pass).
+        if (isEyeInWater == 1
+            && !(matId > 0.5 && matId < 1.5)
+            && Nw.y > 0.25
+            && length(viewPos) < 28.0) {
+            float caus = zephyr_caustics(worldPos,
+                             frameTimeCounter * CAUSTICS_SPEED);
+            // Underwater lightmap skylight is low by design, so a
+            // skyLight-proportional gate would erase the pattern entirely.
+            float sunVis = dayAmount * (0.55 + 0.45 * skyLight)
+                         * (1.0 - rain * 0.45);
+            float reach = 1.0 - smoothstep(14.0, 28.0, length(viewPos));
+            color += albedo * sunRadiance * caus * CAUSTICS_STRENGTH
+                   * sunVis * shadowTrans * reach;
+        }
+#endif
 
         // M27: cap emissive HDR. writeEmissive already multiplied the albedo
         // by EMISSIVE_BLOCK_GAIN; without a cap a placed sea lantern reached

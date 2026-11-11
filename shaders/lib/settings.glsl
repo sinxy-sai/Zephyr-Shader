@@ -167,23 +167,37 @@
 #define WATER_SURFACE_PATH         0.80
 #define WATER_FOG_DENSITY          0.10 //[0 0.03 0.06 0.10 0.14 0.2 0.3 0.45]
 #define WATER_INSCATTER            0.85
-// M31 - suspended motes. A fixed WORLD-space grid with continuous drift is
-// TAA-stable: TAA jitter cannot re-roll the points each frame.
-// M32 (real underwater tuning): SIZE is in NORMALISED CELL units, and the
-// raymarch only takes STEPS discrete samples. The hit probability of one 3D
-// sphere is ~(4/3)*PI*SIZE^3, so SIZE=0.035 made motes effectively invisible
-// (all "particle A/B" deltas were just wave animation / TAA noise), while
-// SIZE=0.42 with GRID=1.35 turned them into big blurry blobs. Physical mote
-// radius = SIZE * GRID = 0.24 * 0.55 ~= 0.13 m: small discrete points.
+// M31/M33 - suspended motes, caustics and underwater light shafts.
+// M32: SIZE is in normalised cell units; the original 3D-sphere hit test
+// made motes invisible at 0.035 and blobby at 0.42. M33 uses a 2D footprint
+// perpendicular to the view ray and a FIXED step length, which also removes
+// the swim-time flicker (a moving grid re-rolled the hash every frame).
 #define WATER_PARTICLE_ENABLED     1 //[0 1]
-#define WATER_PARTICLE_DENSITY     0.16 //[0 0.06 0.10 0.16 0.22 0.30 0.45]
-#define WATER_PARTICLE_GRID        0.55
-#define WATER_PARTICLE_SIZE        0.24
+#define WATER_PARTICLE_DENSITY     0.12 //[0 0.03 0.05 0.07 0.12 0.20 0.32]
+#define WATER_PARTICLE_GRID        0.90
+#define WATER_PARTICLE_SIZE        0.14
 #define WATER_PARTICLE_STEPS       8
-#define WATER_PARTICLE_RANGE       14.0
-#define WATER_PARTICLE_SPEED       0.045
-#define WATER_PARTICLE_BRIGHTNESS  1.60 //[0 0.4 0.85 1.3 1.6 2.0 2.5]
+#define WATER_PARTICLE_RANGE       16.0
+#define WATER_PARTICLE_BRIGHTNESS  1.60 //[0 0.3 0.6 0.9 1.3 1.6 1.8 2.2]
 #define WATER_PARTICLE_COLOR       vec3(0.72, 0.92, 1.00)
+#define WATER_PARTICLE_GLOW_COLOR  vec3(0.32, 0.95, 0.86)
+#define WATER_PARTICLE_NIGHT_GLOW  0.85
+#define WATER_PARTICLE_NIGHT_BOOST 1.40 //[0 0.5 1 1.4 2 2.8 4]
+
+// M33 - procedural caustics: two counter-drifting noise ridges (BSL
+// shadow.glsl / photon water_fog_vl.glsl) projected onto submerged geometry.
+#define CAUSTICS_ENABLED           1 //[0 1]
+#define CAUSTICS_STRENGTH          1.20 //[0 0.15 0.3 0.55 0.8 1.2 1.8]
+#define CAUSTICS_SCALE             0.28
+#define CAUSTICS_SPEED             0.22
+#define CAUSTICS_SHARPNESS         4.00
+// M33 - underwater volumetric shafts: fixed world-space slabs, a sun-aligned
+// caustics mask and a Mie-like forward phase, attenuated by the same
+// Beer-Lambert coefficient as the water fog.
+#define WATER_VL_ENABLED           1 //[0 1]
+#define WATER_VL_STRENGTH          0.90 //[0 0.25 0.5 0.75 0.9 1.2 1.8 2.5]
+#define WATER_VL_STEPS             8
+#define WATER_VL_RANGE            22.0
 #define SSR_ENABLED               1 //[0 1]
 #define SSR_STEPS                16
 #define SSR_STEP_LENGTH           1.50

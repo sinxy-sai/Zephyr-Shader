@@ -158,3 +158,19 @@ option.WATER_PARTICLE_DENSITY=粒子密度
 option.WATER_PARTICLE_DENSITY.comment=世界空间网格中生成可见微粒的格子比例。
 option.WATER_PARTICLE_BRIGHTNESS=粒子亮度
 option.WATER_PARTICLE_BRIGHTNESS.comment=粒子与水下雾共用同一套 Beer-Lambert 透射率衰减。
+
+# ---- 焦散、水下体积光、夜间荧光（M33）----
+option.CAUSTICS_ENABLED=水体焦散
+option.CAUSTICS_ENABLED.comment=投射到水下几何上的动态亮纹，需要日光。
+value.CAUSTICS_ENABLED.0=关
+value.CAUSTICS_ENABLED.1=开
+option.CAUSTICS_STRENGTH=焦散强度
+option.CAUSTICS_STRENGTH.comment=水底与水下物体上聚焦光纹的强度。
+option.WATER_VL_ENABLED=水下体积光
+option.WATER_VL_ENABLED.comment=阳光被水体散射形成的可见光束。
+value.WATER_VL_ENABLED.0=关
+value.WATER_VL_ENABLED.1=开
+option.WATER_VL_STRENGTH=体积光强度
+option.WATER_VL_STRENGTH.comment=水下阳光光束的亮度。
+option.WATER_PARTICLE_NIGHT_BOOST=粒子夜间荧光
+option.WATER_PARTICLE_NIGHT_BOOST.comment=夜晚悬浮粒子会呈现淡淡的青绿生物荧光。

@@ -266,24 +266,45 @@ vec3 zephyr_nightSky(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
 }
 // -------------------------------------------------------------------------
 
-// M31 ---------------------------------------------------------------------
-// Suspended underwater motes. The grid is anchored in WORLD space and only
-// drifts continuously with time, so TAA jitter changes the sample position
-// smoothly instead of re-rolling the random points every frame (the M17
-// lesson). A soft round footprint lets the history converge.
-float zephyr_waterMote(vec3 p) {
+// M33 ---------------------------------------------------------------------
+// Suspended motes. The grid is anchored in WORLD space and NEVER moves with
+// time: a drifting grid re-rolled hash cells as the player swam (M33
+// flicker). Only the particle centre breathes with smooth sines. The
+// footprint is measured in the plane PERPENDICULAR to the view ray, because
+// a 3D sphere test is almost never hit by discrete raymarch samples (M32).
+float zephyr_waterMote(vec3 p, vec3 rd) {
     vec3 q = p / WATER_PARTICLE_GRID;
-    q.y -= frameTimeCounter * WATER_PARTICLE_SPEED / WATER_PARTICLE_GRID;
     vec3 id = floor(q);
-    vec3 f = fract(q) - 0.5;
     float h = zephyr_hash12(id.xy + vec2(id.z * 37.0, id.z * 17.0));
-    if (h < 1.0 - WATER_PARTICLE_DENSITY) return 0.0;
+    if (h > WATER_PARTICLE_DENSITY) return 0.0;
     float h2 = zephyr_hash12(id.xy + vec2(id.z * 11.0 + 5.3,
                                           id.z * 3.7));
     float h3 = zephyr_hash12(id.xy + vec2(id.z * 7.1,
                                           id.z * 23.0 + 9.1));
-    vec3 offset = (vec3(h, h2, h3) - 0.5) * 0.70;
-    return smoothstep(WATER_PARTICLE_SIZE, 0.0, length(f - offset));
+    vec3 offset = (vec3(h, h2, h3) - 0.5) * 0.60;
+    float t = frameTimeCounter;
+    offset += 0.06 * vec3(sin(t * 0.31 + h  * 6.2831),
+                          sin(t * 0.23 + h2 * 6.2831),
+                          sin(t * 0.19 + h3 * 6.2831));
+    vec3 d3 = fract(q) - 0.5 - offset;
+    vec3 perp = d3 - rd * dot(d3, rd);
+    float m = smoothstep(WATER_PARTICLE_SIZE, 0.0, length(perp));
+    return m * m;
+}
+
+// Procedural caustics: two counter-drifting value-noise layers ridged into a
+// thin bright net. Same structure as BSL shadow.glsl / photon
+// water_fog_vl.glsl, but fully analytic so no noise texture is needed.
+float zephyr_caustics(vec3 p, float t) {
+    vec2 uv = p.xz - p.y * 0.14;
+    vec2 d0 = vec2(0.88, 0.48);
+    vec2 d1 = vec2(-0.42, 0.91);
+    float a = zephyr_valueNoise((uv + d0 * t) * CAUSTICS_SCALE);
+    float b = zephyr_valueNoise((uv + d1 * t * 0.73)
+                                * CAUSTICS_SCALE * 1.9);
+    float ridge = (1.0 - abs(a * 2.0 - 1.0))
+                * (1.0 - abs(b * 2.0 - 1.0));
+    return pow(clamp(ridge, 0.0, 1.0), CAUSTICS_SHARPNESS);
 }
 // -------------------------------------------------------------------------
 
