@@ -266,7 +266,7 @@
 // seabed through the alpha-blended water surface).
 #define WATER_BOTTOM_MIX           0.85 //[0 0.1 0.2 0.35 0.5 0.75 0.85 1]
 #define WATER_BOTTOM_LIGHT         0.45 //[0 0.2 0.4 0.45 0.6 0.8 1.2]
-#define WATER_FACET_GAIN           1.20
+#define WATER_FACET_GAIN           1.10
 #define WATER_NEAR_DIST      18.0
 #define WATER_FAR_DIST       38.0
 #define WATER_NEAR_SAT             1.00 //[0 0.3 0.6 0.85 1]
@@ -275,8 +275,13 @@
 #define WATER_BODY_MIX             1.00 //[0 0.25 0.45 0.65 0.8 0.9 1]
 // Three-octave Iris noisetex waves (iterationT GetWaves style). Zephyr used
 // purely analytic valueNoise before; noisetex is built into Iris, no asset.
-#define WATER_WAVE_SCALE           0.25
+#define WATER_WAVE_SCALE           0.12
 #define WATER_WAVE_SPEED           0.30
+// M45: wave direction + anisotropy. ANISO scales the lookup along the flow
+// axis; smaller values stretch the noise into long slanted bands instead of
+// isotropic grit.
+#define WATER_WAVE_DIR             vec2(0.86, 0.51)
+#define WATER_WAVE_ANISO           0.18 //[0.10 0.14 0.18 0.25 0.35 0.55 1.0]
 #define WATER_WAVE_STRENGTH        0.65
 // -------------------------------------------------------------------------
 

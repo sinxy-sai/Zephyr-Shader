@@ -289,21 +289,39 @@ vec2 zephyr_waterWaveSlope(vec3 p, float t) {
 // -------------------------------------------------------------------------
 
 // M40 ---------------------------------------------------------------------
-// Three counter-drifting octaves of Iris's built-in noisetex. Unlike the old
-// analytic slope this is non-periodic at the scale of a pool, and the shear
-// terms (p.y mixed into the XZ lookup) break up straight wave fronts, as in
-// iterationT's GetWaves(). Returns an XZ slope used both for refraction UV
-// offsets and for cheap facet shading. World-space => TAA stable.
+// Wave slope from Iris's built-in noisetex. World-space and non-periodic, so
+// TAA jitter only produces sub-pixel motion.
+//
+// M45: the isotropic lookup below read as sandpaper (no direction), while the
+// reference pack's water shows long SLANTED bands. Two things change here:
+//   1. each octave is sampled in a rotated frame and stretched along the flow
+//      direction (anisotropic scale), so features become streaks, not grit;
+//   2. the two main octaves flow at different angles, giving cross-chop that
+//      hides the stretching repeat.
+// A small isotropic octave stays on top for the sparkle.
 vec2 zephyr_waterWaves(vec3 p, float t) {
     vec2 q = p.xz * WATER_WAVE_SCALE - p.y * 0.35;
     float ft = t * WATER_WAVE_SPEED;
     vec2 s = vec2(0.0);
-    s += (texture(noisetex, q * 0.45 + vec2(ft * 0.10, ft * 0.06)).xz
-          - 0.5) * 0.55;
-    s += (texture(noisetex, q * 0.95 + vec2(-ft * 0.14, ft * 0.09)).xz
+
+    // Octave 1: long swell along the main flow, stretched 1 : ANISO.
+    vec2 d1 = WATER_WAVE_DIR;
+    vec2 a1 = vec2(dot(q, d1), dot(q, vec2(-d1.y, d1.x)));
+    a1.x *= WATER_WAVE_ANISO;
+    s += (texture(noisetex, a1 * 0.20 + d1 * (ft * 0.09)).xz
+          - 0.5) * 0.62;
+
+    // Octave 2: cross chop from a different angle, milder stretch.
+    vec2 d2 = normalize(vec2(-d1.y, d1.x) * 0.8 + d1 * 0.55);
+    vec2 a2 = vec2(dot(q, d2), dot(q, vec2(-d2.y, d2.x)));
+    a2.x *= mix(1.0, WATER_WAVE_ANISO, 0.45);
+    s += (texture(noisetex, a2 * 0.52 - d2 * (ft * 0.12)).xz
           - 0.5) * 0.30;
-    s += (texture(noisetex, q * 1.90 + vec2(ft * 0.21, -ft * 0.13)).xz
-          - 0.5) * 0.15;
+
+    // Octave 3: fine isotropic sparkle for glitter.
+    s += (texture(noisetex, q * 1.55 + vec2(ft * 0.18, -ft * 0.11)).xz
+          - 0.5) * 0.14;
+
     return s * WATER_WAVE_STRENGTH;
 }
 // -------------------------------------------------------------------------
