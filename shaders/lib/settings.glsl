@@ -188,7 +188,12 @@
 #define WATER_SCATTER_RGB          vec3(0.10, 0.42, 0.48)
 #define WATER_SURFACE_PATH         0.80
 #define WATER_FOG_DENSITY          0.38 //[0 0.06 0.12 0.2 0.3 0.38 0.5 0.7]
-#define WATER_UP_TINT            0.85 //[0 0.3 0.6 0.75 0.85 1.0]
+// M50 - water surface seen from below (port of iterationT composite1/5).
+// IOR follows iterationT's WATER_REFRACT_IOR; the TIR threshold is 1/IOR.
+#define WATER_UW_MIX               0.92 //[0 0.3 0.6 0.8 0.92 1.0]
+#define WATER_UW_IOR             1.20
+#define WATER_UW_WAVE_N            6.0
+#define WATER_UW_CREST             0.25 //[0 0.1 0.18 0.25 0.4 0.6 0.9]
 #define WATER_INSCATTER            0.85
 // M31/M33 - suspended motes, caustics and underwater light shafts.
 // M32: SIZE is in normalised cell units; the original 3D-sphere hit test

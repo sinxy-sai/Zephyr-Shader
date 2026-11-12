@@ -458,15 +458,51 @@ void main() {
                        * WATER_INSCATTER * (0.65 + 0.35 * mu);
         color = color * Tw + inScatter * (1.0 - Tw);
 
-        // M49: looking UP from underwater, the skybox is still drawn by
-        // gbuffers_skytextured with a short water path (the surface depth
-        // clips `dist`), so the clear blue sky stayed visible and the water
-        // looked like it had vanished. Physically that direction is blocked by
-        // the surface; tint upward rays toward the body colour.
-        float upView = clamp(rd.y * 1.6, 0.0, 1.0);
-        vec3 surfaceTint = WATER_SCATTER_RGB * ambientUnder
-                         * WATER_INSCATTER * 1.30;
-        color = mix(color, surfaceTint, upView * WATER_UP_TINT);
+        // M50: the water surface seen FROM BELOW (port of iterationT's
+        // composite1.fsh:136-149 + composite5.fsh:77).
+        //
+        // Two things were wrong before: (a) the wave normal was still the
+        // upward one, so `dot(N, up) < 0` and the ripple amplitude collapsed
+        // to zero - the surface was a dead flat plate (the "static" look the
+        // user called out); (b) there was no refract()/TIR test at all, so the
+        // sky and buildings were simply tinted instead of being distorted and
+        // mostly blocked.
+        vec4 uwMark = texture(colortex8, texCoord);
+        if (uwMark.b > 1.5 && uwMark.a < 0.01) {
+            vec3 surfPos = cameraPosition + rd * dist;
+            vec2 uwSlope = zephyr_waterWaves(surfPos, frameTimeCounter);
+            // Seen from below the geometric normal points DOWN into the water;
+            // waves perturb it exactly like the above-water normal, so the
+            // refracted view moves over time.
+            vec3 Ndown = normalize(vec3(-uwSlope.x * WATER_UW_WAVE_N,
+                                        -1.0,
+                                        -uwSlope.y * WATER_UW_WAVE_N));
+            // Water -> air refraction. GLSL returns a zero vector on TIR.
+            vec3 refr = refract(rd, Ndown, WATER_UW_IOR);
+            float tir = dot(refr, refr) < 1e-6 ? 1.0 : 0.0;
+
+            // Below the critical angle the outside world is visible through
+            // the refracted direction. iterationT projects through a sky
+            // cubemap (composite1.fsh:141); colortex3 cannot be used because
+            // on a water pixel it holds the WATER ITSELF, which fed back as
+            // torn rainbow shards. The analytic sky is the correct source.
+            vec3 refrDir = normalize(refr + vec3(0.0, 1e-4, 0.0));
+            vec3 refrSky = zephyr_atmosphere(refrDir, sunDirWorld,
+                                             dayAmount, rain);
+
+            // Beyond the critical angle the surface mirrors the water body
+            // itself; the very long optical path eats almost all of it.
+            vec3 mirrCol = WATER_SCATTER_RGB * ambientUnder
+                         * WATER_INSCATTER * 0.55;
+            // Wave crests catch light even from below - keeps it alive.
+            float cref = clamp(0.55 + (uwSlope.x + uwSlope.y)
+                               * WATER_UW_CREST, 0.0, 1.6);
+            vec3 surfCol = mix(refrSky * cref, mirrCol, tir);
+            // Water path from the eye to the surface dims what comes through.
+            surfCol = mix(mirrCol, surfCol, 1.0) * (0.55 + 0.45 * Tw.g);
+
+            color = mix(color, surfCol, WATER_UW_MIX);
+        }
 
 #if WATER_VL_ENABLED
         // M33: underwater light shafts. FIXED world-space slabs (step length
