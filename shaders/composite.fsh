@@ -250,6 +250,74 @@ void main() {
                                         + edge * GLASS_EDGE_STRENGTH));
     }
 
+    // M40 -----------------------------------------------------------------
+    // iterationT-style water body, above-water view only.
+    // `colortex8.b > 1.5 && colortex8.a < 0.01` is Zephyr's dedicated WATER
+    // marker (gbuffers_water writes 2.0 into .b for real water). matId in
+    // colortex1.a is NOT reliable at this stage (a probe marked ~96% of the
+    // frame as water), and Iris's depthtex1 carries no translucent surface
+    // depth in this pack, so the water path is approximated from `dist`.
+#if WATER_BODY_ENABLED
+    vec4 wmark = texture(colortex8, texCoord);
+    if (wmark.b > 1.5 && wmark.a < 0.01
+        && depth < 0.9999 && isEyeInWater == 0) {
+        vec3 wPos = cameraPosition + rd * dist;
+        vec2 slope = zephyr_waterWaves(wPos, frameTimeCounter);
+
+        // Screen-space refraction: offset the lookup by the wave slope and
+        // reject samples that land in front of the surface (iterationT's
+        // refractDepth < currentDepth guard).
+        vec2 refUv = texCoord - slope * WATER_REFRACT_STRENGTH
+                     / (1.0 + dist * 0.05);
+        refUv = clamp(refUv, vec2(0.002), vec2(0.998));
+        if (texture(depthtex0, refUv).r < depth) refUv = texCoord;
+        // The water surface is alpha-blended into colortex0, so the albedo
+        // still carries the SEABED texture. Recovering it is what makes
+        // iterationT's near field read as bright neutral stone rather than
+        // a flat blue sheet; a constant "shallow glow" only erases detail.
+        vec3 bottomAlbedo = zephyr_srgbToLinear(
+            max(texture(colortex0, refUv).rgb, vec3(0.0)));
+        vec3 skyAmb = zephyr_atmosphere(vec3(0.0, 1.0, 0.0),
+                                        sunDirWorld, dayAmount, rain);
+        vec3 litBottom = bottomAlbedo
+                       * (0.20 + WATER_BOTTOM_LIGHT * zephyr_luma(skyAmb));
+        vec3 shaded = max(texture(colortex3, refUv).rgb, vec3(0.0));
+        vec3 behind = mix(shaded, litBottom, WATER_BOTTOM_MIX);
+
+        // Water path proxy, then PER-CHANNEL Beer-Lambert absorption.
+        float wPath = clamp(dist * WATER_PATH_SCALE, 0.0,
+                            WATER_PATH_MAX);
+        vec3 atten = pow(WATER_ATTEN_RGB,
+                         vec3(wPath * WATER_ATTEN_RATE));
+        behind *= atten;
+
+        // Inscattering: deep water tends to the water's own scatter colour.
+        float visibility = exp2(-wPath * WATER_SCATTER_RATE);
+        vec3 scatterCol = WATER_SCATTER_SURF
+                        * (0.35 + 0.65 * zephyr_luma(skyAmb));
+        behind = mix(scatterCol, behind, visibility);
+
+        // iterationT's shallow field reads as NEUTRAL bright bottom while the
+        // far field is cyan-blue. Zephyr has no separate seabed buffer (the
+        // gbuffer albedo here is MC's blue water texture), so reproduce the
+        // chromatic behaviour explicitly: desaturate + lift nearby, keep the
+        // absorbed blue-green tint farther out.
+        // Decoupled from wPath: measured water distances here are 20-35 m,
+        // so a wPath-based gradient collapsed the whole surface into "near".
+        float depthT = smoothstep(WATER_NEAR_DIST, WATER_FAR_DIST, dist);
+        float sat = mix(WATER_NEAR_SAT, 1.0, depthT);
+        float gain = mix(WATER_NEAR_GAIN, 1.0, depthT);
+        float bLum = zephyr_luma(behind);
+        behind = mix(vec3(bLum), behind, sat) * gain;
+
+        // Facet highlights from the wave slope break up the flat tile look.
+        behind *= 1.0 + (slope.x + slope.y) * WATER_FACET_GAIN;
+
+        color = mix(color, behind, WATER_BODY_MIX);
+    }
+#endif
+    // ---------------------------------------------------------------------
+
 #if WATER_VOLUME_ENABLED
     bool underwaterView = (isEyeInWater == 1);
 #else

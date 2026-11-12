@@ -47,4 +47,8 @@ void main() {
     else if (zBlockId > 11005.5 && zBlockId < 11006.5) absorb = GLASS_BLACK_ABSORB;
     else if (zBlockId > 11006.5 && zBlockId < 11007.5) absorb = GLASS_TINTED_ABSORB;
     outGlass = vec4(zephyr_srgbToLinear(c.rgb) * (1.0 - absorb), glassA);
+    if (isWater) outGlass.b = 2.0;
+    // M40: keep the surface mostly transparent so colortex0 retains the
+    // seabed through the alpha blend (iterationT writes tex.a = 0 for water).
+    if (isWater) outAlbedo.a = 0.12;
 }

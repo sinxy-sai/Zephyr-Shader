@@ -52,3 +52,4 @@ uniform int heldBlockLightValue2;
 // DEBUG_VIEW on Iris 1.8.8 + MC 1.21.1 returned 0 for a held sea lantern, so
 // Complementary's "44000 + index" colour table cannot be relied on here.
 // Held-light colour is handled without item ids in deferred.fsh.
+uniform sampler2D noisetex;   // M40: Iris built-in 64x64 noise

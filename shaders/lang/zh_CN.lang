@@ -209,3 +209,21 @@ value.WATER_GLITTER_ENABLED.0=关
 value.WATER_GLITTER_ENABLED.1=开
 option.WATER_GLITTER_STRENGTH=闪光强度
 option.WATER_GLITTER_STRENGTH.comment=波纹闪光的亮度。
+
+# ---- 水体体积（参考 iterationT，M40）----
+option.WATER_BODY_ENABLED=水体体积渲染
+option.WATER_BODY_ENABLED.comment=水面上方视角下的按波长吸收、波纹折射与浅水提亮。
+value.WATER_BODY_ENABLED.0=关
+value.WATER_BODY_ENABLED.1=开
+option.WATER_ATTEN_RATE=水体吸收速率
+option.WATER_ATTEN_RATE.comment=红光随水深被吸收的速度；数值越高，深水越早转蓝。
+option.WATER_SCATTER_RATE=水体散射速率
+option.WATER_SCATTER_RATE.comment=远处水体融入自身散射色的速度。
+option.WATER_BOTTOM_MIX=水底可见度
+option.WATER_BOTTOM_MIX.comment=从 gbuffer 恢复的水底纹理替代平面水色的比例。
+option.WATER_REFRACT_STRENGTH=波纹折射
+option.WATER_REFRACT_STRENGTH.comment=水波造成的屏幕空间 UV 扰动强度。
+option.WATER_BODY_MIX=水体混合
+option.WATER_BODY_MIX.comment=原始水面着色与体积水体之间的混合比例。
+option.WATER_BOTTOM_LIGHT=水底光照
+option.WATER_BOTTOM_LIGHT.comment=恢复出的水底纹理所受的光照强度。

@@ -209,3 +209,21 @@ value.WATER_GLITTER_ENABLED.0=Off
 value.WATER_GLITTER_ENABLED.1=On
 option.WATER_GLITTER_STRENGTH=Sun Glitter Strength
 option.WATER_GLITTER_STRENGTH.comment=Brightness of the ripple sparkles.
+
+# ---- Water body, iterationT-style (M40) ----
+option.WATER_BODY_ENABLED=Water Body Rendering
+option.WATER_BODY_ENABLED.comment=Wavelength-dependent absorption, wave refraction and shallow-water brightening for water seen from above.
+value.WATER_BODY_ENABLED.0=Off
+value.WATER_BODY_ENABLED.1=On
+option.WATER_ATTEN_RATE=Water Absorption Rate
+option.WATER_ATTEN_RATE.comment=How fast red light is absorbed with water depth; higher values turn deep water blue sooner.
+option.WATER_SCATTER_RATE=Water Scattering Rate
+option.WATER_SCATTER_RATE.comment=How quickly distant water fades into its own scattered colour.
+option.WATER_BOTTOM_MIX=Seabed Visibility
+option.WATER_BOTTOM_MIX.comment=How much bottom texture recovered from the gbuffer replaces the flat surface colour.
+option.WATER_REFRACT_STRENGTH=Wave Refraction
+option.WATER_REFRACT_STRENGTH.comment=Screen-space UV distortion caused by the water waves.
+option.WATER_BODY_MIX=Water Body Blend
+option.WATER_BODY_MIX.comment=Blend between the original surface shading and the volumetric water body.
+option.WATER_BOTTOM_LIGHT=Seabed Lighting
+option.WATER_BOTTOM_LIGHT.comment=Brightness applied to the recovered bottom texture.
