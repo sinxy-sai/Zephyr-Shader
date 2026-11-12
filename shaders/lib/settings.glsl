@@ -264,16 +264,29 @@
 // water loses red first and turns cyan-blue. That is what makes iterationT
 // look natural instead of "painted blue".
 #define WATER_BODY_ENABLED         1 //[0 1]
-#define WATER_ATTEN_RATE           0.85 //[0 0.06 0.12 0.3 0.55 0.85 1.2]
-#define WATER_ATTEN_RGB            vec3(0.55, 0.80, 0.82)
+#define WATER_ATTEN_RATE           0.80 //[0 0.06 0.12 0.3 0.55 0.8 1.2]
+#define WATER_ATTEN_RGB            vec3(0.62, 0.78, 0.80)
 #define WATER_PATH_SCALE           0.18
 #define WATER_PATH_MAX            12.0
-#define WATER_SCATTER_SURF         vec3(0.08, 0.24, 0.38)
+#define WATER_SCATTER_SURF         vec3(0.14, 0.22, 0.24)
 #define WATER_SCATTER_RATE         0.08 //[0 0.01 0.03 0.06 0.08 0.12 0.2]
 // Bottom albedo recovered from colortex0 (which still contains the
 // seabed through the alpha-blended water surface).
+// M53 - shoreline foam. waterPath (slant optical path) is small on the
+// shallow shelf, so a broken white band there separates water from plastic.
+// M53 - rain-driven ripples: discrete expanding rings on a hashed grid, only
+// active when rainStrength > 0.
+#define WATER_RAIN_RIPPLE          1.00 //[0 0.25 0.5 0.75 1.0 1.5]
+#define WATER_RAIN_RIPPLE_SCALE    1.65
+#define WATER_FOAM_ENABLED         1 //[0 1]
+#define WATER_FOAM_DEPTH           3.20 //[0.8 1.6 2.4 3.2 5.0 7.5]
+#define WATER_FOAM_EDGE            0.35
+#define WATER_FOAM_SCALE           0.85
+#define WATER_FOAM_COVERAGE        0.50 //[0 0.25 0.4 0.5 0.65 0.8]
+#define WATER_FOAM_STRENGTH        0.50 //[0 0.25 0.5 0.8 1.25 1.7 2.2]
+#define WATER_FOAM_BRIGHT          1.05
 #define WATER_BOTTOM_MIX           0.85 //[0 0.1 0.2 0.35 0.5 0.75 0.85 1]
-#define WATER_BOTTOM_LIGHT         0.45 //[0 0.2 0.4 0.45 0.6 0.8 1.2]
+#define WATER_BOTTOM_LIGHT         0.62 //[0 0.2 0.4 0.62 0.8 1.0 1.2]
 #define WATER_FACET_GAIN           0.15
 #define WATER_NEAR_DIST      18.0
 #define WATER_FAR_DIST       38.0
@@ -303,7 +316,7 @@
 #define WATER_SWELL_WAVELENGTH     9.00
 #define WATER_SWELL_SPEED          0.35
 #define WATER_SWELL_NOISE          1.50
-#define WATER_WAVE_INFLUENCE       0.09 //[0.03 0.06 0.09 0.14 0.22 0.35]
+#define WATER_WAVE_INFLUENCE       0.06 //[0.03 0.06 0.09 0.14 0.22 0.35]
 #define WATER_WAVE_STRENGTH        0.65
 // -------------------------------------------------------------------------
 

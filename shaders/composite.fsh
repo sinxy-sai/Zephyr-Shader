@@ -328,6 +328,33 @@ void main() {
         // Facet highlights from the wave slope break up the flat tile look.
         behind *= 1.0 + (slope.x + slope.y) * WATER_FACET_GAIN;
 
+#if WATER_FOAM_ENABLED
+        // M53: shoreline foam. `wPath` is the SLANT optical path, so it is
+        // small over the shallow shelf and grows toward deep water; a broken
+        // white band there is the cheapest reliable cue that reads as "water"
+        // rather than "blue plastic".
+        // Absolute depth alone does not work here: this pool is uniformly
+        // shallow (wPath ~1.6 m everywhere) so foam would either cover
+        // everything or nothing. What actually marks a shoreline is the
+        // SCREEN-SPACE GRADIENT of the water path - it jumps where the bed
+        // meets the bank.
+        float foamDepth = 1.0 - smoothstep(WATER_FOAM_DEPTH * 0.25,
+                                           WATER_FOAM_DEPTH, wPath);
+        float shoreGrad = abs(dFdx(wPath)) + abs(dFdy(wPath));
+        float shore = smoothstep(WATER_FOAM_EDGE * 0.35,
+                                 WATER_FOAM_EDGE, shoreGrad);
+        float foamN = texture(noisetex,
+                              wPos.xz * WATER_FOAM_SCALE
+                              + vec2(frameTimeCounter * 0.015,
+                                     -frameTimeCounter * 0.011)).r;
+        float foam = smoothstep(1.0 - WATER_FOAM_COVERAGE, 1.0,
+                                foamN * 0.65 + shore * 0.55 + foamDepth * 0.20)
+                   * max(shore, foamDepth * 0.45);
+        behind = mix(behind,
+                     vec3(0.92, 0.96, 1.00) * WATER_FOAM_BRIGHT,
+                     clamp(foam, 0.0, 1.0) * WATER_FOAM_STRENGTH);
+#endif
+
         color = mix(color, behind, WATER_BODY_MIX);
 
 #if WATER_REFL_ENABLED

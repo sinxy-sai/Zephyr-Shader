@@ -330,6 +330,23 @@ float zephyr_waterHeight(vec2 coord, vec2 dir, float t) {
     return mix(h, swell, WATER_SWELL_MIX);
 }
 
+// M53: discrete rain ripples. Expanding rings on a hashed grid, each cell
+// dropping a new drop at a different phase; only meaningful when raining.
+float zephyr_rainRipple(vec2 coord, float t, float rain) {
+    if (rain < 0.02) return 0.0;
+    vec2 q = coord * WATER_RAIN_RIPPLE_SCALE;
+    vec2 cell = floor(q);
+    vec2 f = fract(q) - 0.5;
+    float h = zephyr_hash12(cell);
+    vec2 center = (vec2(zephyr_hash12(cell + 7.13),
+                        zephyr_hash12(cell + 13.77)) - 0.5) * 0.55;
+    float phase = fract(t * 0.85 + h * 3.7);
+    float d = length(f - center);
+    float ring = sin((d - phase * 0.55) * 42.0)
+               * exp(-d * 7.0) * (1.0 - phase) * (1.0 - phase);
+    return ring;
+}
+
 vec2 zephyr_waterWaveSlope(vec3 p, float t) {
     vec2 coord = p.xz;
     vec2 dir = normalize(WATER_WAVE_DIR);
@@ -342,8 +359,13 @@ vec2 zephyr_waterWaveSlope(vec3 p, float t) {
     // turns into noise when the view runs almost parallel to the water.
     float gate = smoothstep(0.0, 0.15,
                  abs(dot(vec3(0.0, 1.0, 0.0), normalize(p - cameraPosition))));
-    return vec2(hx - h0, hz - h0) / e
-         * WATER_WAVE_STRENGTH * WATER_WAVE_INFLUENCE * gate;
+    vec2 slope = vec2(hx - h0, hz - h0) / e
+               * WATER_WAVE_STRENGTH * WATER_WAVE_INFLUENCE * gate;
+    // M53: discrete rain rings ride on top of the swell/ripple field.
+    float rr = zephyr_rainRipple(coord, tt, rainStrength);
+    slope += vec2(rr, rr * 0.85) * WATER_RAIN_RIPPLE
+           * WATER_WAVE_INFLUENCE * gate;
+    return slope;
 }
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
