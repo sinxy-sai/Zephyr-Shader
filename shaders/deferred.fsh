@@ -482,6 +482,19 @@ void main() {
                                 0.62, 1.40);
             reflection *= facet;
 #if WATER_VOLUME_ENABLED
+            // M49: seen from BELOW, the surface must not mirror the sky.
+            // Beyond the critical angle a water/air interface is total
+            // internal reflection, so it shows the water body itself. Without
+            // this the sky reflected by zephyr_atmosphere() was visible from
+            // underwater, which read as "the water has disappeared".
+            if (isEyeInWater == 1) {
+                vec3 underMirror = WATER_SCATTER_RGB
+                                 * (skyAmbient + blockRadiance)
+                                 * WATER_INSCATTER * 0.45;
+                reflection = mix(reflection, underMirror, 0.92);
+            }
+#endif
+#if WATER_VOLUME_ENABLED
             // M31: Beer-Lambert slant-path absorption. A grazing view travels
             // further through the water, so red is removed first and the body
             // turns cyan-green; a near-vertical view stays translucent.
@@ -532,6 +545,15 @@ void main() {
             vec3 underwater = albedo * vec3(0.06, 0.26, 0.32) * (skyAmbient + blockRadiance)
                             * WATER_ABSORPTION * 4.0;
 #endif
+            // M49: seen from below, the surface colour must be the DARK body
+            // tint. The above-water formula multiplies by WATER_ABSORPTION*4
+            // and mixes in the water texture albedo, which evaluates to about
+            // (79,133,199) - i.e. it looked exactly like the blue sky, so the
+            // water appeared to "not exist" while underwater.
+            if (isEyeInWater == 1) {
+                underwater = WATER_SCATTER_RGB * (skyAmbient + blockRadiance)
+                           * WATER_INSCATTER * 0.55;
+            }
             color = mix(underwater, reflection, clamp(fresnel, 0.0, 1.0));
             color += direct * 0.20;
 #if WATER_GLITTER_ENABLED

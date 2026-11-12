@@ -55,5 +55,11 @@ void main() {
     // even 12% of it into colortex0 turns the seabed into dense speckle and
     // destroys the block structure (same spot under iterationT shows clean
     // slabs because it writes tex.a = 0). Keep the albedo 100% seabed.
-    if (isWater) outAlbedo.a = 0.0;
+    // M49: the surface MUST be visible from below. M44 set this to 0.0 so the
+    // seabed shows through when looking down - but underwater the water plane
+    // is the only thing between the eye and the sky, so alpha 0 deleted the
+    // surface and the sky/buildings showed straight through. Seen from above
+    // the surface is a thin film over the seabed (alpha 0); seen from below it
+    // is a real interface (alpha 0.90).
+    if (isWater) outAlbedo.a = (isEyeInWater == 1) ? 0.90 : 0.0;
 }

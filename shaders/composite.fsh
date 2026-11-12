@@ -458,6 +458,16 @@ void main() {
                        * WATER_INSCATTER * (0.65 + 0.35 * mu);
         color = color * Tw + inScatter * (1.0 - Tw);
 
+        // M49: looking UP from underwater, the skybox is still drawn by
+        // gbuffers_skytextured with a short water path (the surface depth
+        // clips `dist`), so the clear blue sky stayed visible and the water
+        // looked like it had vanished. Physically that direction is blocked by
+        // the surface; tint upward rays toward the body colour.
+        float upView = clamp(rd.y * 1.6, 0.0, 1.0);
+        vec3 surfaceTint = WATER_SCATTER_RGB * ambientUnder
+                         * WATER_INSCATTER * 1.30;
+        color = mix(color, surfaceTint, upView * WATER_UP_TINT);
+
 #if WATER_VL_ENABLED
         // M33: underwater light shafts. FIXED world-space slabs (step length
         // does NOT depend on per-pixel dist, the M33 swim flicker), a
@@ -477,8 +487,11 @@ void main() {
             float c = zephyr_caustics(p + sunDirWorld
                           * clamp(p.y, 0.0, 12.0) * 0.25,
                           frameTimeCounter * CAUSTICS_SPEED);
+            // M49: WATER_FOG_DENSITY rose 0.10 -> 0.38 for continuum parity,
+            // which killed the shafts (exp(-0.38*t) is 3.8x darker). Give the
+            // beams their own, gentler extinction.
             shafts += vec3(0.55, 0.85, 1.00) * c
-                    * exp(-WATER_FOG_DENSITY * t);
+                    * exp(-WATER_FOG_DENSITY * 0.30 * t);
         }
         // Shafts live in the water between the eye and a solid surface; a
         // sky pixel has no such medium, so do not paint beams onto the sky.

@@ -188,6 +188,7 @@
 #define WATER_SCATTER_RGB          vec3(0.10, 0.42, 0.48)
 #define WATER_SURFACE_PATH         0.80
 #define WATER_FOG_DENSITY          0.38 //[0 0.06 0.12 0.2 0.3 0.38 0.5 0.7]
+#define WATER_UP_TINT            0.85 //[0 0.3 0.6 0.75 0.85 1.0]
 #define WATER_INSCATTER            0.85
 // M31/M33 - suspended motes, caustics and underwater light shafts.
 // M32: SIZE is in normalised cell units; the original 3D-sphere hit test
@@ -209,7 +210,7 @@
 // M33 - procedural caustics: two counter-drifting noise ridges (BSL
 // shadow.glsl / photon water_fog_vl.glsl) projected onto submerged geometry.
 #define CAUSTICS_ENABLED           1 //[0 1]
-#define CAUSTICS_STRENGTH          1.20 //[0 0.15 0.3 0.55 0.8 1.2 1.8]
+#define CAUSTICS_STRENGTH          6.00 //[0 1 2 4 6 9 14]
 #define CAUSTICS_SCALE             0.28
 #define CAUSTICS_SPEED             0.22
 #define CAUSTICS_SHARPNESS         4.00
@@ -217,7 +218,7 @@
 // caustics mask and a Mie-like forward phase, attenuated by the same
 // Beer-Lambert coefficient as the water fog.
 #define WATER_VL_ENABLED           1 //[0 1]
-#define WATER_VL_STRENGTH          0.90 //[0 0.25 0.5 0.75 0.9 1.2 1.8 2.5]
+#define WATER_VL_STRENGTH          10.0 //[0 2 4 6 10 16 26]
 // M35 - water surface realism (iterationT GetWavesNormal / Complementary
 // water.glsl ideas). The old sin*cos wave was perfectly periodic, which is
 // why an overhead view read as flat grey-blue bathroom tiles.
