@@ -187,7 +187,7 @@
 #define WATER_ABSORB_RGB           vec3(0.52, 0.16, 0.10)
 #define WATER_SCATTER_RGB          vec3(0.10, 0.42, 0.48)
 #define WATER_SURFACE_PATH         0.80
-#define WATER_FOG_DENSITY          0.10 //[0 0.03 0.06 0.10 0.14 0.2 0.3 0.45]
+#define WATER_FOG_DENSITY          0.38 //[0 0.06 0.12 0.2 0.3 0.38 0.5 0.7]
 #define WATER_INSCATTER            0.85
 // M31/M33 - suspended motes, caustics and underwater light shafts.
 // M32: SIZE is in normalised cell units; the original 3D-sphere hit test
