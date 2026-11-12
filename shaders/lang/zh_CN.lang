@@ -241,3 +241,5 @@ option.WATER_REFL_CLOUD=云影反射
 option.WATER_REFL_CLOUD.comment=水面映出的云层亮度。
 option.WATER_WAVE_ANISO=波纹各向异性
 option.WATER_WAVE_ANISO.comment=数值越低，波纹越会被拉成细长的斜向条带；1.0 为各向同性。
+option.WATER_SSR_MIX=屏幕空间反射
+option.WATER_SSR_MIX.comment=倒影中来自真实屏幕空间射线追踪的比例，其余为天空近似。

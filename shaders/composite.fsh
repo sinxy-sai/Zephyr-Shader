@@ -364,8 +364,58 @@ void main() {
               * WATER_REFL_CLOUD * (0.6 + 0.4 * dayAmount);
 #endif
 
-        vec3 refl = mix(skyR, envR, WATER_REFL_ENV_MIX)
-                  * WATER_REFLECT_TINT;
+        vec3 refl = mix(skyR, envR, WATER_REFL_ENV_MIX);
+
+        // M46: real screen-space reflection for the water plane. The fixed
+        // "+LIFT" lookup above can only guess where the shoreline is, so the
+        // reflection drifts as the camera turns. This march starts from the
+        // WATER depth (depthtex0 is the surface on this build, see M42), walks
+        // along the reflected view vector and samples the scene where the ray
+        // actually lands. Falls back to the sky/LIFT estimate when it misses,
+        // which is what keeps it seam-free (the M42 rectangle came from a hard
+        // hit boundary with no fallback).
+#if SSR_ENABLED
+        vec3 Rv = normalize(mat3(gbufferModelView) * Rw);
+        vec4 refClip = gbufferProjectionInverse
+                     * vec4(texCoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+        vec3 refPos = refClip.xyz / max(abs(refClip.w), 1e-5);
+        refPos += mat3(gbufferModelView) * waveN * 0.10;
+        float refStep = SSR_STEP_LENGTH * 2.5;
+        vec2 refHit = vec2(-1.0);
+        float refT = 0.0;
+        for (int i = 0; i < SSR_STEPS; ++i) {
+            refPos += Rv * refStep;
+            refStep *= 1.10;
+            vec4 cp = gbufferProjection * vec4(refPos, 1.0);
+            if (abs(cp.w) < 1e-5) break;
+            vec2 uv = cp.xy / cp.w * 0.5 + 0.5;
+            if (uv.x < 0.002 || uv.x > 0.998
+                || uv.y < 0.002 || uv.y > 0.998) break;
+            float d = texture(depthtex0, uv).r;
+            if (d >= 0.9999) continue;
+            float diff = (-refPos.z) - zephyr_linearDepth(d);
+            if (diff > 0.0 && diff < SSR_THICKNESS * 2.5) {
+                refHit = uv;
+                refT = float(i + 1) / float(SSR_STEPS);
+                break;
+            }
+        }
+        float refW = 0.0;
+        if (refHit.x >= 0.0) {
+            vec2 ruv = clamp(refHit + slope * WATER_REFL_WAVE_UV * 0.55,
+                             vec2(0.002), vec2(0.998));
+            // Fade toward the screen border so a hit never ends on a hard edge.
+            float edge = smoothstep(0.0, 0.10, refHit.x)
+                       * (1.0 - smoothstep(0.90, 1.0, refHit.x))
+                       * smoothstep(0.0, 0.10, refHit.y)
+                       * (1.0 - smoothstep(0.90, 1.0, refHit.y));
+            vec3 ssrCol = max(texture(colortex3, ruv).rgb, vec3(0.0));
+            refl = mix(refl, ssrCol, edge * WATER_SSR_MIX * (1.0 - refT * 0.30));
+            refW = edge;
+        }
+#endif
+
+        refl *= WATER_REFLECT_TINT;
         float cosI = clamp(dot(-rd, waveN), 0.0, 1.0);
         float fres = WATER_F0 + (1.0 - WATER_F0)
                    * pow(1.0 - cosI, 5.0);

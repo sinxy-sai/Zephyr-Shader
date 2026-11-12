@@ -168,14 +168,16 @@
 #define WATER_PATH_REAL            1 //[0 1]
 #define WATER_REFL_LIFT            0.18 //[0 0.1 0.15 0.18 0.24 0.32]
 #define WATER_REFL_ENABLED         1 //[0 1]
-#define WATER_REFL_GAIN            8.00 //[0 1 2.6 4 5 6.5 8 12]
-#define WATER_REFL_MAX             0.8 //[0 0.3 0.5 0.65 0.8 0.85 0.95]
+#define WATER_REFL_GAIN            16.0 //[0 2 6 10 14 16 22 30]
+#define WATER_REFL_MAX             0.88 //[0 0.3 0.5 0.65 0.8 0.88 0.95]
+// M46: weight of the true screen-space reflection over the sky/LIFT estimate.
+#define WATER_SSR_MIX              1.00 //[0 0.3 0.5 0.65 0.8 1.0]
 #define WATER_REFL_ENV_MIX         0.76 //[0 0.25 0.45 0.65 0.76 0.85 1]
 #define WATER_REFL_WAVE_UV         0.055 //[0 0.02 0.04 0.055 0.075 0.1 0.14]
 #define WATER_REFL_WAVE_N          1.10
 #define WATER_REFL_CLOUD           0.70 //[0 0.2 0.35 0.55 0.7 0.9 1.2]
 #define WATER_REFL_SUN_POWER       70.0
-#define WATER_REFL_NEAR_KEEP       0.50 //[0 0.15 0.32 0.5 0.75 1]
+#define WATER_REFL_NEAR_KEEP       0.55 //[0 0.2 0.35 0.55 0.75 1]
 #define WATER_REFL_SUN_GAIN        1.80 //[0 0.3 0.6 1.0 1.4 1.8 2.4]
 
 // M31 - water volume: Beer-Lambert spectral absorption + underwater fog.
