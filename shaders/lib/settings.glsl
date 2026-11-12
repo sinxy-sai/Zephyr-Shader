@@ -166,16 +166,17 @@
 // M42 - depthtex0 carries the water SURFACE and depthtex1 the SEABED on this
 // build (measured 22.1 m vs 32.4 m), the opposite of the usual naming.
 #define WATER_PATH_REAL            1 //[0 1]
+#define WATER_REFL_LIFT          0.18 //[0 0.1 0.15 0.22 0.3 0.4]
 #define WATER_REFL_ENABLED         1 //[0 1]
-#define WATER_REFL_GAIN            3.50 //[0 0.5 1 1.8 2.6 3.2 3.5 4 5]
-#define WATER_REFL_MAX             0.85 //[0 0.3 0.5 0.65 0.8 0.85 0.95]
+#define WATER_REFL_GAIN            8.0 //[0 1 2.6 4 5 6.5 9]
+#define WATER_REFL_MAX             0.8 //[0 0.3 0.5 0.65 0.8 0.85 0.95]
 #define WATER_REFL_ENV_MIX         0.76 //[0 0.25 0.45 0.65 0.76 0.85 1]
-#define WATER_REFL_WAVE_UV         0.075 //[0 0.02 0.04 0.055 0.075 0.1 0.14]
+#define WATER_REFL_WAVE_UV         0.055 //[0 0.02 0.04 0.055 0.075 0.1 0.14]
 #define WATER_REFL_WAVE_N          1.10
 #define WATER_REFL_CLOUD           0.70 //[0 0.2 0.35 0.55 0.7 0.9 1.2]
-#define WATER_REFL_SUN_POWER       120.0
+#define WATER_REFL_SUN_POWER       70.0
 #define WATER_REFL_NEAR_KEEP       0.50 //[0 0.15 0.32 0.5 0.75 1]
-#define WATER_REFL_SUN_GAIN        0.70 //[0 0.15 0.3 0.45 0.6 0.7 0.85 1.0]
+#define WATER_REFL_SUN_GAIN        1.80 //[0 0.3 0.6 1.0 1.4 1.8 2.4]
 
 // M31 - water volume: Beer-Lambert spectral absorption + underwater fog.
 // Red is absorbed fastest, so depth/slant path turns the body cyan-green
@@ -219,9 +220,9 @@
 // water.glsl ideas). The old sin*cos wave was perfectly periodic, which is
 // why an overhead view read as flat grey-blue bathroom tiles.
 #define WATER_WAVE_ENABLED         1 //[0 1]
-#define WATER_WAVE_SCALE           0.55
-#define WATER_WAVE_SPEED           0.35
-#define WATER_WAVE_STRENGTH        1.20
+// M43: duplicate WATER_WAVE_SCALE removed
+// M43: duplicate WATER_WAVE_SPEED removed
+// M43: duplicate definition removed (GLSL kept the last one)
 // M35: the analytic slope is multiplied by waveAmp (~0.08) in deferred, so
 // 0.055 produced ~0.25 degrees of normal perturbation - invisible. 1.20
 // gives a readable ripple field. Water reflects the SAME analytic atmosphere
@@ -255,28 +256,28 @@
 // water loses red first and turns cyan-blue. That is what makes iterationT
 // look natural instead of "painted blue".
 #define WATER_BODY_ENABLED         1 //[0 1]
-#define WATER_ATTEN_RATE           0.060 //[0 0.02 0.04 0.06 0.12 0.25 0.5]
+#define WATER_ATTEN_RATE           0.30 //[0 0.06 0.12 0.2 0.3 0.45 0.7]
 #define WATER_ATTEN_RGB            vec3(0.55, 0.80, 0.82)
 #define WATER_PATH_SCALE           0.18
 #define WATER_PATH_MAX            12.0
 #define WATER_SCATTER_SURF         vec3(0.42, 0.55, 0.50)
-#define WATER_SCATTER_RATE         0.03 //[0 0.01 0.03 0.055 0.10 0.16]
+#define WATER_SCATTER_RATE         0.06 //[0 0.01 0.03 0.06 0.10 0.16]
 // Bottom albedo recovered from colortex0 (which still contains the
 // seabed through the alpha-blended water surface).
-#define WATER_BOTTOM_MIX           0.20 //[0 0.1 0.2 0.35 0.5 0.75 1]
-#define WATER_BOTTOM_LIGHT         1.0 //[0 0.2 0.45 0.85 1 1.3 1.7]
-#define WATER_FACET_GAIN           1.60
+#define WATER_BOTTOM_MIX           0.85 //[0 0.1 0.2 0.35 0.5 0.75 0.85 1]
+#define WATER_BOTTOM_LIGHT         0.55 //[0 0.2 0.4 0.55 0.8 1.2]
+#define WATER_FACET_GAIN           0.1
 #define WATER_NEAR_DIST      18.0
 #define WATER_FAR_DIST       38.0
 #define WATER_NEAR_SAT             1.00 //[0 0.3 0.6 0.85 1]
 #define WATER_NEAR_GAIN            1.00 //[1 1.1 1.25 1.45 1.7 2]
 #define WATER_REFRACT_STRENGTH     0.020 //[0 0.005 0.01 0.02 0.035 0.05]
-#define WATER_BODY_MIX             0.65 //[0 0.25 0.45 0.65 0.8 1]
+#define WATER_BODY_MIX             1.00 //[0 0.25 0.45 0.65 0.8 0.9 1]
 // Three-octave Iris noisetex waves (iterationT GetWaves style). Zephyr used
 // purely analytic valueNoise before; noisetex is built into Iris, no asset.
-#define WATER_WAVE_SCALE           0.35
+#define WATER_WAVE_SCALE           0.25
 #define WATER_WAVE_SPEED           0.30
-#define WATER_WAVE_STRENGTH        0.060
+#define WATER_WAVE_STRENGTH        0.55
 // -------------------------------------------------------------------------
 
 #define WATER_BODY_ALBEDO          0.42

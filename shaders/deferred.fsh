@@ -450,10 +450,12 @@ void main() {
         if (matId > 0.5 && matId < 1.5) {
             float t = weatherTime;
             // Rain roughens the surface with small ripples and lifts reflection.
-            float waveAmp = WAVE_AMPLITUDE * (1.0 + rain * 0.90);
-            // M35: analytic non-periodic ripples replace the old sin*cos.
-            // Slopes are WORLD space; rotate into view space for lighting.
-            vec2 slope = zephyr_waterWaveSlope(worldPos, t) * waveAmp;
+            // M43: zephyr_waterWaveSlope() ALREADY multiplies
+            // WATER_WAVE_STRENGTH. The extra * waveAmp (WAVE_AMPLITUDE=0.08)
+            // compressed the normal back to ~2 degrees, so the surface behaved
+            // like a flat mirror (waves A/B measured 0.90 vs noise 1.50).
+            vec2 slope = zephyr_waterWaveSlope(worldPos, t)
+                       * (1.0 + rain * 0.90);
 #if WATER_WAVE_ENABLED
             vec3 waveNw = normalize(vec3(-slope.x, 1.0, -slope.y));
 #else

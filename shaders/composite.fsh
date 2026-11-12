@@ -338,8 +338,13 @@ void main() {
                                     -slope.y * WATER_REFL_WAVE_N));
         vec3 Rw = normalize(reflect(rd, waveN));
 
+        // M43: a mirror about the screen mid-line maps y to 1-y, which for a
+        // pool sitting AT mid-screen samples the water itself - the blend then
+        // changes nothing (measured: gain 6.5 -> 14 changed RGB by 2/255).
+        // What a water plane actually mirrors is the shoreline ABOVE it, so
+        // lift the lookup upward by a fixed fraction of the screen.
         vec2 envUv = clamp(vec2(texCoord.x + slope.x * WATER_REFL_WAVE_UV,
-                                1.0 - texCoord.y
+                                texCoord.y + WATER_REFL_LIFT
                                 + slope.y * WATER_REFL_WAVE_UV),
                            vec2(0.002), vec2(0.998));
         vec3 envR = max(texture(colortex3, envUv).rgb, vec3(0.0));
