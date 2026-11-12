@@ -74,7 +74,6 @@ void main() {
 #if SSR_ENABLED
     // Screen-space reflections for water AND rain puddles. This runs here (not
     // in deferred) because deferred writes colortex3 and cannot sample it back.
-    float matId = texture(colortex1, texCoord).a;
     if (depth < 0.9999) {
         vec4 vClip = gbufferProjectionInverse * vec4(texCoord * 2.0 - 1.0,
                                                      depth * 2.0 - 1.0, 1.0);
@@ -83,19 +82,19 @@ void main() {
         vec3 V = normalize(-viewPos);
         vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
 
-        bool isWater = (matId > 0.5 && matId < 1.5);
+        // M41: colortex1.a is reused/cleared by this stage - using it here
+        // made ~96% of the frame take the "water" SSR branch. Use Zephyr's
+        // dedicated water marker instead (gbuffers_water writes 2.0 to .b).
+        vec4 ssrMark = texture(colortex8, texCoord);
+        bool isWater = (ssrMark.b > 1.5 && ssrMark.a < 0.01);
         vec3 N;
         float puddle = 0.0;
         vec2 rippleUv = vec2(0.0);
 
         if (isWater) {
-            float waveAmp = WAVE_AMPLITUDE * (1.0 + rain * 0.90);
-            float wx = sin(worldPos.x * 0.85 + frameTimeCounter * 1.25)
-                     * cos(worldPos.z * 0.62 - frameTimeCounter * 0.85);
-            float wz = sin(worldPos.z * 1.05 - frameTimeCounter * 1.45)
-                     * cos(worldPos.x * 0.55 + frameTimeCounter * 0.75);
+            vec2 wSlope = zephyr_waterWaves(worldPos, frameTimeCounter);
             N = normalize(mat3(gbufferModelView)
-                         * normalize(vec3(wx * waveAmp, 1.0, wz * waveAmp)));
+                         * normalize(vec3(-wSlope.x, 1.0, -wSlope.y)));
         } else {
             vec3 Nv = zephyr_decodeNormal(texture(colortex2, texCoord).rgb);
             vec3 Nw = normalize(mat3(gbufferModelViewInverse) * Nv);
@@ -314,6 +313,56 @@ void main() {
         behind *= 1.0 + (slope.x + slope.y) * WATER_FACET_GAIN;
 
         color = mix(color, behind, WATER_BODY_MIX);
+
+#if WATER_REFL_ENABLED
+        // M41: mirror the scene above the water line. A near-horizontal
+        // reflector maps a screen pixel at y to roughly 1-y; the wave slope
+        // shifts that lookup so buildings/sky are broken into ripples. This
+        // is far more reliable than the SSR march, which starts from the
+        // SEABED depth (depthtex0) and almost never hits anything.
+        vec3 waveN = normalize(vec3(-slope.x * WATER_REFL_WAVE_N,
+                                    1.0,
+                                    -slope.y * WATER_REFL_WAVE_N));
+        vec3 Rw = normalize(reflect(rd, waveN));
+
+        vec2 envUv = clamp(vec2(texCoord.x + slope.x * WATER_REFL_WAVE_UV,
+                                1.0 - texCoord.y
+                                + slope.y * WATER_REFL_WAVE_UV),
+                           vec2(0.002), vec2(0.998));
+        vec3 envR = max(texture(colortex3, envUv).rgb, vec3(0.0));
+        vec3 skyR = zephyr_atmosphere(Rw, sunDirWorld, dayAmount, rain);
+
+#if CLOUD_ENABLED
+        // Reuse the SAME cloud field that shades the sky, so reflected clouds
+        // line up with the real ones instead of being a random overlay.
+        float clT = (zephyr_cloudBase() + zephyr_cloudThickness() * 0.5
+                     - cameraPosition.y) / max(Rw.y, 0.06);
+        vec3 clP = cameraPosition + Rw * max(clT, 0.0);
+        float clD = zephyr_cloudDensity(clP);
+        skyR += vec3(0.92, 0.96, 1.00) * clD
+              * WATER_REFL_CLOUD * (0.6 + 0.4 * dayAmount);
+#endif
+
+        vec3 refl = mix(skyR, envR, WATER_REFL_ENV_MIX)
+                  * WATER_REFLECT_TINT;
+        float cosI = clamp(dot(-rd, waveN), 0.0, 1.0);
+        float fres = WATER_F0 + (1.0 - WATER_F0)
+                   * pow(1.0 - cosI, 5.0);
+        // Narrow sun glint riding on the wave facets.
+        float glint = pow(max(dot(Rw, sunDirWorld), 0.0),
+                          WATER_REFL_SUN_POWER);
+        refl += vec3(1.00, 0.94, 0.82) * glint
+              * WATER_REFL_SUN_GAIN * dayAmount;
+        float reflWeight = clamp(fres * WATER_REFL_GAIN,
+                                 0.0, WATER_REFL_MAX);
+        // A near-vertical view should still show the bottom. Without this
+        // fade a strong gain turns the whole pool into a mirror (M41 V2/V3);
+        // real water keeps shallow near-field translucency and mirrors the
+        // skyline only toward the grazing far field.
+        reflWeight *= mix(WATER_REFL_NEAR_KEEP, 1.0,
+                          smoothstep(0.12, 0.52, texCoord.y));
+        color = mix(color, refl, reflWeight);
+#endif
     }
 #endif
     // ---------------------------------------------------------------------

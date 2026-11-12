@@ -158,6 +158,22 @@
 #define WATER_ABSORPTION          0.36
 #define WATER_F0                  0.02
 
+// M41 - water surface ENVIRONMENT REFLECTION. The old path only had an
+// analytic sky gradient and an SSR raymarch keyed off the unreliable matId,
+// so the pool mirrored nothing. A planar-mirror approximation samples the
+// scene above the water line; the wave slope breaks the image into ripples,
+// and the real cloud density function supplies cloud reflections.
+#define WATER_REFL_ENABLED         1 //[0 1]
+#define WATER_REFL_GAIN            3.50 //[0 0.5 1 1.8 2.6 3.2 3.5 4 5]
+#define WATER_REFL_MAX             0.85 //[0 0.3 0.5 0.65 0.8 0.85 0.95]
+#define WATER_REFL_ENV_MIX         0.76 //[0 0.25 0.45 0.65 0.76 0.85 1]
+#define WATER_REFL_WAVE_UV         0.075 //[0 0.02 0.04 0.055 0.075 0.1 0.14]
+#define WATER_REFL_WAVE_N          1.10
+#define WATER_REFL_CLOUD           0.70 //[0 0.2 0.35 0.55 0.7 0.9 1.2]
+#define WATER_REFL_SUN_POWER       120.0
+#define WATER_REFL_NEAR_KEEP       0.50 //[0 0.15 0.32 0.5 0.75 1]
+#define WATER_REFL_SUN_GAIN        0.70 //[0 0.15 0.3 0.45 0.6 0.7 0.85 1.0]
+
 // M31 - water volume: Beer-Lambert spectral absorption + underwater fog.
 // Red is absorbed fastest, so depth/slant path turns the body cyan-green
 // instead of merely making a flat tint darker.
