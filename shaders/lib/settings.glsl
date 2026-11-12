@@ -166,9 +166,9 @@
 // M42 - depthtex0 carries the water SURFACE and depthtex1 the SEABED on this
 // build (measured 22.1 m vs 32.4 m), the opposite of the usual naming.
 #define WATER_PATH_REAL            1 //[0 1]
-#define WATER_REFL_LIFT          0.18 //[0 0.1 0.15 0.22 0.3 0.4]
+#define WATER_REFL_LIFT            0.18 //[0 0.1 0.15 0.18 0.24 0.32]
 #define WATER_REFL_ENABLED         1 //[0 1]
-#define WATER_REFL_GAIN            8.0 //[0 1 2.6 4 5 6.5 9]
+#define WATER_REFL_GAIN            8.00 //[0 1 2.6 4 5 6.5 8 12]
 #define WATER_REFL_MAX             0.8 //[0 0.3 0.5 0.65 0.8 0.85 0.95]
 #define WATER_REFL_ENV_MIX         0.76 //[0 0.25 0.45 0.65 0.76 0.85 1]
 #define WATER_REFL_WAVE_UV         0.055 //[0 0.02 0.04 0.055 0.075 0.1 0.14]
