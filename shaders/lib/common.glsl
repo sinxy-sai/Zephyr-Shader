@@ -315,7 +315,19 @@ float zephyr_waterHeight(vec2 coord, vec2 dir, float t) {
         d = rot * d;
         ncoord *= 2.5;
     }
-    return h * ampNorm;
+    h *= ampNorm;
+
+    // M52: slow large-scale swell. A single gerstner octave with a long
+    // wavelength, its own (even slower) time scaling and a very low-frequency
+    // phase noise. Mixing it under the ripple chain gives the two-scale
+    // look: broad undulation that drifts across the pool, plus fine chop.
+    vec2 swellDir = normalize(WATER_WAVE_DIR);
+    float swellNoise = (texture(noisetex, coord * 0.004 + vec2(0.0, t * 0.01)).y
+                        - 0.5) * 2.0 * WATER_SWELL_NOISE;
+    float swell = zephyr_gerstner(coord * WATER_SWELL_FREQ, swellDir,
+                                  t * WATER_SWELL_SPEED,
+                                  swellNoise, WATER_SWELL_WAVELENGTH);
+    return mix(h, swell, WATER_SWELL_MIX);
 }
 
 vec2 zephyr_waterWaveSlope(vec3 p, float t) {

@@ -294,6 +294,15 @@
 #define WATER_WAVE_LACUNARITY      1.70
 #define WATER_WAVE_FREQUENCY       0.70
 #define WATER_WAVE_NOISE_STRENGTH  2.00
+// M52 - independent large-scale swell layered under the ripple chain. photon
+// only runs 3 octaves, so its "undulation" comes from the water body, not the
+// waves; here we add a slow long-wavelength swell explicitly so the surface
+// reads as big motion + fine ripple instead of one uniform texture.
+#define WATER_SWELL_MIX            0.60 //[0 0.15 0.3 0.45 0.6 0.75 0.9 1.0]
+#define WATER_SWELL_FREQ           0.12
+#define WATER_SWELL_WAVELENGTH     9.00
+#define WATER_SWELL_SPEED          0.35
+#define WATER_SWELL_NOISE          1.50
 #define WATER_WAVE_INFLUENCE       0.09 //[0.03 0.06 0.09 0.14 0.22 0.35]
 #define WATER_WAVE_STRENGTH        0.65
 // -------------------------------------------------------------------------
