@@ -13,6 +13,7 @@ uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex8;   // M17: dedicated stained-glass layer
 uniform sampler2D depthtex0;
+uniform sampler2D depthtex1;   // M42: SEABED on this build
 
 /* RENDERTARGETS: 4 */
 layout(location = 0) out vec4 outColor;
@@ -74,7 +75,14 @@ void main() {
 #if SSR_ENABLED
     // Screen-space reflections for water AND rain puddles. This runs here (not
     // in deferred) because deferred writes colortex3 and cannot sample it back.
-    if (depth < 0.9999) {
+    // M42: colortex1.a is reused/cleared by this stage (a probe marked ~96% of
+    // the frame as water), so use Zephyr's dedicated water marker.
+    vec4 ssrMark = texture(colortex8, texCoord);
+    bool ssrWater = (ssrMark.b > 1.5 && ssrMark.a < 0.01);
+    // M42: this march produced a hard-edged rectangular reflection patch on the
+    // water (its hit boundary has no falloff). M41's mirror reflection has no
+    // such seam, so water is excluded here and this block serves puddles only.
+    if (depth < 0.9999 && !ssrWater) {
         vec4 vClip = gbufferProjectionInverse * vec4(texCoord * 2.0 - 1.0,
                                                      depth * 2.0 - 1.0, 1.0);
         float vw = abs(vClip.w) < 1e-5 ? 1e-5 : vClip.w;
@@ -82,11 +90,7 @@ void main() {
         vec3 V = normalize(-viewPos);
         vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
 
-        // M41: colortex1.a is reused/cleared by this stage - using it here
-        // made ~96% of the frame take the "water" SSR branch. Use Zephyr's
-        // dedicated water marker instead (gbuffers_water writes 2.0 to .b).
-        vec4 ssrMark = texture(colortex8, texCoord);
-        bool isWater = (ssrMark.b > 1.5 && ssrMark.a < 0.01);
+        bool isWater = false;   // M42: water reflection now lives in M41
         vec3 N;
         float puddle = 0.0;
         vec2 rippleUv = vec2(0.0);
@@ -284,8 +288,17 @@ void main() {
         vec3 behind = mix(shaded, litBottom, WATER_BOTTOM_MIX);
 
         // Water path proxy, then PER-CHANNEL Beer-Lambert absorption.
+#if WATER_PATH_REAL
+        // M42: real optical path. Measured on this build: depthtex0 = water
+        // SURFACE (22.1 m), depthtex1 = SEABED (32.4 m) - the opposite of the
+        // usual OptiFine naming, which is why the old proxy never worked.
+        float surfDist = dist;                                  // depthtex0
+        float seabedDist = zephyr_linearDepth(texture(depthtex1, texCoord).r);
+        float wPath = clamp(seabedDist - surfDist, 0.0, WATER_PATH_MAX);
+#else
         float wPath = clamp(dist * WATER_PATH_SCALE, 0.0,
                             WATER_PATH_MAX);
+#endif
         vec3 atten = pow(WATER_ATTEN_RGB,
                          vec3(wPath * WATER_ATTEN_RATE));
         behind *= atten;

@@ -163,6 +163,9 @@
 // so the pool mirrored nothing. A planar-mirror approximation samples the
 // scene above the water line; the wave slope breaks the image into ripples,
 // and the real cloud density function supplies cloud reflections.
+// M42 - depthtex0 carries the water SURFACE and depthtex1 the SEABED on this
+// build (measured 22.1 m vs 32.4 m), the opposite of the usual naming.
+#define WATER_PATH_REAL            1 //[0 1]
 #define WATER_REFL_ENABLED         1 //[0 1]
 #define WATER_REFL_GAIN            3.50 //[0 0.5 1 1.8 2.6 3.2 3.5 4 5]
 #define WATER_REFL_MAX             0.85 //[0 0.3 0.5 0.65 0.8 0.85 0.95]
@@ -252,10 +255,10 @@
 // water loses red first and turns cyan-blue. That is what makes iterationT
 // look natural instead of "painted blue".
 #define WATER_BODY_ENABLED         1 //[0 1]
-#define WATER_ATTEN_RATE           0.055 //[0 0.02 0.04 0.055 0.085 0.12 0.18]
+#define WATER_ATTEN_RATE           0.060 //[0 0.02 0.04 0.06 0.12 0.25 0.5]
 #define WATER_ATTEN_RGB            vec3(0.55, 0.80, 0.82)
 #define WATER_PATH_SCALE           0.18
-#define WATER_PATH_MAX            18.0
+#define WATER_PATH_MAX            12.0
 #define WATER_SCATTER_SURF         vec3(0.42, 0.55, 0.50)
 #define WATER_SCATTER_RATE         0.03 //[0 0.01 0.03 0.055 0.10 0.16]
 // Bottom albedo recovered from colortex0 (which still contains the
