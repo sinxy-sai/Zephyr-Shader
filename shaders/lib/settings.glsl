@@ -256,28 +256,28 @@
 // water loses red first and turns cyan-blue. That is what makes iterationT
 // look natural instead of "painted blue".
 #define WATER_BODY_ENABLED         1 //[0 1]
-#define WATER_ATTEN_RATE           0.30 //[0 0.06 0.12 0.2 0.3 0.45 0.7]
+#define WATER_ATTEN_RATE           0.55 //[0 0.06 0.12 0.2 0.3 0.45 0.55 0.8]
 #define WATER_ATTEN_RGB            vec3(0.55, 0.80, 0.82)
 #define WATER_PATH_SCALE           0.18
 #define WATER_PATH_MAX            12.0
-#define WATER_SCATTER_SURF         vec3(0.42, 0.55, 0.50)
-#define WATER_SCATTER_RATE         0.06 //[0 0.01 0.03 0.06 0.10 0.16]
+#define WATER_SCATTER_SURF         vec3(0.10, 0.26, 0.32)
+#define WATER_SCATTER_RATE         0.08 //[0 0.01 0.03 0.06 0.08 0.12 0.2]
 // Bottom albedo recovered from colortex0 (which still contains the
 // seabed through the alpha-blended water surface).
 #define WATER_BOTTOM_MIX           0.85 //[0 0.1 0.2 0.35 0.5 0.75 0.85 1]
-#define WATER_BOTTOM_LIGHT         0.55 //[0 0.2 0.4 0.55 0.8 1.2]
-#define WATER_FACET_GAIN           0.1
+#define WATER_BOTTOM_LIGHT         0.45 //[0 0.2 0.4 0.45 0.6 0.8 1.2]
+#define WATER_FACET_GAIN           1.20
 #define WATER_NEAR_DIST      18.0
 #define WATER_FAR_DIST       38.0
 #define WATER_NEAR_SAT             1.00 //[0 0.3 0.6 0.85 1]
 #define WATER_NEAR_GAIN            1.00 //[1 1.1 1.25 1.45 1.7 2]
-#define WATER_REFRACT_STRENGTH     0.020 //[0 0.005 0.01 0.02 0.035 0.05]
+#define WATER_REFRACT_STRENGTH     0.005 //[0 0.002 0.005 0.01 0.02 0.035]
 #define WATER_BODY_MIX             1.00 //[0 0.25 0.45 0.65 0.8 0.9 1]
 // Three-octave Iris noisetex waves (iterationT GetWaves style). Zephyr used
 // purely analytic valueNoise before; noisetex is built into Iris, no asset.
 #define WATER_WAVE_SCALE           0.25
 #define WATER_WAVE_SPEED           0.30
-#define WATER_WAVE_STRENGTH        0.55
+#define WATER_WAVE_STRENGTH        0.65
 // -------------------------------------------------------------------------
 
 #define WATER_BODY_ALBEDO          0.42

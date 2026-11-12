@@ -305,8 +305,11 @@ void main() {
 
         // Inscattering: deep water tends to the water's own scatter colour.
         float visibility = exp2(-wPath * WATER_SCATTER_RATE);
+        // M44: the old factor made scatterCol ~ (0.7,0.9,0.8) - a bright
+        // milky wash that dominated the far field (measured luma 171 vs 105
+        // in iterationT at the same spot). Deep water scatters DARK cyan.
         vec3 scatterCol = WATER_SCATTER_SURF
-                        * (0.35 + 0.65 * zephyr_luma(skyAmb));
+                        * (0.20 + 0.40 * zephyr_luma(skyAmb));
         behind = mix(scatterCol, behind, visibility);
 
         // iterationT's shallow field reads as NEUTRAL bright bottom while the

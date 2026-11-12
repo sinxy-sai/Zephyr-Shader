@@ -51,7 +51,9 @@ void main() {
     // and depthtex1 is the SEABED (32.4 m), i.e. the opposite of the usual
     // OptiFine naming. No custom depth is needed here; .b is the marker only.
     if (isWater) outGlass.b = 2.0;
-    // M40: keep the surface mostly transparent so colortex0 retains the
-    // seabed through the alpha blend (iterationT writes tex.a = 0 for water).
-    if (isWater) outAlbedo.a = 0.12;
+    // M44: MC's water texture is a HIGH-FREQUENCY tiling blue pattern. Blending
+    // even 12% of it into colortex0 turns the seabed into dense speckle and
+    // destroys the block structure (same spot under iterationT shows clean
+    // slabs because it writes tex.a = 0). Keep the albedo 100% seabed.
+    if (isWater) outAlbedo.a = 0.0;
 }
