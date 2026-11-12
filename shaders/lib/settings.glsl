@@ -258,17 +258,17 @@
 // water loses red first and turns cyan-blue. That is what makes iterationT
 // look natural instead of "painted blue".
 #define WATER_BODY_ENABLED         1 //[0 1]
-#define WATER_ATTEN_RATE           0.55 //[0 0.06 0.12 0.2 0.3 0.45 0.55 0.8]
+#define WATER_ATTEN_RATE           0.85 //[0 0.06 0.12 0.3 0.55 0.85 1.2]
 #define WATER_ATTEN_RGB            vec3(0.55, 0.80, 0.82)
 #define WATER_PATH_SCALE           0.18
 #define WATER_PATH_MAX            12.0
-#define WATER_SCATTER_SURF         vec3(0.10, 0.26, 0.32)
+#define WATER_SCATTER_SURF         vec3(0.08, 0.24, 0.38)
 #define WATER_SCATTER_RATE         0.08 //[0 0.01 0.03 0.06 0.08 0.12 0.2]
 // Bottom albedo recovered from colortex0 (which still contains the
 // seabed through the alpha-blended water surface).
 #define WATER_BOTTOM_MIX           0.85 //[0 0.1 0.2 0.35 0.5 0.75 0.85 1]
 #define WATER_BOTTOM_LIGHT         0.45 //[0 0.2 0.4 0.45 0.6 0.8 1.2]
-#define WATER_FACET_GAIN           1.10
+#define WATER_FACET_GAIN           0.15
 #define WATER_NEAR_DIST      18.0
 #define WATER_FAR_DIST       38.0
 #define WATER_NEAR_SAT             1.00 //[0 0.3 0.6 0.85 1]
