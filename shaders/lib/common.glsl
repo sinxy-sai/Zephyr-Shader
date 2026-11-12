@@ -271,21 +271,69 @@ vec3 zephyr_nightSky(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
 // with finite differences; NO texture lookup, NO dFdx (TAA-safe). This is the
 // Zephyr equivalent of iterationT's GetWavesNormal(): a non-periodic surface
 // so ripple highlights and reflections break up the repeating MC water tile.
-vec2 zephyr_waterWaveSlope(vec3 p, float t) {
-    vec2 uv = p.xz;
-    float e = 0.12;
-    vec2 d0 = vec2(0.62, 0.35) * t * WATER_WAVE_SPEED;
-    vec2 d1 = vec2(-0.28, 0.51) * t * WATER_WAVE_SPEED * 1.37;
-    float s0 = WATER_WAVE_SCALE;
-    float s1 = s0 * 2.3;
-    float h  = zephyr_valueNoise((uv + d0) * s0)
-             + 0.45 * zephyr_valueNoise((uv + d1) * s1);
-    float hx = zephyr_valueNoise((uv + vec2(e, 0.0) + d0) * s0)
-             + 0.45 * zephyr_valueNoise((uv + vec2(e, 0.0) + d1) * s1);
-    float hz = zephyr_valueNoise((uv + vec2(0.0, e) + d0) * s0)
-             + 0.45 * zephyr_valueNoise((uv + vec2(0.0, e) + d1) * s1);
-    return vec2(hx - h, hz - h) / e * WATER_WAVE_STRENGTH;
+// M51 ---------------------------------------------------------------------
+// Gerstner wave field, ported from photon's include/surface/water_normal.glsl.
+// The previous version stretched one isotropic noise texture along an axis,
+// which produced slanted "sandpaper" bands. Real water is a SUM of gerstner
+// waves at decreasing amplitude / increasing frequency, each rotated by the
+// golden angle, with a slow low-frequency noise perturbing the phase. The
+// height is then differentiated with finite differences to get the slope.
+const float ZEPHYR_TAU    = 6.28318530718;
+const float ZEPHYR_GOLDEN = 2.39996322973;   // golden angle in radians
+
+float zephyr_gerstner(vec2 coord, vec2 dir, float t, float noise,
+                      float wavelength) {
+    const float g = 9.8;
+    float k = ZEPHYR_TAU / max(wavelength, 0.05);
+    float w = sqrt(g * k);                  // deep-water dispersion
+    float x = w * t - k * (dot(dir, coord) + noise);
+    float s = sin(x) * 0.5 + 0.5;
+    return s * s;                           // sharp crests, flat troughs
 }
+
+float zephyr_waterHeight(vec2 coord, vec2 dir, float t) {
+    const float persistence = WATER_WAVE_PERSISTENCE;
+    const float lacunarity  = WATER_WAVE_LACUNARITY;
+    const float ampNorm = (1.0 - persistence)
+                        / (1.0 - pow(persistence,
+                                     float(WATER_WAVE_ITERATIONS)));
+    mat2 rot = mat2(cos(ZEPHYR_GOLDEN), sin(ZEPHYR_GOLDEN),
+                    -sin(ZEPHYR_GOLDEN), cos(ZEPHYR_GOLDEN));
+    vec2 ncoord = coord * 0.007 + vec2(0.0, 0.25 * t * 0.02);
+    float h = 0.0;
+    float amp = 1.0;
+    float freq = WATER_WAVE_FREQUENCY;
+    float wl = 1.0;
+    vec2 d = dir;
+    for (int i = 0; i < WATER_WAVE_ITERATIONS; ++i) {
+        float n = (texture(noisetex, ncoord).y - 0.5)
+                * 2.0 * WATER_WAVE_NOISE_STRENGTH;
+        h += zephyr_gerstner(coord * freq, d, t, n, wl) * amp;
+        amp *= persistence;
+        freq *= lacunarity;
+        wl *= 1.5;
+        d = rot * d;
+        ncoord *= 2.5;
+    }
+    return h * ampNorm;
+}
+
+vec2 zephyr_waterWaveSlope(vec3 p, float t) {
+    vec2 coord = p.xz;
+    vec2 dir = normalize(WATER_WAVE_DIR);
+    float tt = t * WATER_WAVE_SPEED;
+    const float e = 0.10;
+    float h0 = zephyr_waterHeight(coord, dir, tt);
+    float hx = zephyr_waterHeight(coord + vec2(e, 0.0), dir, tt);
+    float hz = zephyr_waterHeight(coord + vec2(0.0, e), dir, tt);
+    // Grazing-view damping (photon does the same): without it the surface
+    // turns into noise when the view runs almost parallel to the water.
+    float gate = smoothstep(0.0, 0.15,
+                 abs(dot(vec3(0.0, 1.0, 0.0), normalize(p - cameraPosition))));
+    return vec2(hx - h0, hz - h0) / e
+         * WATER_WAVE_STRENGTH * WATER_WAVE_INFLUENCE * gate;
+}
+// -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
 // M40 ---------------------------------------------------------------------
@@ -300,29 +348,7 @@ vec2 zephyr_waterWaveSlope(vec3 p, float t) {
 //      hides the stretching repeat.
 // A small isotropic octave stays on top for the sparkle.
 vec2 zephyr_waterWaves(vec3 p, float t) {
-    vec2 q = p.xz * WATER_WAVE_SCALE - p.y * 0.35;
-    float ft = t * WATER_WAVE_SPEED;
-    vec2 s = vec2(0.0);
-
-    // Octave 1: long swell along the main flow, stretched 1 : ANISO.
-    vec2 d1 = WATER_WAVE_DIR;
-    vec2 a1 = vec2(dot(q, d1), dot(q, vec2(-d1.y, d1.x)));
-    a1.x *= WATER_WAVE_ANISO;
-    s += (texture(noisetex, a1 * 0.20 + d1 * (ft * 0.09)).xz
-          - 0.5) * 0.62;
-
-    // Octave 2: cross chop from a different angle, milder stretch.
-    vec2 d2 = normalize(vec2(-d1.y, d1.x) * 0.8 + d1 * 0.55);
-    vec2 a2 = vec2(dot(q, d2), dot(q, vec2(-d2.y, d2.x)));
-    a2.x *= mix(1.0, WATER_WAVE_ANISO, 0.45);
-    s += (texture(noisetex, a2 * 0.52 - d2 * (ft * 0.12)).xz
-          - 0.5) * 0.30;
-
-    // Octave 3: fine isotropic sparkle for glitter.
-    s += (texture(noisetex, q * 1.55 + vec2(ft * 0.18, -ft * 0.11)).xz
-          - 0.5) * 0.14;
-
-    return s * WATER_WAVE_STRENGTH;
+    return zephyr_waterWaveSlope(p, t);
 }
 // -------------------------------------------------------------------------
 

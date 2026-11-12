@@ -289,7 +289,12 @@
 // axis; smaller values stretch the noise into long slanted bands instead of
 // isotropic grit.
 #define WATER_WAVE_DIR             vec2(0.86, 0.51)
-#define WATER_WAVE_ANISO           0.18 //[0.10 0.14 0.18 0.25 0.35 0.55 1.0]
+#define WATER_WAVE_ITERATIONS      5
+#define WATER_WAVE_PERSISTENCE     0.50
+#define WATER_WAVE_LACUNARITY      1.70
+#define WATER_WAVE_FREQUENCY       0.70
+#define WATER_WAVE_NOISE_STRENGTH  2.00
+#define WATER_WAVE_INFLUENCE       0.09 //[0.03 0.06 0.09 0.14 0.22 0.35]
 #define WATER_WAVE_STRENGTH        0.65
 // -------------------------------------------------------------------------
 

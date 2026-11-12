@@ -239,7 +239,5 @@ option.WATER_REFL_NEAR_KEEP=Near-field Translucency
 option.WATER_REFL_NEAR_KEEP.comment=How much reflection is kept close to the camera; lower values let the bottom show through.
 option.WATER_REFL_CLOUD=Cloud Reflection
 option.WATER_REFL_CLOUD.comment=Brightness of clouds mirrored on the water surface.
-option.WATER_WAVE_ANISO=Wave Anisotropy
-option.WATER_WAVE_ANISO.comment=Lower values stretch ripples into long slanted bands; 1.0 gives isotropic grit.
 option.WATER_SSR_MIX=Screen-Space Reflection
 option.WATER_SSR_MIX.comment=How much of the reflection comes from a real screen-space ray march of the scenery.
