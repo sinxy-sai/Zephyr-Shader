@@ -562,8 +562,12 @@ void main() {
             // a regular grid.
             float glit = pow(max(dot(waveN, H), 0.0),
                              WATER_GLITTER_POWER);
+            // M54: seen from below, a sun glitter lobe computed with the
+            // UPWARD wave normal is pure speckle on the interface. The
+            // underwater composite now shades that interface entirely.
             color += sunRadiance * glit * WATER_GLITTER_STRENGTH
-                   * shadowTrans * dayAmount * (1.0 - rain * 0.50);
+                   * shadowTrans * dayAmount * (1.0 - rain * 0.50)
+                   * (isEyeInWater == 1 ? 0.0 : 1.0);
 #endif
         } else {
 #if AO_ENABLED

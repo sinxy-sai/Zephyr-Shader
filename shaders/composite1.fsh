@@ -75,6 +75,10 @@ void main() {
            * mix(1.0, BLOOM_SKY_ATTENUATION, skyMask);
 
 #if VL_ENABLED
+    // M54: the atmospheric god-ray march is an AIR effect. Underwater it
+    // painted warm orange shafts over blue water and doubled the dedicated
+    // underwater shafts already added in composite.fsh.
+    if (isEyeInWater == 0) {
     vec3 sunDirWorld = normalize(mat3(gbufferModelViewInverse) * normalize(sunPosition));
     float dayAmount = zephyr_dayAmount(sunDirWorld.y);
 
@@ -126,6 +130,7 @@ void main() {
                           zephyr_warmMix(sunDirWorld.y));
     color += shaftColor * shafts * VL_INTENSITY * phase * dayAmount
            * (1.0 - clamp(rainStrength, 0.0, 1.0) * 0.85);
+    }
 #endif
 
     outColor = vec4(clamp(color, 0.0, 65504.0), 1.0);

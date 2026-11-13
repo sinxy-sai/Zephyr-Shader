@@ -24,6 +24,32 @@ vec3 zephyr_worldRay(vec2 uv) {
     return normalize(mat3(gbufferModelViewInverse) * normalize(clip.xyz / w));
 }
 
+// M54: vertical distance from the eye to the water plane, recovered from a
+// few fixed probes on the upper part of the frame. A hard-coded eye depth
+// made the interface sit at the wrong height as soon as the player dived.
+// Iris packs differ in whether gbufferModelViewInverse already carries the
+// camera translation, so accept both conventions (see the fallback below).
+float zephyr_uwEyeDepth() {
+    float sum = 0.0;
+    float cnt = 0.0;
+    for (int i = 0; i < 3; ++i) {
+        vec2 uv = vec2(0.22 + 0.28 * float(i), 0.82);
+        vec4 m = textureLod(colortex8, uv, 0.0);
+        float d = textureLod(depthtex0, uv, 0.0).r;
+        if (m.b > 1.5 && m.a < 0.01 && d < 0.9999) {
+            vec4 clip = gbufferProjectionInverse
+                      * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+            vec3 vp = clip.xyz / max(abs(clip.w), 1e-5);
+            float wy = (gbufferModelViewInverse * vec4(vp, 1.0)).y;
+            float h = wy - cameraPosition.y;
+            if (h < 0.05 || h > 16.0) h = wy;
+            sum += clamp(h, 0.15, 12.0);
+            cnt += 1.0;
+        }
+    }
+    return cnt > 0.0 ? sum / cnt : WATER_UW_EYE_DEPTH;
+}
+
 // Height-resolved cloud density. A storm swaps in a lower, thicker deck with a
 // broader weather map, so the overcast reads as a continuous ceiling rather
 // than the same cumulus field with a lower coverage threshold.
@@ -153,7 +179,9 @@ void main() {
     float cloudThick = zephyr_cloudThickness();
     float extinction = zephyr_cloudExtinction();
     float bolt = zephyr_lightning();
-    if (rd.y > 0.01) {
+    // M54: an underwater eye must never see the atmospheric cloud deck
+    // directly. The water/air interface below handles all up-facing rays.
+    if (rd.y > 0.01 && isEyeInWater == 0) {
         float t0 = max((cloudBaseY - cameraPosition.y) / rd.y, 0.0);
         float t1 = min((cloudBaseY + cloudThick - cameraPosition.y) / rd.y,
                        min(dist, 9000.0));
@@ -473,115 +501,207 @@ void main() {
 
 #if WATER_VOLUME_ENABLED
     if (underwaterView) {
-        // M31: Beer-Lambert underwater fog. The eye-to-surface path is the
-        // linear view distance; wavelength-dependent extinction turns distant
-        // geometry cyan-green instead of just dimming it.
+        // M31: Beer-Lambert underwater fog. Wavelength-dependent extinction
+        // turns distant geometry deep blue instead of merely dimming it.
+        // M54: the ambient term is blue-dominant now; continuum's reference
+        // mid-field is (5,100,146), i.e. blue > green, not cyan-green.
         vec3 sigmaA = WATER_ABSORB_RGB * WATER_FOG_DENSITY;
         float waterPath = min(dist, 160.0);
         vec3 Tw = exp(-sigmaA * waterPath);
-        vec3 ambientUnder = mix(vec3(0.05, 0.11, 0.17),
-                                vec3(0.26, 0.52, 0.58), dayAmount);
+        vec3 ambientUnder = mix(vec3(0.03, 0.07, 0.14),
+                                vec3(0.18, 0.36, 0.60), dayAmount);
         vec3 inScatter = WATER_SCATTER_RGB * ambientUnder
                        * WATER_INSCATTER * (0.65 + 0.35 * mu);
         color = color * Tw + inScatter * (1.0 - Tw);
 
-        // M50: the water surface seen FROM BELOW (port of iterationT's
-        // composite1.fsh:136-149 + composite5.fsh:77).
+        // M54 -------------------------------------------------------------
+        // The water/air interface seen FROM BELOW.
         //
-        // Two things were wrong before: (a) the wave normal was still the
-        // upward one, so `dot(N, up) < 0` and the ripple amplitude collapsed
-        // to zero - the surface was a dead flat plate (the "static" look the
-        // user called out); (b) there was no refract()/TIR test at all, so the
-        // sky and buildings were simply tinted instead of being distorted and
-        // mostly blocked.
+        // M50 shaded only water-MARKED pixels, which ends the plane on a
+        // razor-straight screen-space horizon; it also sampled the wave field
+        // at cameraPosition + rd * dist (dist jumps between the surface, the
+        // sky and the seabed), used IOR 1.20 and a 6x wave normal that swept
+        // the 12..14 radiance sun disc over the frame as white shards.
+        //
+        // Here the interface is a CONTINUOUS analytic plane: every up-facing
+        // ray hits it, the incidence angle alone decides between the Snell
+        // window (transmitted sky) and total internal reflection (a mirror of
+        // the underwater scene), and the eye->surface path fades the whole
+        // thing into the same water fog so no hard line can survive.
+        vec2 uwTexel = 1.0 / vec2(viewWidth, viewHeight);
         vec4 uwMark = texture(colortex8, texCoord);
-        if (uwMark.b > 1.5 && uwMark.a < 0.01) {
-            vec3 surfPos = cameraPosition + rd * dist;
+        float mark = step(1.5, uwMark.b) * (1.0 - step(0.01, uwMark.a));
+        mark += step(1.5, texture(colortex8,
+                          texCoord + vec2( 4.0 * uwTexel.x, 0.0)).b);
+        mark += step(1.5, texture(colortex8,
+                          texCoord + vec2(-4.0 * uwTexel.x, 0.0)).b);
+        mark += step(1.5, texture(colortex8,
+                          texCoord + vec2(0.0,  4.0 * uwTexel.y)).b);
+        mark += step(1.5, texture(colortex8,
+                          texCoord + vec2(0.0, -4.0 * uwTexel.y)).b);
+        mark *= 0.20;
+        // Angle-driven coverage, NOT a marker-driven one. The small floor
+        // outside the marked region keeps a camera bobbing at the surface
+        // from flipping the whole sky into a mirror on a single frame.
+        // M55: a 6-degree transition left a visible horizontal brightness
+        // step at the horizon (z107). Widen it to ~17 degrees so the mirror
+        // and the water fog cross-fade instead of meeting on a line.
+        float surfaceMask = smoothstep(-0.06, 0.24, rd.y)
+                          * mix(WATER_UW_NO_MARK, 1.0, mark);
+
+        if (surfaceMask > 0.001) {
+            float eyeDepth = zephyr_uwEyeDepth();
+            float tSurf = clamp(eyeDepth / max(rd.y, 0.045), 0.0, 160.0);
+            vec3 surfPos = cameraPosition + rd * tSurf;
             vec2 uwSlope = zephyr_waterWaves(surfPos, frameTimeCounter);
-            // Seen from below the geometric normal points DOWN into the water;
-            // waves perturb it exactly like the above-water normal, so the
-            // refracted view moves over time.
+            // Seen from below the geometric normal points DOWN into the water.
             vec3 Ndown = normalize(vec3(-uwSlope.x * WATER_UW_WAVE_N,
                                         -1.0,
                                         -uwSlope.y * WATER_UW_WAVE_N));
-            // Water -> air refraction. GLSL returns a zero vector on TIR.
-            vec3 refr = refract(rd, Ndown, WATER_UW_IOR);
-            float tir = dot(refr, refr) < 1e-6 ? 1.0 : 0.0;
 
-            // Below the critical angle the outside world is visible through
-            // the refracted direction. iterationT projects through a sky
-            // cubemap (composite1.fsh:141); colortex3 cannot be used because
-            // on a water pixel it holds the WATER ITSELF, which fed back as
-            // torn rainbow shards. The analytic sky is the correct source.
-            vec3 refrDir = normalize(refr + vec3(0.0, 1e-4, 0.0));
+            // Snell's law, water (1.333) -> air (1.0). k <= 0 is TIR; using
+            // k for the blend gives a soft, WAVE-PERTURBED window rim instead
+            // of a binary refract() test (the critical angle is 48.6 deg).
+            float eta = WATER_UW_IOR;
+            float cosI = clamp(-dot(rd, Ndown), 0.0, 1.0);
+            float k = 1.0 - eta * eta * (1.0 - cosI * cosI);
+            float window = smoothstep(0.0, WATER_UW_EDGE, k);
+            vec3 refrDir = k > 0.0
+                ? normalize(eta * rd
+                            + (eta * cosI - sqrt(max(k, 0.0))) * Ndown)
+                : normalize(vec3(rd.x, 0.85, rd.z));
+
+            // Inside the window: analytic sky, with the sun DISC capped. The
+            // uncapped disc (radiance 12..14) is what M50 smeared into white
+            // shards; a soft glow replaces it. Fresnel darkens the rim.
             vec3 refrSky = zephyr_atmosphere(refrDir, sunDirWorld,
                                              dayAmount, rain);
+            refrSky = min(refrSky, vec3(WATER_UW_SKY_CAP));
+            float softSun = pow(max(dot(refrDir, sunDirWorld), 0.0), 64.0);
+            refrSky += vec3(1.00, 0.95, 0.86) * softSun
+                     * WATER_UW_SUN * dayAmount;
+            refrSky *= mix(0.55, 1.0, smoothstep(0.0, 0.35, k));
+            refrSky *= clamp(0.90 + (uwSlope.x + uwSlope.y)
+                             * WATER_UW_CREST, 0.72, 1.18);
 
-            // Beyond the critical angle the surface mirrors the water body
-            // itself; the very long optical path eats almost all of it.
-            vec3 mirrCol = WATER_SCATTER_RGB * ambientUnder
-                         * WATER_INSCATTER * 0.55;
-            // Wave crests catch light even from below - keeps it alive.
-            float cref = clamp(0.55 + (uwSlope.x + uwSlope.y)
-                               * WATER_UW_CREST, 0.0, 1.6);
-            vec3 surfCol = mix(refrSky * cref, mirrCol, tir);
-            // Water path from the eye to the surface dims what comes through.
-            surfCol = mix(mirrCol, surfCol, 1.0) * (0.55 + 0.45 * Tw.g);
+            // Outside the window: total internal reflection. Reflect the ray
+            // into the DOWNWARD hemisphere and project it back to the screen,
+            // so the surface mirrors the real seabed/rock walls. Sampling the
+            // lower half can never feed a water pixel back into itself (M50
+            // v2's "red/green shards"), and the marker guard is a second net.
+            vec3 mirrorDir = reflect(rd, Ndown);
+            mirrorDir.y = min(mirrorDir.y, -0.08);
+            mirrorDir = normalize(mirrorDir);
+            vec4 mClip = gbufferProjection
+                       * (gbufferModelView * vec4(mirrorDir, 0.0));
+            // M55: an out-of-range lookup must NOT be clamped onto the screen
+            // border. z107 showed exactly that failure: the first-person hand
+            // / warm shore buildings in the bottom right were mirrored into
+            // ORANGE SHARDS at the top right. Reject the sample instead.
+            vec2 mUvRaw = mClip.w > 1e-4
+                        ? mClip.xy / mClip.w * 0.5 + 0.5
+                        : vec2(-1.0);
+            vec2 mirrorUv = mUvRaw + uwSlope * WATER_UW_RIPPLE_UV;
+            float inFrame = step(0.03, mirrorUv.x)
+                          * (1.0 - step(0.97, mirrorUv.x))
+                          * step(0.18, mirrorUv.y)
+                          * (1.0 - step(0.97, mirrorUv.y));
+            vec2 lookupUv = clamp(mirrorUv, vec2(0.002), vec2(0.998));
+            float noWater = 1.0 - step(1.5, textureLod(colortex8,
+                                                        lookupUv, 0.0).b);
+            float mirrorValid = inFrame * noWater;
+            vec3 mirrorCol = max(textureLod(colortex3, lookupUv, 0.0).rgb,
+                                 vec3(0.0));
+            // M55: keep only the LUMINANCE of the mirrored scene. Carrying its
+            // colour is what painted warm blotches on the interface; a grey
+            // modulation still gives iterationT's dark "rocky ceiling", with
+            // no chromatic contamination at all.
+            float mirrorLum = clamp(zephyr_luma(mirrorCol), 0.0, 1.2);
+            vec3 mirrorBody = inScatter * 1.55
+                            + WATER_SCATTER_RGB * ambientUnder * 0.12;
+            float reflW = WATER_UW_MIRROR * mix(1.0, 1.25, 1.0 - cosI);
+            vec3 tirCol = mirrorBody
+                        * mix(1.0,
+                              clamp(0.72 + mirrorLum * reflW, 0.55, 1.45),
+                              mirrorValid);
+            // Wave facets modulate the mirror so the TIR region is rippled,
+            // not a flat sheet of colour.
+            tirCol *= clamp(0.90 + (uwSlope.x + uwSlope.y)
+                            * WATER_UW_CREST * 3.0, 0.75, 1.18);
 
-            color = mix(color, surfCol, WATER_UW_MIX);
+            vec3 surfCol = mix(tirCol, refrSky, window);
+            // Grazing rays travel a very long way to the surface, so they
+            // dissolve into the SAME fog colour as the water body: this is
+            // what removes the straight horizon seam.
+            vec3 Tsurf = exp(-sigmaA * min(tSurf, 160.0));
+            surfCol = surfCol * Tsurf + inScatter * (1.0 - Tsurf);
+            color = mix(color, surfCol,
+                        clamp(surfaceMask * WATER_UW_MIX, 0.0, 1.0));
         }
 
 #if WATER_VL_ENABLED
-        // M33: underwater light shafts. FIXED world-space slabs (step length
-        // does NOT depend on per-pixel dist, the M33 swim flicker), a
-        // sun-aligned caustics mask, a Mie-like forward phase and the same
-        // Beer-Lambert attenuation as the fog.
+        // M54: broad, low-frequency beams instead of a caustics ridge mask.
+        // The old mask projected a row of hard vertical bars onto the surface;
+        // soft value noise + a forward lobe reads as volumetric glow. Fixed
+        // world slabs and the gentle M49 extinction are unchanged.
         float vlStep = WATER_VL_RANGE / float(WATER_VL_STEPS);
-        // A tight sun-aligned lobe almost never faces a downward underwater
-        // view; keep a broad scatter floor so shafts stay visible.
-        float phase = 0.55 + 0.45 * pow(mu, 2.0);
-        vec3 shafts = vec3(0.0);
+        float phase = 0.25 + 0.75 * pow(mu, WATER_VL_PHASE);
+        float beams = 0.0;
         for (int i = 0; i < WATER_VL_STEPS; ++i) {
             float t = (float(i) + 0.5) * vlStep;
             if (t > dist) break;
             vec3 p = cameraPosition + rd * t;
-            // Bound the sun-aligned offset: using raw p.y on tall distant
-            // geometry produced high-frequency stripes in the sky (M33).
-            float c = zephyr_caustics(p + sunDirWorld
-                          * clamp(p.y, 0.0, 12.0) * 0.25,
-                          frameTimeCounter * CAUSTICS_SPEED);
-            // M49: WATER_FOG_DENSITY rose 0.10 -> 0.38 for continuum parity,
-            // which killed the shafts (exp(-0.38*t) is 3.8x darker). Give the
-            // beams their own, gentler extinction.
-            shafts += vec3(0.55, 0.85, 1.00) * c
-                    * exp(-WATER_FOG_DENSITY * 0.30 * t);
+            vec2 bp = (p.xz + sunDirWorld.xz
+                       * clamp(p.y, 0.0, 12.0) * 0.30) * WATER_VL_SCALE
+                    + vec2(frameTimeCounter * 0.012,
+                           -frameTimeCounter * 0.009);
+            float n = zephyr_valueNoise(bp);
+            beams += (0.30 + 0.70 * n * n)
+                   * exp(-WATER_FOG_DENSITY * 0.30 * t);
         }
-        // Shafts live in the water between the eye and a solid surface; a
-        // sky pixel has no such medium, so do not paint beams onto the sky.
-        float skyGate = depth < 0.9999 ? 1.0 : 0.0;
-        color += shafts * (WATER_VL_STRENGTH / float(WATER_VL_STEPS))
-               * phase * dayAmount * (1.0 - rain * 0.55) * skyGate;
+        // Shafts live in the WATER COLUMN; the interface is not a
+        // participating medium, so fade them as the surface takes over.
+        // M55: 0.80 made the shafts vanish exactly where the surface starts,
+        // which drew a bright horizontal band below the horizon (z107).
+        float medium = (1.0 - 0.45 * surfaceMask)
+                     * (depth < 0.9999 ? 1.0 : 0.35);
+        color += vec3(0.42, 0.72, 1.00) * beams
+               * (WATER_VL_STRENGTH / float(WATER_VL_STEPS))
+               * phase * dayAmount * (1.0 - rain * 0.55) * medium;
 #endif
 
 #if WATER_PARTICLE_ENABLED
-        // M33: fixed-length slabs, 2D perpendicular footprint, no grid drift.
-        // At night the motes shift to a faint bioluminescent cyan-green and
-        // gain a little intensity so they stay readable underwater.
+        // M54: two depth layers in ONE raymarch - coarse distant motes plus a
+        // finer, sparser near-field bubble layer. Both use the fixed world
+        // grid, so neither re-rolls its hash while swimming (M33 rule).
         float pStep = WATER_PARTICLE_RANGE / float(WATER_PARTICLE_STEPS);
         float night = 1.0 - dayAmount;
-        vec3 moteColor = mix(WATER_PARTICLE_COLOR,
+        vec3 moteColor = mix(WATER_MOTE_UW_COLOR,
                              WATER_PARTICLE_GLOW_COLOR,
                              night * WATER_PARTICLE_NIGHT_GLOW);
-        float moteGain = WATER_PARTICLE_BRIGHTNESS
+        float moteGain = WATER_PARTICLE_BRIGHTNESS * WATER_MOTE_UW_GAIN
                        * (1.0 + night * WATER_PARTICLE_NIGHT_BOOST);
         vec3 motes = vec3(0.0);
+        vec3 bubbles = vec3(0.0);
         for (int i = 0; i < WATER_PARTICLE_STEPS; ++i) {
             float t = (float(i) + 0.5) * pStep;
             if (t > dist) break;
-            float m = zephyr_waterMote(cameraPosition + rd * t, rd);
-            if (m > 0.0) motes += moteColor * m * exp(-sigmaA * t);
+            vec3 p = cameraPosition + rd * t;
+            vec3 Tp = exp(-sigmaA * t);
+            float m = zephyr_waterMoteEx(p, rd, WATER_PARTICLE_GRID,
+                                         WATER_MOTE_UW_SIZE,
+                                         WATER_PARTICLE_DENSITY);
+            if (m > 0.0) motes += moteColor * m * Tp;
+            if (t < WATER_BUBBLE_RANGE) {
+                float b = zephyr_waterMoteEx(p, rd, WATER_BUBBLE_GRID,
+                                            WATER_BUBBLE_SIZE,
+                                            WATER_BUBBLE_DENSITY);
+                bubbles += vec3(0.80, 0.90, 1.00) * b * Tp;
+            }
         }
-        color += motes * (moteGain / float(WATER_PARTICLE_STEPS));
+        color += motes * (moteGain / float(WATER_PARTICLE_STEPS))
+               + bubbles * (WATER_BUBBLE_BRIGHTNESS
+                            / float(WATER_PARTICLE_STEPS));
 #endif
     }
 #endif

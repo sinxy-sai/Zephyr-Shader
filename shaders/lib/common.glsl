@@ -392,11 +392,12 @@ vec2 zephyr_waterWaves(vec3 p, float t) {
 // flicker). Only the particle centre breathes with smooth sines. The
 // footprint is measured in the plane PERPENDICULAR to the view ray, because
 // a 3D sphere test is almost never hit by discrete raymarch samples (M32).
-float zephyr_waterMote(vec3 p, vec3 rd) {
-    vec3 q = p / WATER_PARTICLE_GRID;
+float zephyr_waterMoteEx(vec3 p, vec3 rd, float grid, float size,
+                         float density) {
+    vec3 q = p / grid;
     vec3 id = floor(q);
     float h = zephyr_hash12(id.xy + vec2(id.z * 37.0, id.z * 17.0));
-    if (h > WATER_PARTICLE_DENSITY) return 0.0;
+    if (h > density) return 0.0;
     float h2 = zephyr_hash12(id.xy + vec2(id.z * 11.0 + 5.3,
                                           id.z * 3.7));
     float h3 = zephyr_hash12(id.xy + vec2(id.z * 7.1,
@@ -408,8 +409,15 @@ float zephyr_waterMote(vec3 p, vec3 rd) {
                           sin(t * 0.19 + h3 * 6.2831));
     vec3 d3 = fract(q) - 0.5 - offset;
     vec3 perp = d3 - rd * dot(d3, rd);
-    float m = smoothstep(WATER_PARTICLE_SIZE, 0.0, length(perp));
+    float m = smoothstep(size, 0.0, length(perp));
     return m * m;
+}
+
+// M54: two depth layers use the SAME stable field with different cell size,
+// footprint and density, instead of one uniform blob size everywhere.
+float zephyr_waterMote(vec3 p, vec3 rd) {
+    return zephyr_waterMoteEx(p, rd, WATER_PARTICLE_GRID,
+                              WATER_PARTICLE_SIZE, WATER_PARTICLE_DENSITY);
 }
 
 // Procedural caustics: two counter-drifting value-noise layers ridged into a

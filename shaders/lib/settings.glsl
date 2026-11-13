@@ -188,12 +188,28 @@
 #define WATER_SCATTER_RGB          vec3(0.10, 0.42, 0.48)
 #define WATER_SURFACE_PATH         0.80
 #define WATER_FOG_DENSITY          0.38 //[0 0.06 0.12 0.2 0.3 0.38 0.5 0.7]
-// M50 - water surface seen from below (port of iterationT composite1/5).
-// IOR follows iterationT's WATER_REFRACT_IOR; the TIR threshold is 1/IOR.
+// M54 - water/air interface seen FROM BELOW. M50 had four physical errors:
+//   1. only water-MARKED pixels were shaded, so the plane ended on a razor
+//      straight horizon line instead of an angular Snell window;
+//   2. IOR 1.20 gives a 56.4 deg critical angle (real water/air is 48.6);
+//   3. a 6x wave normal tilted the interface tens of degrees, sweeping the
+//      analytic SUN DISC (radiance 12..14) across the frame as white shards;
+//   4. the wave field was sampled at cameraPosition + rd * dist, where dist
+//      jumps between surface / sky / seabed -> torn, discontinuous ripples.
+// Now the interface is evaluated on a continuous analytic plane for EVERY
+// up-facing ray, with a soft critical-angle rim, a capped sky, and a TIR
+// mirror sampled from the downward half of the frame (never self-feedback).
 #define WATER_UW_MIX               0.92 //[0 0.3 0.6 0.8 0.92 1.0]
-#define WATER_UW_IOR             1.20
-#define WATER_UW_WAVE_N            6.0
+#define WATER_UW_IOR               1.333         // n_water / n_air
+#define WATER_UW_WAVE_N            1.40          // slope -> ~5 deg normal tilt
 #define WATER_UW_CREST             0.25 //[0 0.1 0.18 0.25 0.4 0.6 0.9]
+#define WATER_UW_EDGE              0.18          // Snell window rim softness
+#define WATER_UW_SKY_CAP           1.80          // tame the analytic sun disc
+#define WATER_UW_SUN               0.55          // soft sun glow, no hard disc
+#define WATER_UW_EYE_DEPTH         1.50          // fallback eye->surface, m
+#define WATER_UW_MIRROR            0.62          // TIR reflection strength
+#define WATER_UW_RIPPLE_UV         0.035         // M55: 0.10 tore the mirror into strips
+#define WATER_UW_NO_MARK           0.12          // surface weight off the mask
 #define WATER_INSCATTER            0.85
 // M31/M33 - suspended motes, caustics and underwater light shafts.
 // M32: SIZE is in normalised cell units; the original 3D-sphere hit test
@@ -208,6 +224,21 @@
 #define WATER_PARTICLE_RANGE       16.0
 #define WATER_PARTICLE_BRIGHTNESS  1.60 //[0 0.3 0.6 0.9 1.3 1.6 1.8 2.2]
 #define WATER_PARTICLE_COLOR       vec3(0.72, 0.92, 1.00)
+// M54: underwater-only particle tuning. The values above ALSO feed the
+// above-water surface motes in deferred.fsh, so they must stay at the M53
+// calibration; only the submerged volume gets smaller, dimmer motes.
+#define WATER_MOTE_UW_SIZE         0.10
+#define WATER_MOTE_UW_GAIN         0.55
+#define WATER_MOTE_UW_COLOR        vec3(0.72, 0.82, 0.94)
+// M54: second, NEAR-field particle layer. A finer grid + smaller footprint +
+// lower density reads as small bubbles close to the eye, while the coarse
+// layer supplies distant suspended motes. Both share the fixed world grid,
+// so neither re-rolls its hash as the player swims (M33 flicker rule).
+#define WATER_BUBBLE_GRID          0.55
+#define WATER_BUBBLE_SIZE          0.065
+#define WATER_BUBBLE_DENSITY       0.07
+#define WATER_BUBBLE_RANGE         6.0
+#define WATER_BUBBLE_BRIGHTNESS    0.55
 #define WATER_PARTICLE_GLOW_COLOR  vec3(0.32, 0.95, 0.86)
 #define WATER_PARTICLE_NIGHT_GLOW  0.85
 #define WATER_PARTICLE_NIGHT_BOOST 1.40 //[0 0.5 1 1.4 2 2.8 4]
@@ -215,15 +246,17 @@
 // M33 - procedural caustics: two counter-drifting noise ridges (BSL
 // shadow.glsl / photon water_fog_vl.glsl) projected onto submerged geometry.
 #define CAUSTICS_ENABLED           1 //[0 1]
-#define CAUSTICS_STRENGTH          6.00 //[0 1 2 4 6 9 14]
+#define CAUSTICS_STRENGTH          4.00 //[0 1 2 4 6 9 14]
 #define CAUSTICS_SCALE             0.28
 #define CAUSTICS_SPEED             0.22
-#define CAUSTICS_SHARPNESS         4.00
-// M33 - underwater volumetric shafts: fixed world-space slabs, a sun-aligned
-// caustics mask and a Mie-like forward phase, attenuated by the same
-// Beer-Lambert coefficient as the water fog.
+#define CAUSTICS_SHARPNESS         2.60
+// M54 - underwater shafts. The caustics ridge mask produced a row of hard
+// vertical BARS on the surface; broad low-frequency value noise gives a soft
+// volumetric glow instead. Same fixed world slabs + Beer-Lambert extinction.
 #define WATER_VL_ENABLED           1 //[0 1]
-#define WATER_VL_STRENGTH          10.0 //[0 2 4 6 10 16 26]
+#define WATER_VL_STRENGTH          6.0 //[0 2 4 6 10 16 26]
+#define WATER_VL_SCALE             0.10
+#define WATER_VL_PHASE             3.0
 // M35 - water surface realism (iterationT GetWavesNormal / Complementary
 // water.glsl ideas). The old sin*cos wave was perfectly periodic, which is
 // why an overhead view read as flat grey-blue bathroom tiles.
