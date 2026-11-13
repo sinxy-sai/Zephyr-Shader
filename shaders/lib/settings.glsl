@@ -318,6 +318,14 @@
 #define WATER_FOAM_COVERAGE        0.50 //[0 0.25 0.4 0.5 0.65 0.8]
 #define WATER_FOAM_STRENGTH        0.50 //[0 0.25 0.5 0.8 1.25 1.7 2.2]
 #define WATER_FOAM_BRIGHT          1.05
+// M57: the M53 gradient test fired on submerged block edges (z113). Foam now
+// fades in only on the far bank, and its gradient term additionally requires
+// the WATER SURFACE ITSELF to end there (colortex8.b marker boundary) - a
+// submerged ledge still has water on both sides and is not a coastline.
+// WATER_FOAM_STRENGTH stays at its M53 value (0.50); do not raise it to
+// bring back the far bank - the white lines come from the gradient term.
+#define WATER_FOAM_NEAR_DIST       8.0
+#define WATER_FOAM_FAR_DIST       18.0
 #define WATER_BOTTOM_MIX           0.85 //[0 0.1 0.2 0.35 0.5 0.75 0.85 1]
 #define WATER_BOTTOM_LIGHT         0.62 //[0 0.2 0.4 0.62 0.8 1.0 1.2]
 #define WATER_FACET_GAIN           0.15

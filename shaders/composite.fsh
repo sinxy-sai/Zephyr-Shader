@@ -366,11 +366,33 @@ void main() {
         // everything or nothing. What actually marks a shoreline is the
         // SCREEN-SPACE GRADIENT of the water path - it jumps where the bed
         // meets the bank.
-        float foamDepth = 1.0 - smoothstep(WATER_FOAM_DEPTH * 0.25,
-                                           WATER_FOAM_DEPTH, wPath);
+        // M57: z113 showed dotted WHITE LINES along every near-field seabed
+        // block edge. wPath = seabedDist - surfDist JUMPS at any submerged
+        // step, so the plain gradient test treated those steps as a shore.
+        // Fix 1: a real coast is where the WATER SURFACE ends. Sample the
+        // dedicated water marker (colortex8.b) a few texels away; at a
+        // submerged block edge every neighbour is still water, so coast = 0.
+        // Fix 2: the user only wants foam on the FAR bank, so fade the whole
+        // effect in with distance. The soft shallow-shelf band (foamDepth)
+        // survives on the far bank; the near-field white haze does not.
+        vec2 foamTexel = 1.0 / vec2(viewWidth, viewHeight);
+        float nbL = step(1.5, texture(colortex8,
+                          texCoord - vec2(3.0 * foamTexel.x, 0.0)).b);
+        float nbR = step(1.5, texture(colortex8,
+                          texCoord + vec2(3.0 * foamTexel.x, 0.0)).b);
+        float nbD = step(1.5, texture(colortex8,
+                          texCoord - vec2(0.0, 3.0 * foamTexel.y)).b);
+        float nbU = step(1.5, texture(colortex8,
+                          texCoord + vec2(0.0, 3.0 * foamTexel.y)).b);
+        float coast = 1.0 - min(min(nbL, nbR), min(nbD, nbU));
+        float foamFar = smoothstep(WATER_FOAM_NEAR_DIST,
+                                   WATER_FOAM_FAR_DIST, dist);
+        float foamDepth = (1.0 - smoothstep(WATER_FOAM_DEPTH * 0.25,
+                                            WATER_FOAM_DEPTH, wPath)) * foamFar;
         float shoreGrad = abs(dFdx(wPath)) + abs(dFdy(wPath));
         float shore = smoothstep(WATER_FOAM_EDGE * 0.35,
-                                 WATER_FOAM_EDGE, shoreGrad);
+                                 WATER_FOAM_EDGE, shoreGrad)
+                    * coast * foamDepth;
         float foamN = texture(noisetex,
                               wPos.xz * WATER_FOAM_SCALE
                               + vec2(frameTimeCounter * 0.015,
