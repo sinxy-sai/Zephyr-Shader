@@ -514,6 +514,17 @@ void main() {
                        * WATER_INSCATTER * (0.65 + 0.35 * mu);
         color = color * Tw + inScatter * (1.0 - Tw);
 
+        // M56: ONE eye->surface estimate shared by the interface, the shafts
+        // and the particles. The participating medium ends at whichever is
+        // nearer: solid geometry, or the water surface. A sky pixel used to
+        // report dist = 1e6, so the shaft march ran all 8 slabs through
+        // "22 m of water" that is not there - that is the pale horizontal
+        // band in z110. Down-facing rays have no interface overhead.
+        float uwEyeDepth = zephyr_uwEyeDepth();
+        float tIface = clamp(uwEyeDepth / max(rd.y, 0.045), 0.0, 160.0);
+        float mediumEnd = min(min(dist, 160.0),
+                              rd.y > 0.02 ? tIface : 160.0);
+
         // M54 -------------------------------------------------------------
         // The water/air interface seen FROM BELOW.
         //
@@ -550,8 +561,7 @@ void main() {
                           * mix(WATER_UW_NO_MARK, 1.0, mark);
 
         if (surfaceMask > 0.001) {
-            float eyeDepth = zephyr_uwEyeDepth();
-            float tSurf = clamp(eyeDepth / max(rd.y, 0.045), 0.0, 160.0);
+            float tSurf = tIface;
             vec3 surfPos = cameraPosition + rd * tSurf;
             vec2 uwSlope = zephyr_waterWaves(surfPos, frameTimeCounter);
             // Seen from below the geometric normal points DOWN into the water.
@@ -602,13 +612,15 @@ void main() {
                         ? mClip.xy / mClip.w * 0.5 + 0.5
                         : vec2(-1.0);
             vec2 mirrorUv = mUvRaw + uwSlope * WATER_UW_RIPPLE_UV;
-            float inFrame = step(0.03, mirrorUv.x)
-                          * (1.0 - step(0.97, mirrorUv.x))
-                          * step(0.18, mirrorUv.y)
-                          * (1.0 - step(0.97, mirrorUv.y));
+            // M56: binary step() edges here were one more horizontal seam
+            // where the mirror lookup walks out of frame / onto the surface.
+            float inFrame = smoothstep(0.01, 0.08, mirrorUv.x)
+                          * (1.0 - smoothstep(0.92, 0.99, mirrorUv.x))
+                          * smoothstep(0.10, 0.26, mirrorUv.y)
+                          * (1.0 - smoothstep(0.92, 0.99, mirrorUv.y));
             vec2 lookupUv = clamp(mirrorUv, vec2(0.002), vec2(0.998));
-            float noWater = 1.0 - step(1.5, textureLod(colortex8,
-                                                        lookupUv, 0.0).b);
+            float noWater = 1.0 - smoothstep(1.2, 1.8,
+                                textureLod(colortex8, lookupUv, 0.0).b);
             float mirrorValid = inFrame * noWater;
             vec3 mirrorCol = max(textureLod(colortex3, lookupUv, 0.0).rgb,
                                  vec3(0.0));
@@ -649,7 +661,12 @@ void main() {
         float beams = 0.0;
         for (int i = 0; i < WATER_VL_STEPS; ++i) {
             float t = (float(i) + 0.5) * vlStep;
-            if (t > dist) break;
+            // M56: FRACTIONAL last slab. The old `if (t > dist) break`
+            // quantised the integral into 2.75 m jumps (22 m / 8 steps);
+            // every time dist crossed a slab boundary the accumulated light
+            // jumped a whole step, projecting as stacked horizontal bands.
+            float stepW = clamp((mediumEnd - t) / vlStep, 0.0, 1.0);
+            if (stepW <= 0.0) break;
             vec3 p = cameraPosition + rd * t;
             vec2 bp = (p.xz + sunDirWorld.xz
                        * clamp(p.y, 0.0, 12.0) * 0.30) * WATER_VL_SCALE
@@ -657,14 +674,14 @@ void main() {
                            -frameTimeCounter * 0.009);
             float n = zephyr_valueNoise(bp);
             beams += (0.30 + 0.70 * n * n)
-                   * exp(-WATER_FOG_DENSITY * 0.30 * t);
+                   * exp(-WATER_FOG_DENSITY * 0.30 * t) * stepW;
         }
         // Shafts live in the WATER COLUMN; the interface is not a
         // participating medium, so fade them as the surface takes over.
-        // M55: 0.80 made the shafts vanish exactly where the surface starts,
-        // which drew a bright horizontal band below the horizon (z107).
-        float medium = (1.0 - 0.45 * surfaceMask)
-                     * (depth < 0.9999 ? 1.0 : 0.35);
+        // M56: the old `depth < 0.9999 ? 1.0 : 0.35` was a BINARY switch at
+        // the geometry/sky boundary and drew another hard line. mediumEnd
+        // now handles that continuously, so only the soft mask remains.
+        float medium = 1.0 - 0.45 * surfaceMask;
         color += vec3(0.42, 0.72, 1.00) * beams
                * (WATER_VL_STRENGTH / float(WATER_VL_STEPS))
                * phase * dayAmount * (1.0 - rain * 0.55) * medium;
@@ -685,9 +702,12 @@ void main() {
         vec3 bubbles = vec3(0.0);
         for (int i = 0; i < WATER_PARTICLE_STEPS; ++i) {
             float t = (float(i) + 0.5) * pStep;
-            if (t > dist) break;
+            // M56: same fractional-last-slab rule as the shafts, so the
+            // particle field does not pop in a whole slab at a time.
+            float stepW = clamp((mediumEnd - t) / pStep, 0.0, 1.0);
+            if (stepW <= 0.0) break;
             vec3 p = cameraPosition + rd * t;
-            vec3 Tp = exp(-sigmaA * t);
+            vec3 Tp = exp(-sigmaA * t) * stepW;
             float m = zephyr_waterMoteEx(p, rd, WATER_PARTICLE_GRID,
                                          WATER_MOTE_UW_SIZE,
                                          WATER_PARTICLE_DENSITY);
