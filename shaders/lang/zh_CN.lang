@@ -210,6 +210,18 @@ value.WATER_GLITTER_ENABLED.1=开
 option.WATER_GLITTER_STRENGTH=闪光强度
 option.WATER_GLITTER_STRENGTH.comment=波纹闪光的亮度。
 
+# ---- 水体近远层次与岸上焦散（M61）----
+option.WATER_DEEP_SCATTER=深水散射色
+option.WATER_DEEP_SCATTER.comment=水体色由中性浅水色转向深青蓝的程度；0 为中性。
+option.WATER_NEAR_SAT=近场去饱和
+option.WATER_NEAR_SAT.comment=近处水底保留多少饱和度；数值越低，近处越接近中性浅色。
+option.WATER_NEAR_GAIN=近场提亮
+option.WATER_NEAR_GAIN.comment=短水程处的亮度增益，用来形成近浅远深的层次。
+option.CAUSTICS_ABOVE_GAIN=岸上焦散
+option.CAUSTICS_ABOVE_GAIN.comment=从水面之上观察时，投射到水下几何上的焦散强度；0 关闭。
+option.WATER_REFL_PATH_FADE=远场反射让位
+option.WATER_REFL_PATH_FADE.comment=水程越长，水面倒影让位给水体体积的比例；0 关闭。
+
 # ---- 水体体积（参考 iterationT，M40）----
 option.WATER_BODY_ENABLED=水体体积渲染
 option.WATER_BODY_ENABLED.comment=水面上方视角下的按波长吸收、波纹折射与浅水提亮。

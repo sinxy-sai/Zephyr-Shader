@@ -30,7 +30,7 @@ Zephyr 是面向 Minecraft Java Edition 的开源 Iris 光影包，把自然的�
 
 ## 光影包设置 / Shader Options
 
-在「光影包配置」中可以切换 **四档性能预设**（低 / 中 / 高 / 极致），预设只调整公开选项，应用后每一项仍可单独修改。设置分为六页：
+在「光影包配置」中可以切换 **四档性能预设**（低 / 中 / 高 / 极致），预设只调整公开选项，应用后每一项仍可单独修改。设置分为七页：
 
 | 页面 | 内容 |
 | --- | --- |
@@ -39,6 +39,7 @@ Zephyr 是面向 Minecraft Java Edition 的开源 Iris 光影包，把自然的�
 | 天空与大气 | 夜空、星星、月亮与月晕、云量、大气密度 |
 | 泛光与色彩 | 泛光强度与光晕范围、阈值、曝光、饱和度、对比度、色调映射 |
 | 材质与动画 | 玻璃染色与吸收、磨砂玻璃、边缘高光、植被摇曳、表面起伏 |
+| 水体 | 水下雾与波长吸收、焦散与悬浮微粒、水底可见度与近远层次、水面倒影与波纹 |
 | 天气 | 水洼、雨雾、雷雨云、闪电强度 |
 
 界面文本与悬停说明提供英文与简体中文，位于 `shaders/lang/`，随游戏语言自动选择，缺失时回退英文。
@@ -88,7 +89,7 @@ Zephyr is an open-source Iris shaderpack for Minecraft Java Edition, combining n
 
 **Install:** place the `Zephyr` folder in `.minecraft/shaderpacks/` (or zip it), then enable it under Options → Video Settings → Shader Packs. Re-select the pack after changing configuration; after changing the options layout, re-select the pack or restart the game because the loader caches option definitions.
 
-**Shader Options:** four performance presets (Low / Medium / High / Ultra) plus six pages — Quality & Performance, Lighting & Shadows, Sky & Atmosphere, Bloom & Colour, Materials & Animation, Weather. Presets only change public options and every option remains individually editable. All labels and tooltips are available in English and Simplified Chinese under `shaders/lang/`, selected automatically from the game language with an English fallback.
+**Shader Options:** four performance presets (Low / Medium / High / Ultra) plus seven pages — Quality & Performance, Lighting & Shadows, Sky & Atmosphere, Bloom & Colour, Materials & Animation, Water Volume, Weather. Presets only change public options and every option remains individually editable. All labels and tooltips are available in English and Simplified Chinese under `shaders/lang/`, selected automatically from the game language with an English fallback.
 
 **Known limitations:** slight distant shimmer on cutout foliage edges; shadow resolution/distance is bounded by the loader's actual allocation; full parallax mapping, true forward translucency, contact-hardening shadows and temporal denoising for reflections/AO are still in development.
 

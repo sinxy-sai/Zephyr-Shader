@@ -588,12 +588,12 @@ void main() {
 
 #if CAUSTICS_ENABLED
         // M33: caustics belong on SUBMERGED geometry, not on the water
-        // surface itself. Gate on eye-in-water so the pattern shares the
-        // same volume as the underwater fog.
-        // Physically these are focused rays landing on the SEABED / upward
-        // faces near the viewer - not on vertical walls, distant buildings
-        // or the water surface. Without those gates the whole frame turns
-        // into a bright net (M33 first tuning pass).
+        // surface itself. This path is the SUBMERGED CAMERA case only.
+        // M61: the above-water case lives in composite.fsh's water body,
+        // where worldPos is reconstructed from depthtex1 (the real seabed)
+        // - see iterationT composite.fsh:158,326-327. Keeping it here too
+        // would project a second pattern at WATER SURFACE depth and double
+        // the brightness.
         if (isEyeInWater == 1
             && !(matId > 0.5 && matId < 1.5)
             && Nw.y > 0.25

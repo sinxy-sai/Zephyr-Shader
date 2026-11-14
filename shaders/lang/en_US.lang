@@ -210,6 +210,18 @@ value.WATER_GLITTER_ENABLED.1=On
 option.WATER_GLITTER_STRENGTH=Sun Glitter Strength
 option.WATER_GLITTER_STRENGTH.comment=Brightness of the ripple sparkles.
 
+# ---- Water depth stratification and above-water caustics (M61) ----
+option.WATER_DEEP_SCATTER=Deep Scatter Colour
+option.WATER_DEEP_SCATTER.comment=How far the water colour shifts from neutral shallow toward deep cyan-blue; 0 is neutral.
+option.WATER_NEAR_SAT=Near-field Desaturation
+option.WATER_NEAR_SAT.comment=How much saturation the nearby seabed keeps; lower values read as a neutral bright shallow.
+option.WATER_NEAR_GAIN=Near-field Lift
+option.WATER_NEAR_GAIN.comment=Brightness gain on short water paths, forming the shallow-to-deep gradient.
+option.CAUSTICS_ABOVE_GAIN=Above-water Caustics
+option.CAUSTICS_ABOVE_GAIN.comment=Strength of caustics projected onto submerged geometry when looking from above the surface; 0 disables it.
+option.WATER_REFL_PATH_FADE=Far-field Reflection Fade
+option.WATER_REFL_PATH_FADE.comment=How much the surface mirror gives way to the water body as the water path grows; 0 disables it.
+
 # ---- Water body, iterationT-style (M40) ----
 option.WATER_BODY_ENABLED=Water Body Rendering
 option.WATER_BODY_ENABLED.comment=Wavelength-dependent absorption, wave refraction and shallow-water brightening for water seen from above.

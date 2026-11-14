@@ -14,6 +14,8 @@ uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex9;
 uniform sampler2D depthtex0;
+uniform sampler2D depthtex1;
+uniform sampler2D colortex8;
 
 /* RENDERTARGETS: 0 */
 layout(location = 0) out vec4 outColor;
@@ -58,6 +60,27 @@ void main() {
     // translucent mask from colortex1.a (green = water / glass / ice).
     float zM = texture(colortex1, texCoord).a;
     outColor = vec4(0.0, float(zM > 0.5 && zM < 2.95), 0.0, 1.0);
+    return;
+#elif DEBUG_VIEW == 12
+    // M61 probe: water optical path in metres, /20 for display.
+    // R = axial linearDepth(depthtex1) - linearDepth(depthtex0)
+    // G = radial length(viewPos1) - length(viewPos0)  (iterationT's form)
+    // B = dedicated water marker (colortex8.b > 1.5)
+    float dW = texture(depthtex0, texCoord).r;
+    float dL = texture(depthtex1, texCoord).r;
+    vec4 cW = gbufferProjectionInverse
+            * vec4(texCoord * 2.0 - 1.0, dW * 2.0 - 1.0, 1.0);
+    vec4 cL = gbufferProjectionInverse
+            * vec4(texCoord * 2.0 - 1.0, dL * 2.0 - 1.0, 1.0);
+    vec3 vW = cW.xyz / max(abs(cW.w), 1e-5);
+    vec3 vL = cL.xyz / max(abs(cL.w), 1e-5);
+    float axial = (dW < 0.9999 && dL < 0.9999)
+                ? zephyr_linearDepth(dL) - zephyr_linearDepth(dW) : 0.0;
+    float radial = (dW < 0.9999 && dL < 0.9999)
+                 ? length(vL) - length(vW) : 0.0;
+    float wMask = float(texture(colortex8, texCoord).b > 1.5);
+    outColor = vec4(clamp(vec3(axial, radial, 0.0) / 20.0, 0.0, 1.0)
+                    + vec3(0.0, 0.0, wMask), 1.0);
     return;
 #endif
 

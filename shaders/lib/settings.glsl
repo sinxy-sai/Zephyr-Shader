@@ -250,6 +250,11 @@
 #define CAUSTICS_SCALE             0.28
 #define CAUSTICS_SPEED             0.22
 #define CAUSTICS_SHARPNESS         2.60
+// M61 - caustics on submerged geometry seen from ABOVE the surface are
+// computed in composite.fsh from the depthtex1 seabed world position.
+// The underwater calibration (STRENGTH 4.00) is too hot for a sunlit
+// seabed, so that pass gets its own gain; 0 disables it.
+#define CAUSTICS_ABOVE_GAIN        0.60 //[0 0.15 0.3 0.6 0.9 1.2]
 // M54 - underwater shafts. The caustics ridge mask produced a row of hard
 // vertical BARS on the surface; broad low-frequency value noise gives a soft
 // volumetric glow instead. Same fixed world slabs + Beer-Lambert extinction.
@@ -289,20 +294,22 @@
 #define WATER_GLITTER_POWER        180.0
 // Body composition: less raw texture, more volumetric scattering. Keeping
 // some albedo preserves the seabed that gbuffers_water blended into colortex0.
-// M40 ---------------------------------------------------------------------
-// iterationT-style water body. Zephyr has NO separate translucent depth
-// (depthtex1 == depthtex0 here), so the water path is approximated from the
-// opaque distance. The key idea from iterationT's WaterFog() is PER-CHANNEL
-// Beer-Lambert absorption: shallow water stays neutral (red survives), deep
-// water loses red first and turns cyan-blue. That is what makes iterationT
-// look natural instead of "painted blue".
+// M40 / M61 ---------------------------------------------------------------
+// iterationT-style water body. The M61 probe (z_m61_depth.png) confirmed
+// depthtex0 = water surface, depthtex1 = opaque seabed on this build; their
+// RADIAL view-space distance difference is the real slant water path (5 m
+// near, >20 m toward the far bank). The old note claiming
+// "depthtex1 == depthtex0" was wrong and is removed.
 #define WATER_BODY_ENABLED         1 //[0 1]
-#define WATER_ATTEN_RATE           0.80 //[0 0.06 0.12 0.3 0.55 0.8 1.2]
-#define WATER_ATTEN_RGB            vec3(0.62, 0.78, 0.80)
+#define WATER_ATTEN_RATE           0.40 //[0 0.06 0.12 0.3 0.4 0.55 0.8 1.2]
+// M61: iterationT composite1.fsh:84 uses vec3(0.2,0.5,0.7)*0.99 for the
+// above-water attenuation. Zephyr's old (0.62,0.78,0.80) was far too close
+// to white to ever bury the far bank.
+#define WATER_ATTEN_RGB            vec3(0.20, 0.50, 0.70)
 #define WATER_PATH_SCALE           0.18
 #define WATER_PATH_MAX            12.0
 #define WATER_SCATTER_SURF         vec3(0.14, 0.22, 0.24)
-#define WATER_SCATTER_RATE         0.08 //[0 0.01 0.03 0.06 0.08 0.12 0.2]
+#define WATER_SCATTER_RATE         0.04 //[0 0.01 0.03 0.04 0.06 0.08 0.12 0.2]
 // Bottom albedo recovered from colortex0 (which still contains the
 // seabed through the alpha-blended water surface).
 // M53 - shoreline foam. waterPath (slant optical path) is small on the
@@ -329,10 +336,24 @@
 #define WATER_BOTTOM_MIX           0.85 //[0 0.1 0.2 0.35 0.5 0.75 0.85 1]
 #define WATER_BOTTOM_LIGHT         0.62 //[0 0.2 0.4 0.62 0.8 1.0 1.2]
 #define WATER_FACET_GAIN           0.15
-#define WATER_NEAR_DIST      18.0
-#define WATER_FAR_DIST       38.0
-#define WATER_NEAR_SAT             1.00 //[0 0.3 0.6 0.85 1]
-#define WATER_NEAR_GAIN            1.00 //[1 1.1 1.25 1.45 1.7 2]
+// M61: near/far thresholds now live on the RADIAL water path (metres).
+// Probe z_m61_depth.png: 5 m near, 9 m mid, >20 m toward the far bank.
+#define WATER_NEAR_PATH            4.0
+#define WATER_FAR_PATH            12.0
+#define WATER_NEAR_SAT             1.00 //[0 0.3 0.35 0.6 0.85 1]
+#define WATER_NEAR_GAIN            1.30 //[1 1.1 1.25 1.3 1.45 1.7 2]
+// M61: ceiling for the radial path. M57's shoreline foam keeps using the
+// separate axial wPath / WATER_PATH_MAX=12 calibration.
+#define WATER_OPTICAL_MAX          32.0
+// WATER_DEEP_SCATTER blends the neutral near-field water colour toward the
+// deep cyan-blue that swallows the far bank; 0 = neutral.
+#define WATER_DEEP_SCATTER         1.00 //[0 0.25 0.5 0.75 1]
+#define WATER_SCATTER_DEEP         vec3(0.05, 0.20, 0.36)
+// M60 / M61: the SURFACE mirror gives way to the water body on long paths,
+// otherwise WATER_REFL_GAIN=16 overwrites every bit of the extinction.
+#define WATER_REFL_PATH_FADE       0.45 //[0 0.25 0.45 0.6 0.75 0.85 1]
+#define WATER_REFL_PATH_START      6.0
+#define WATER_REFL_PATH_END        18.0
 #define WATER_REFRACT_STRENGTH     0.005 //[0 0.002 0.005 0.01 0.02 0.035]
 #define WATER_BODY_MIX             1.00 //[0 0.25 0.45 0.65 0.8 0.9 1]
 // Three-octave Iris noisetex waves (iterationT GetWaves style). Zephyr used

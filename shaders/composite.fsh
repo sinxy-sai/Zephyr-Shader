@@ -315,7 +315,9 @@ void main() {
         vec3 shaded = max(texture(colortex3, refUv).rgb, vec3(0.0));
         vec3 behind = mix(shaded, litBottom, WATER_BOTTOM_MIX);
 
-        // Water path proxy, then PER-CHANNEL Beer-Lambert absorption.
+        // Water path proxy. `wPath` is deliberately kept unchanged for the
+        // M57 shoreline foam below: its gradient / coast test is calibrated
+        // on this exact value.
 #if WATER_PATH_REAL
         // M42: real optical path. Measured on this build: depthtex0 = water
         // SURFACE (22.1 m), depthtex1 = SEABED (32.4 m) - the opposite of the
@@ -327,27 +329,61 @@ void main() {
         float wPath = clamp(dist * WATER_PATH_SCALE, 0.0,
                             WATER_PATH_MAX);
 #endif
-        vec3 atten = pow(WATER_ATTEN_RGB,
-                         vec3(wPath * WATER_ATTEN_RATE));
-        behind *= atten;
 
-        // Inscattering: deep water tends to the water's own scatter colour.
-        float visibility = exp2(-wPath * WATER_SCATTER_RATE);
-        // M44: the old factor made scatterCol ~ (0.7,0.9,0.8) - a bright
-        // milky wash that dominated the far field (measured luma 171 vs 105
-        // in iterationT at the same spot). Deep water scatters DARK cyan.
-        vec3 scatterCol = WATER_SCATTER_SURF
-                        * (0.20 + 0.40 * zephyr_luma(skyAmb));
-        behind = mix(scatterCol, behind, visibility);
+        // M61 -------------------------------------------------------------
+        // iterationT composite1.fsh:103-104,128-129,44-47,78-87. The water
+        // path is the RADIAL ray length between the water surface (depthtex0)
+        // and the opaque seabed (depthtex1); the slant is implicit because
+        // both points lie on the same view ray. Probe z_m61_depth.png
+        // measured 5.1 m near / 9.0 m mid / >20 m far on this exact view -
+        // the depth pair ALREADY carries the near/far gradient. All M59/M60
+        // dist / slant / submergence proxies were compensating for using the
+        // axial linearDepth difference; they are gone.
+        float dW = texture(depthtex0, texCoord).r;
+        float dL = texture(depthtex1, texCoord).r;
+        vec4 cW = gbufferProjectionInverse
+                * vec4(texCoord * 2.0 - 1.0, dW * 2.0 - 1.0, 1.0);
+        vec4 cL = gbufferProjectionInverse
+                * vec4(texCoord * 2.0 - 1.0, dL * 2.0 - 1.0, 1.0);
+        vec3 vW = cW.xyz / max(abs(cW.w), 1e-5);
+        vec3 vL = cL.xyz / max(abs(cL.w), 1e-5);
+        float waterPath = clamp(length(vL) - length(vW),
+                                0.0, WATER_OPTICAL_MAX);
 
-        // iterationT's shallow field reads as NEUTRAL bright bottom while the
-        // far field is cyan-blue. Zephyr has no separate seabed buffer (the
-        // gbuffer albedo here is MC's blue water texture), so reproduce the
-        // chromatic behaviour explicitly: desaturate + lift nearby, keep the
-        // absorbed blue-green tint farther out.
-        // Decoupled from wPath: measured water distances here are 20-35 m,
-        // so a wPath-based gradient collapsed the whole surface into "near".
-        float depthT = smoothstep(WATER_NEAR_DIST, WATER_FAR_DIST, dist);
+        // M61: caustics on the SEABED. iterationT composite.fsh:158,326-327
+        // reconstructs worldPos from depthtex1 (the opaque layer) and gates
+        // on the water-surface mask. Applying it to the recovered bottom
+        // colour here keeps it visible from shore despite WATER_BOTTOM_MIX,
+        // and CAUSTICS_ABOVE_GAIN = 0 turns it off.
+#if CAUSTICS_ENABLED
+        vec3 bedWorld = (gbufferModelViewInverse * vec4(vL, 1.0)).xyz
+                      + cameraPosition;
+        float caus = zephyr_caustics(bedWorld,
+                        frameTimeCounter * CAUSTICS_SPEED);
+        float causFade = exp(-waterPath * 0.10);
+        litBottom += litBottom * caus * CAUSTICS_STRENGTH
+                   * CAUSTICS_ABOVE_GAIN * causFade * dayAmount;
+        behind = mix(shaded, litBottom, WATER_BOTTOM_MIX);
+#endif
+
+        // M61: iterationT's DOUBLE extinction (composite1.fsh:78-87),
+        // recalibrated on the measured radial path: full reference constants
+        // already swallowed the NEAR field on this shallow pond (M61 v1:
+        // near luma 154 -> 93), so the slider defaults map to half strength.
+        behind *= pow(WATER_ATTEN_RGB,
+                      vec3(waterPath * WATER_ATTEN_RATE * 0.3125));
+        float visibility = exp2(-waterPath * WATER_SCATTER_RATE * 3.625);
+        // WATER_DEEP_SCATTER = 0 keeps the neutral near-field water colour,
+        // 1 uses the deep cyan-blue that hides the far bank.
+        vec3 waterFogColor = mix(WATER_SCATTER_SURF, WATER_SCATTER_DEEP,
+                                 clamp(WATER_DEEP_SCATTER, 0.0, 1.0))
+                           * (0.20 + 0.40 * min(zephyr_luma(skyAmb), 1.0));
+        behind = mix(waterFogColor, behind, visibility);
+
+        // M61: the near/far lift follows the REAL water path, not a screen
+        // distance proxy. Short path = bright neutral shallow; long path =
+        // no artificial lift, so the deep cyan-blue survives.
+        float depthT = smoothstep(WATER_NEAR_PATH, WATER_FAR_PATH, waterPath);
         float sat = mix(WATER_NEAR_SAT, 1.0, depthT);
         float gain = mix(WATER_NEAR_GAIN, 1.0, depthT);
         float bLum = zephyr_luma(behind);
@@ -509,6 +545,16 @@ void main() {
         // skyline only toward the grazing far field.
         reflWeight *= mix(WATER_REFL_NEAR_KEEP, 1.0,
                           smoothstep(0.12, 0.52, texCoord.y));
+        // M60: a long slant path means the ray travels THROUGH the water
+        // body, so the SURFACE mirror must give way to the volume. In M59
+        // this weight sat near WATER_REFL_MAX in the far field with GAIN=16
+        // and overwrote every bit of the extinction / in-scattering above
+        // (A/B: far-field luma 96.5 -> 96.1, i.e. no change at all).
+        // WATER_REFL_PATH_FADE = 0 restores the M59 reflection exactly.
+        float reflPathFade = smoothstep(WATER_REFL_PATH_START,
+                                        WATER_REFL_PATH_END, waterPath);
+        reflWeight *= 1.0 - clamp(WATER_REFL_PATH_FADE, 0.0, 1.0)
+                            * reflPathFade;
         color = mix(color, refl, reflWeight);
 #endif
     }
