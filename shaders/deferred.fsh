@@ -598,8 +598,8 @@ void main() {
             && !(matId > 0.5 && matId < 1.5)
             && Nw.y > 0.25
             && length(viewPos) < 28.0) {
-            float caus = zephyr_caustics(worldPos,
-                             frameTimeCounter * CAUSTICS_SPEED);
+            // M62: same time source as the surface waves (M62 common.glsl).
+            float caus = zephyr_caustics(worldPos, frameTimeCounter);
             // Underwater lightmap skylight is low by design, so a
             // skyLight-proportional gate would erase the pattern entirely.
             float sunVis = dayAmount * (0.55 + 0.45 * skyLight)

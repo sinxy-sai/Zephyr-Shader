@@ -243,13 +243,17 @@
 #define WATER_PARTICLE_NIGHT_GLOW  0.85
 #define WATER_PARTICLE_NIGHT_BOOST 1.40 //[0 0.5 1 1.4 2 2.8 4]
 
-// M33 - procedural caustics: two counter-drifting noise ridges (BSL
-// shadow.glsl / photon water_fog_vl.glsl) projected onto submerged geometry.
+// M62 - refractive caustics (photon shadow.fsh:96-125). The pattern is the
+// focusing Jacobian of the SAME Gerstner field that shades the surface, so it
+// shares WATER_WAVE_DIR, the wave time and the wave motion. No separate
+// drifting noise, no independent speed.
 #define CAUSTICS_ENABLED           1 //[0 1]
 #define CAUSTICS_STRENGTH          4.00 //[0 1 2 4 6 9 14]
 #define CAUSTICS_SCALE             0.28
-#define CAUSTICS_SPEED             0.22
 #define CAUSTICS_SHARPNESS         2.60
+#define CAUSTICS_NORMAL_GAIN       1.00
+#define CAUSTICS_DEPTH             1.50
+#define CAUSTICS_FOCUS_GAIN        0.70
 // M61 - caustics on submerged geometry seen from ABOVE the surface are
 // computed in composite.fsh from the depthtex1 seabed world position.
 // The underwater calibration (STRENGTH 4.00) is too hot for a sunlit
@@ -316,7 +320,9 @@
 // shallow shelf, so a broken white band there separates water from plastic.
 // M53 - rain-driven ripples: discrete expanding rings on a hashed grid, only
 // active when rainStrength > 0.
-#define WATER_RAIN_RIPPLE          1.00 //[0 0.25 0.5 0.75 1.0 1.5]
+// M62: rain rings are concentric circles; keep them as a weather detail but
+// stop them from dominating the unified directional swell.
+#define WATER_RAIN_RIPPLE          0.35 //[0 0.25 0.35 0.5 0.75 1.0 1.5]
 #define WATER_RAIN_RIPPLE_SCALE    1.65
 #define WATER_FOAM_ENABLED         1 //[0 1]
 #define WATER_FOAM_DEPTH           3.20 //[0.8 1.6 2.4 3.2 5.0 7.5]
@@ -356,24 +362,35 @@
 #define WATER_REFL_PATH_END        18.0
 #define WATER_REFRACT_STRENGTH     0.005 //[0 0.002 0.005 0.01 0.02 0.035]
 #define WATER_BODY_MIX             1.00 //[0 0.25 0.45 0.65 0.8 0.9 1]
-// Three-octave Iris noisetex waves (iterationT GetWaves style). Zephyr used
-// purely analytic valueNoise before; noisetex is built into Iris, no asset.
+// M64 - ONE flow direction, ONE time source, ONE wave field shared by the
+// surface AND the caustics (photon water_normal.glsl:18-33).
 #define WATER_WAVE_SCALE           0.12
-#define WATER_WAVE_SPEED           0.30
-// M45: wave direction + anisotropy. ANISO scales the lookup along the flow
-// axis; smaller values stretch the noise into long slanted bands instead of
-// isotropic grit.
-#define WATER_WAVE_DIR             vec2(0.86, 0.51)
-#define WATER_WAVE_ITERATIONS      5
+// M65: one time source for the surface AND the caustics; doubled so the
+// east-west advance is visible over a couple of seconds.
+#define WATER_WAVE_SPEED           0.60
+// PROPAGATION direction (world xz). Gerstner phase lines dot(dir, coord) =
+// const ARE the visible crests, so they run PERPENDICULAR to this vector.
+// (1,0) = travel east-west, crests north-south  <- requested lake look
+// (0,1) = travel north-south, crests east-west
+#define WATER_WAVE_DIR             vec2(1.0, 0.0)
+// M67: ZERO spread. Any per-octave angle makes the composite crests drift
+// away from exactly perpendicular to the flow. Layering now comes only from
+// the different wavelengths / amplitudes (photon's flowing-water branch).
+#define WATER_WAVE_SPREAD          0.0
+#define WATER_WAVE_ITERATIONS      4
 #define WATER_WAVE_PERSISTENCE     0.50
-#define WATER_WAVE_LACUNARITY      1.70
-#define WATER_WAVE_FREQUENCY       0.70
-#define WATER_WAVE_NOISE_STRENGTH  2.00
-// M52 - independent large-scale swell layered under the ripple chain. photon
-// only runs 3 octaves, so its "undulation" comes from the water body, not the
-// waves; here we add a slow long-wavelength swell explicitly so the surface
-// reads as big motion + fine ripple instead of one uniform texture.
-#define WATER_SWELL_MIX            0.60 //[0 0.15 0.3 0.45 0.6 0.75 0.9 1.0]
+#define WATER_WAVE_LACUNARITY      1.50
+#define WATER_WAVE_FREQUENCY       0.55
+// M64: keep the phase noise WEAK. It must only bend crests gently; 0.80
+// (multiplied by k) dominated the phase and shredded them into filaments.
+#define WATER_WAVE_NOISE_STRENGTH  0.10
+// M64: the calibrated slope amplitude is far too small for the raw crests to
+// show through WATER_FACET_GAIN, so modulate the water colour with the wave
+// height directly (long bands, one flow direction, advancing across them).
+#define WATER_CREST_CONTRAST       1.10
+// M52/M62 - broad swell is ADDED under the ripple chain, never mixed over
+// it; zephyr_waterHeight normalises the sum to preserve the slope amplitude.
+#define WATER_SWELL_MIX            0.45 //[0 0.15 0.3 0.45 0.6 0.75 0.9 1.0]
 #define WATER_SWELL_FREQ           0.12
 #define WATER_SWELL_WAVELENGTH     9.00
 #define WATER_SWELL_SPEED          0.35

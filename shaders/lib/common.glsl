@@ -279,7 +279,6 @@ vec3 zephyr_nightSky(vec3 rd, vec3 sunDir, float dayAmount, float rain) {
 // golden angle, with a slow low-frequency noise perturbing the phase. The
 // height is then differentiated with finite differences to get the slope.
 const float ZEPHYR_TAU    = 6.28318530718;
-const float ZEPHYR_GOLDEN = 2.39996322973;   // golden angle in radians
 
 float zephyr_gerstner(vec2 coord, vec2 dir, float t, float noise,
                       float wavelength) {
@@ -291,43 +290,61 @@ float zephyr_gerstner(vec2 coord, vec2 dir, float t, float noise,
     return s * s;                           // sharp crests, flat troughs
 }
 
+// M64 ---------------------------------------------------------------------
+// Gerstner PLANE waves: phase = w*t - k*dot(dir, coord), so the crests are
+// the straight lines dot(dir, coord) = const, running PERPENDICULAR to `dir`
+// and advancing ALONG `dir` via w*t. With WATER_WAVE_DIR = (1,0) the crests
+// are north-south and travel east-west.
+//
+// M62 mistake (fixed): iterationT's anisotropic SHEAR belongs to the wave
+// HEIGHT noise used to build a normal map, NOT to the Gerstner PHASE.
+// Injecting sheared noise into the phase tore the straight crests into long
+// thin filaments; since that noise scrolled along a hard-coded world +z,
+// the filaments appeared to slide along their OWN length instead of across.
 float zephyr_waterHeight(vec2 coord, vec2 dir, float t) {
     const float persistence = WATER_WAVE_PERSISTENCE;
     const float lacunarity  = WATER_WAVE_LACUNARITY;
     const float ampNorm = (1.0 - persistence)
                         / (1.0 - pow(persistence,
                                      float(WATER_WAVE_ITERATIONS)));
-    mat2 rot = mat2(cos(ZEPHYR_GOLDEN), sin(ZEPHYR_GOLDEN),
-                    -sin(ZEPHYR_GOLDEN), cos(ZEPHYR_GOLDEN));
-    vec2 ncoord = coord * 0.007 + vec2(0.0, 0.25 * t * 0.02);
+    vec2 flow = normalize(dir);
+
+    // Low-frequency ISOTROPIC phase noise: it only bends crests gently.
+    // Any time drift follows `flow`, never a fixed world axis.
+    vec2 ncoord = coord * 0.007 - flow * (0.25 * t * 0.02);
+
     float h = 0.0;
     float amp = 1.0;
     float freq = WATER_WAVE_FREQUENCY;
     float wl = 1.0;
-    vec2 d = dir;
     for (int i = 0; i < WATER_WAVE_ITERATIONS; ++i) {
         float n = (texture(noisetex, ncoord).y - 0.5)
                 * 2.0 * WATER_WAVE_NOISE_STRENGTH;
+        // A few degrees of per-octave jitter keeps the crests LAYERED
+        // instead of a perfectly parallel washboard; mean direction = flow.
+        float ang = (float(i) - 0.5 * float(WATER_WAVE_ITERATIONS - 1))
+                  * WATER_WAVE_SPREAD;
+        float ca = cos(ang), sa = sin(ang);
+        vec2 d = vec2(ca * flow.x - sa * flow.y,
+                      sa * flow.x + ca * flow.y);
         h += zephyr_gerstner(coord * freq, d, t, n, wl) * amp;
         amp *= persistence;
         freq *= lacunarity;
         wl *= 1.5;
-        d = rot * d;
-        ncoord *= 2.5;
+        ncoord *= 1.8;   // M64: was 2.5 - high-octave noise made the crests hairy
     }
     h *= ampNorm;
 
-    // M52: slow large-scale swell. A single gerstner octave with a long
-    // wavelength, its own (even slower) time scaling and a very low-frequency
-    // phase noise. Mixing it under the ripple chain gives the two-scale
-    // look: broad undulation that drifts across the pool, plus fine chop.
-    vec2 swellDir = normalize(WATER_WAVE_DIR);
-    float swellNoise = (texture(noisetex, coord * 0.004 + vec2(0.0, t * 0.01)).y
-                        - 0.5) * 2.0 * WATER_SWELL_NOISE;
-    float swell = zephyr_gerstner(coord * WATER_SWELL_FREQ, swellDir,
+    // Slow swell: same flow, ADDED (not mixed over) the ripple chain, and
+    // normalised so WATER_WAVE_STRENGTH / INFLUENCE keep their calibrated
+    // slope amplitude (M41 reflection and M54 interface depend on it).
+    vec2 swellCoord = coord * 0.004 - flow * (t * 0.01);
+    float swellNoise = (texture(noisetex, swellCoord).y - 0.5)
+                     * 2.0 * WATER_SWELL_NOISE;
+    float swell = zephyr_gerstner(coord * WATER_SWELL_FREQ, flow,
                                   t * WATER_SWELL_SPEED,
                                   swellNoise, WATER_SWELL_WAVELENGTH);
-    return mix(h, swell, WATER_SWELL_MIX);
+    return (h + swell * WATER_SWELL_MIX) / (1.0 + WATER_SWELL_MIX);
 }
 
 // M53: discrete rain ripples. Expanding rings on a hashed grid, each cell
@@ -420,19 +437,48 @@ float zephyr_waterMote(vec3 p, vec3 rd) {
                               WATER_PARTICLE_SIZE, WATER_PARTICLE_DENSITY);
 }
 
-// Procedural caustics: two counter-drifting value-noise layers ridged into a
-// thin bright net. Same structure as BSL shadow.glsl / photon
-// water_fog_vl.glsl, but fully analytic so no noise texture is needed.
+// M62 ---------------------------------------------------------------------
+// Refractive caustics (photon shadow.fsh:96-125 / iterationT
+// Sunlight_Shadow.glsl:257-290). The old two-layer valueNoise ridge had no
+// refraction, no shared wave field and crept at ~0.06 noise cells per second
+// (one cell took 12-16 s), so it looked static and unrelated to the waves.
+// Now the SAME Gerstner height field, direction and time produce the surface
+// normal; a refracted ray bundle's Jacobian gives the focusing brightness.
+vec2 zephyr_causticOffset(vec2 uv, vec2 flow, float t) {
+    const float e = 0.10;
+    float h0 = zephyr_waterHeight(uv, flow, t);
+    float hx = zephyr_waterHeight(uv + vec2(e, 0.0), flow, t);
+    float hz = zephyr_waterHeight(uv + vec2(0.0, e), flow, t);
+    vec3 N = normalize(vec3(-(hx - h0) / e * CAUSTICS_NORMAL_GAIN,
+                            1.0,
+                            -(hz - h0) / e * CAUSTICS_NORMAL_GAIN));
+    // Sun sits slightly upstream of the flow, so the net stretches along
+    // the same axis as the crests that cast it.
+    vec3 L = normalize(vec3(-flow.x * 0.30, -0.95, -flow.y * 0.30));
+    vec3 R = refract(L, N, 1.0 / 1.333);          // air -> water
+    return R.xz / max(-R.y, 0.10) * CAUSTICS_DEPTH;
+}
+
 float zephyr_caustics(vec3 p, float t) {
-    vec2 uv = p.xz - p.y * 0.14;
-    vec2 d0 = vec2(0.88, 0.48);
-    vec2 d1 = vec2(-0.42, 0.91);
-    float a = zephyr_valueNoise((uv + d0 * t) * CAUSTICS_SCALE);
-    float b = zephyr_valueNoise((uv + d1 * t * 0.73)
-                                * CAUSTICS_SCALE * 1.9);
-    float ridge = (1.0 - abs(a * 2.0 - 1.0))
-                * (1.0 - abs(b * 2.0 - 1.0));
-    return pow(clamp(ridge, 0.0, 1.0), CAUSTICS_SHARPNESS);
+    vec2 flow = normalize(WATER_WAVE_DIR);
+    float wt = t * WATER_WAVE_SPEED;              // SAME phase as the surface
+    // Light-direction parallax: the ray reaching this seabed point crossed
+    // the surface upstream (iterationT Sunlight_Shadow.glsl:244-246).
+    vec2 uv = p.xz * CAUSTICS_SCALE + flow * (p.y * 0.14);
+    const float e = 0.10;
+    vec2 o0 = zephyr_causticOffset(uv, flow, wt);
+    vec2 oX = zephyr_causticOffset(uv + vec2(e, 0.0), flow, wt);
+    vec2 oZ = zephyr_causticOffset(uv + vec2(0.0, e), flow, wt);
+    // Jacobian of the refracted bundle: |det(d(hit)/d(uv))|.
+    vec2 dX = (vec2(e, 0.0) + oX - o0) / e;
+    vec2 dZ = (vec2(0.0, e) + oZ - o0) / e;
+    float J = abs(dX.x * dZ.y - dX.y * dZ.x);
+    // J = 1 for a flat surface; J < 1 means converged rays => bright net.
+    float focus = clamp((1.0 / max(J, 0.10) - 1.0) * CAUSTICS_FOCUS_GAIN,
+                        0.0, 1.0);
+    // M62b: full sharpness keeps the net SPARSE (thin bright filaments),
+    // instead of a broad veil covering most of the water.
+    return pow(focus, max(CAUSTICS_SHARPNESS, 0.1));
 }
 // -------------------------------------------------------------------------
 

@@ -82,6 +82,19 @@ void main() {
     outColor = vec4(clamp(vec3(axial, radial, 0.0) / 20.0, 0.0, 1.0)
                     + vec3(0.0, 0.0, wMask), 1.0);
     return;
+#elif DEBUG_VIEW == 13
+    // M64 probe: raw Gerstner height field at the water surface, so crest
+    // shape / direction can be judged without reflection or seabed albedo.
+    float dW = texture(depthtex0, texCoord).r;
+    vec4 cp = gbufferProjectionInverse
+            * vec4(texCoord * 2.0 - 1.0, dW * 2.0 - 1.0, 1.0);
+    vec3 vp = cp.xyz / max(abs(cp.w), 1e-5);
+    vec3 wp = (gbufferModelViewInverse * vec4(vp, 1.0)).xyz
+            + cameraPosition;
+    float wh = zephyr_waterHeight(wp.xz, normalize(WATER_WAVE_DIR),
+                                  frameTimeCounter * WATER_WAVE_SPEED);
+    outColor = vec4(vec3(clamp(wh, 0.0, 1.0)), 1.0);
+    return;
 #endif
 
 #if DEBUG_FINAL

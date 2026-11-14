@@ -358,11 +358,15 @@ void main() {
 #if CAUSTICS_ENABLED
         vec3 bedWorld = (gbufferModelViewInverse * vec4(vL, 1.0)).xyz
                       + cameraPosition;
-        float caus = zephyr_caustics(bedWorld,
-                        frameTimeCounter * CAUSTICS_SPEED);
+        // M62: same time source as zephyr_waterWaves() above, so the net
+        // travels with the crests that cast it.
+        float caus = zephyr_caustics(bedWorld, frameTimeCounter);
         float causFade = exp(-waterPath * 0.10);
-        litBottom += litBottom * caus * CAUSTICS_STRENGTH
-                   * CAUSTICS_ABOVE_GAIN * causFade * dayAmount;
+        // M62b: add NEUTRAL luminance, not a multiple of the coloured
+        // albedo. Multiplying litBottom here blew the seabed into orange /
+        // red patches (A/B whole mean 28.6, 90% of the frame changed).
+        litBottom += vec3(zephyr_luma(litBottom) * CAUSTICS_STRENGTH * 0.08)
+                   * caus * CAUSTICS_ABOVE_GAIN * causFade * dayAmount;
         behind = mix(shaded, litBottom, WATER_BOTTOM_MIX);
 #endif
 
@@ -379,6 +383,16 @@ void main() {
                                  clamp(WATER_DEEP_SCATTER, 0.0, 1.0))
                            * (0.20 + 0.40 * min(zephyr_luma(skyAmb), 1.0));
         behind = mix(waterFogColor, behind, visibility);
+
+        // M65: draw the GERSTNER CRESTS AFTER the fog mix - applying them
+        // before halved their contrast and left only seabed grit visible.
+        // World-space, no derivatives (TAA-safe), and it shares the exact
+        // phase / direction with the slope, reflection and caustics.
+        float crest = zephyr_waterHeight(wPos.xz,
+                          normalize(WATER_WAVE_DIR),
+                          frameTimeCounter * WATER_WAVE_SPEED);
+        behind *= 1.0 + (crest - 0.5) * WATER_CREST_CONTRAST
+                      * (0.35 + 0.65 * visibility);
 
         // M61: the near/far lift follows the REAL water path, not a screen
         // distance proxy. Short path = bright neutral shallow; long path =
